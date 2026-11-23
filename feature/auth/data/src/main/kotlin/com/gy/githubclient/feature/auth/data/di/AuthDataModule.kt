@@ -20,6 +20,7 @@ import com.gy.githubclient.feature.auth.domain.usecase.SignInWithPatUseCase
 import com.gy.githubclient.feature.auth.domain.usecase.SignOutUseCase
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
@@ -41,6 +42,12 @@ val authDataModule =
                             isLenient = true
                         },
                     )
+                }
+                // 国内直连 api.github.com 可能很慢或无响应，显式超时避免登录请求长期挂起。
+                install(HttpTimeout) {
+                    connectTimeoutMillis = 15_000
+                    socketTimeoutMillis = 30_000
+                    requestTimeoutMillis = 30_000
                 }
             }
         }

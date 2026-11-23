@@ -24,6 +24,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,12 +43,14 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val authState by viewModel.authState.collectAsStateWithLifecycle()
+    var message by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 AuthEvent.LoginSuccess -> onLoginSuccess()
-                else -> Unit // 消息提示由 Snackbar 宿主统一消费
+                AuthEvent.NotificationBound -> message = "通知通道已绑定"
+                is AuthEvent.ShowMessage -> message = event.message
             }
         }
     }
@@ -97,7 +102,10 @@ fun LoginScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Button(
-                    onClick = viewModel::signIn,
+                    onClick = {
+                        message = null
+                        viewModel.signIn()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isSubmitting,
                 ) {
@@ -109,6 +117,14 @@ fun LoginScreen(
                     } else {
                         Text("登录")
                     }
+                }
+                if (message != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = message.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }
@@ -139,7 +155,12 @@ fun LoginScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    TextButton(onClick = viewModel::bindNotification) {
+                    TextButton(
+                        onClick = {
+                            message = null
+                            viewModel.bindNotification()
+                        },
+                    ) {
                         Text("绑定通知通道")
                     }
                 }

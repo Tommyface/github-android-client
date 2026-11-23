@@ -15,10 +15,11 @@ local.properties
 .vscode/
 .DS_Store
 
-# 签名密钥
+# 签名密钥（release 私钥严禁入库；debug.keystore 特意入库以保证跨机器签名一致）
 *.jks
 *.keystore
 *.pepk
+!app/debug.keystore
 
 # 日志与临时文件
 *.log

@@ -29,7 +29,20 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     versionName = "0.1.0"
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
                 }
+                // 固定 debug 签名：使用入库的 debug.keystore，保证跨机器/跨 CI 构建签名指纹一致，
+                // 从而使新 APK 能覆盖安装已装版本（覆盖安装要求 applicationId 与签名证书均一致）。
+                signingConfigs {
+                    getByName("debug") {
+                        storeFile = rootProject.file("app/debug.keystore")
+                        storePassword = "android"
+                        keyAlias = "androiddebugkey"
+                        keyPassword = "android"
+                    }
+                }
                 buildTypes {
+                    getByName("debug") {
+                        signingConfig = signingConfigs.getByName("debug")
+                    }
                     getByName("release") {
                         isMinifyEnabled = false
                     }

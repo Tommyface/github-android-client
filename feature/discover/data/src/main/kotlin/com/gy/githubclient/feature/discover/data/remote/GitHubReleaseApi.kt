@@ -6,10 +6,11 @@
 package com.gy.githubclient.feature.discover.data.remote
 
 import com.gy.githubclient.core.data.network.GitHubApiClient
+import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.discover.domain.model.ReleaseInfo
-import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.encodeURLPath
 
 /**
@@ -26,6 +27,8 @@ class GitHubReleaseApi(
     ): NetworkResult<ReleaseInfo> =
         client.request(
             path = "/repos/${owner.encodeURLPath()}/${name.encodeURLPath()}/releases/latest",
-            mapper = { response: HttpResponse -> response.body<ReleaseDto>().toDomain() },
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(ReleaseDto.serializer(), response.bodyAsText()).toDomain()
+            },
         )
 }

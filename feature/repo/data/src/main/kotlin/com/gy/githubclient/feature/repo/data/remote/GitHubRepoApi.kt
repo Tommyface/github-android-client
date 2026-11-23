@@ -6,15 +6,17 @@
 package com.gy.githubclient.feature.repo.data.remote
 
 import com.gy.githubclient.core.data.network.GitHubApiClient
+import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
-import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import kotlinx.serialization.builtins.ListSerializer
 
 /** 仓库列表响应：数据 + 本次响应 ETag，供缓存层持久化以供下次条件请求。 */
 data class RepoListPayload(
@@ -39,7 +41,10 @@ class GitHubRepoApi(
             etag = etag,
             mapper = { response: HttpResponse ->
                 RepoListPayload(
-                    items = response.body<List<RepositoryDto>>().map { it.toDomain() },
+                    items =
+                        GitHubJson
+                            .decode(ListSerializer(RepositoryDto.serializer()), response.bodyAsText())
+                            .map { it.toDomain() },
                     etag = response.headers[HttpHeaders.ETag],
                 )
             },
@@ -52,7 +57,9 @@ class GitHubRepoApi(
     ): NetworkResult<Repository> =
         client.request(
             path = "/repos/$owner/$name",
-            mapper = { response: HttpResponse -> response.body<RepositoryDto>().toDomain() },
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(RepositoryDto.serializer(), response.bodyAsText()).toDomain()
+            },
         )
 
     /** 列出仓库分支。 */
@@ -62,7 +69,11 @@ class GitHubRepoApi(
     ): NetworkResult<List<Branch>> =
         client.request(
             path = "/repos/$owner/$name/branches?per_page=$BRANCHES_PER_PAGE",
-            mapper = { response: HttpResponse -> response.body<List<BranchDto>>().map { it.toDomain() } },
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(BranchDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
         )
 
     /** star / unstar：204 无响应体，仅表达成功与否。 */

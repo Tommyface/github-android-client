@@ -6,10 +6,11 @@
 package com.gy.githubclient.feature.profile.data.remote
 
 import com.gy.githubclient.core.data.network.GitHubApiClient
+import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.profile.domain.model.UserProfile
-import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 
 /** 用户 API：仅负责把统一网络层响应解析为领域模型。 */
 class GitHubUserApi(
@@ -19,7 +20,9 @@ class GitHubUserApi(
     suspend fun getCurrentUser(): NetworkResult<UserProfile> =
         client.request(
             path = PROFILE_PATH,
-            mapper = { response: HttpResponse -> response.body<UserDto>().toDomain() },
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(UserDto.serializer(), response.bodyAsText()).toDomain()
+            },
         )
 
     private companion object {

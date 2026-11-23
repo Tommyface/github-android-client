@@ -5,11 +5,12 @@
 
 package com.gy.githubclient.feature.auth.data.remote
 
+import com.gy.githubclient.core.data.network.GitHubJson
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.SerialName
@@ -50,12 +51,13 @@ sealed interface RemoteUserResult {
  */
 class GitHubAuthApi(
     private val client: HttpClient,
+    private val baseUrl: String = "https://api.github.com",
 ) {
     @Suppress("TooGenericExceptionCaught")
     suspend fun getCurrentUser(token: String): RemoteUserResult =
         try {
             val response: HttpResponse =
-                client.get("https://api.github.com/user") {
+                client.get("$baseUrl/user") {
                     headers {
                         append(HttpHeaders.Authorization, "Bearer $token")
                         append(HttpHeaders.Accept, "application/vnd.github+json")
@@ -75,7 +77,10 @@ class GitHubAuthApi(
                 (resetEpochSeconds - nowSeconds).coerceAtLeast(0L)
             }
         return when (response.status) {
-            HttpStatusCode.OK -> RemoteUserResult.Success(response.body<GitHubUserDto>())
+            HttpStatusCode.OK ->
+                RemoteUserResult.Success(
+                    GitHubJson.decode(GitHubUserDto.serializer(), response.bodyAsText()),
+                )
             HttpStatusCode.Unauthorized -> RemoteUserResult.Unauthorized(retryAfter)
             HttpStatusCode.Forbidden -> RemoteUserResult.RateLimited(retryAfter)
             else ->

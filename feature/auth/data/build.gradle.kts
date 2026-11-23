@@ -5,6 +5,7 @@ plugins {
 }
 
 dependencies {
+    implementation(projects.core.data)
     implementation(projects.core.domain)
     implementation(projects.feature.auth.domain)
     implementation(libs.bundles.ktor.common)
@@ -21,4 +22,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockwebserver)
 }

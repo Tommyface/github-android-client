@@ -6,11 +6,13 @@
 package com.gy.githubclient.feature.starred.data.remote
 
 import com.gy.githubclient.core.data.network.GitHubApiClient
+import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.starred.domain.model.StarredFilter
-import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import kotlinx.serialization.builtins.ListSerializer
 
 /** 星标 REST API；认证、限流退避均由统一网络层处理。 */
 class GitHubStarredApi(
@@ -21,7 +23,9 @@ class GitHubStarredApi(
         client.request(
             path = listPath(filter),
             mapper = { response: HttpResponse ->
-                response.body<List<StarredRepoDto>>().map { it.toDomain() }
+                GitHubJson
+                    .decode(ListSerializer(StarredRepoDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
             },
         )
 

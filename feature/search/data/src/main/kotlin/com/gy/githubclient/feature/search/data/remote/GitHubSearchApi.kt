@@ -6,13 +6,14 @@
 package com.gy.githubclient.feature.search.data.remote
 
 import com.gy.githubclient.core.data.network.GitHubApiClient
+import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.search.domain.model.SearchHit
 import com.gy.githubclient.feature.search.domain.model.SearchQuery
 import com.gy.githubclient.feature.search.domain.model.SearchResult
 import com.gy.githubclient.feature.search.domain.model.SearchType
-import io.ktor.client.call.body
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 
 /**
  * GitHub Search REST API。
@@ -34,27 +35,27 @@ class GitHubSearchApi(
     ): SearchResult<SearchHit> =
         when (query.type) {
             SearchType.REPOSITORY -> {
-                val dto = response.body<SearchResponseDto<RepoSearchItemDto>>()
+                val dto = GitHubJson.decode(SearchResponseDto.serializer(RepoSearchItemDto.serializer()), response.bodyAsText())
                 buildResult(dto, query) { it.toHit() }
             }
 
             SearchType.CODE -> {
-                val dto = response.body<SearchResponseDto<CodeSearchItemDto>>()
+                val dto = GitHubJson.decode(SearchResponseDto.serializer(CodeSearchItemDto.serializer()), response.bodyAsText())
                 buildResult(dto, query) { it.toHit() }
             }
 
             SearchType.ISSUE -> {
-                val dto = response.body<SearchResponseDto<IssueSearchItemDto>>()
+                val dto = GitHubJson.decode(SearchResponseDto.serializer(IssueSearchItemDto.serializer()), response.bodyAsText())
                 buildResult(dto, query) { it.toHit() }
             }
 
             SearchType.USER -> {
-                val dto = response.body<SearchResponseDto<UserSearchItemDto>>()
+                val dto = GitHubJson.decode(SearchResponseDto.serializer(UserSearchItemDto.serializer()), response.bodyAsText())
                 buildResult(dto, query) { it.toHit() }
             }
 
             SearchType.COMMIT -> {
-                val dto = response.body<SearchResponseDto<CommitSearchItemDto>>()
+                val dto = GitHubJson.decode(SearchResponseDto.serializer(CommitSearchItemDto.serializer()), response.bodyAsText())
                 buildResult(dto, query) { it.toHit() }
             }
         }

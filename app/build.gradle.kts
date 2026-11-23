@@ -5,6 +5,15 @@ plugins {
 
 android {
     namespace = "com.gy.githubclient"
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    defaultConfig {
+        // GitHub OAuth App client_id（公开信息，Device Flow 无需 client_secret）。
+        buildConfigField("String", "OAUTH_CLIENT_ID", "\"Ov23li50RuIKE1lG7qe4\"")
+    }
 }
 
 dependencies {

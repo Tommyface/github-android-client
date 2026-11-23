@@ -15,6 +15,8 @@ class GithubClientApp : Application() {
         super.onCreate()
         startKoin {
             androidContext(this@GithubClientApp)
+            // OAuth client_id 下发给 data 层（OAuthDeviceFlowRepositoryImpl）。
+            properties(mapOf("oauth.clientId" to BuildConfig.OAUTH_CLIENT_ID))
             modules(appModules)
         }
     }

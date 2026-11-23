@@ -15,7 +15,10 @@ val authPresentationModule =
         viewModel {
             AuthViewModel(
                 signInWithPat = get(),
+                signInWithOAuth = get(),
                 bindNotificationToken = get(),
+                startDeviceFlow = get(),
+                pollDeviceToken = get(),
                 observeAuthState = get(),
                 signOut = get(),
                 restoreSession = get(),

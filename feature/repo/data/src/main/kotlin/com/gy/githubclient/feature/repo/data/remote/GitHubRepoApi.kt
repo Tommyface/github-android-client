@@ -10,6 +10,8 @@ import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.FileContent
+import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueComment
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
@@ -20,6 +22,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import io.ktor.http.encodeURLPath
 import kotlinx.serialization.builtins.ListSerializer
 
 /** 仓库列表响应：数据 + 本次响应 ETag，供缓存层持久化以供下次条件请求。 */
@@ -185,6 +188,40 @@ class GitHubRepoApi(
             },
         )
 
+    /**
+     * 目录列表（v0.9.0 M17）：GET /repos/{o}/{r}/contents/{path}?ref={branch}。
+     * GitHub 对目录返回数组、对文件返回对象；本方法仅用于目录，路径Decode由调用方保证。
+     */
+    suspend fun listContents(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<List<FileEntry>> =
+        client.request(
+            path = contentsPath(owner, name, path, ref),
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(ContentEntryDto.serializer()), response.bodyAsText())
+                    .map { it.toFileEntry() }
+                    .sortedWith(compareBy({ it.type != "dir" }, { it.name.lowercase() }))
+            },
+        )
+
+    /** 单文件内容（v0.9.0 M17）：同一端点返回对象，解析 base64 content。 */
+    suspend fun getFileContent(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<FileContent> =
+        client.request(
+            path = contentsPath(owner, name, path, ref),
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(ContentEntryDto.serializer(), response.bodyAsText()).toFileContent()
+            },
+        )
+
     /** Issue / PR 评论时间线（v0.7.0 M11）。 */
     suspend fun listIssueComments(
         owner: String,
@@ -199,6 +236,26 @@ class GitHubRepoApi(
                     .map { it.toDomain() }
             },
         )
+
+    /**
+     * contents 端点路径：owner/name 与路径各分段分别 URL 编码（保留 / 分隔符）。
+     * 空路径表示仓库根目录。ref 为分支/tag/sha。
+     */
+    private fun contentsPath(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): String {
+        val encodedPath =
+            path
+                .split('/')
+                .filter { it.isNotBlank() }
+                .joinToString("/") { it.encodeURLPath() }
+        val base = "/repos/${owner.encodeURLPath()}/${name.encodeURLPath()}/contents"
+        val withPath = if (encodedPath.isBlank()) base else "$base/$encodedPath"
+        return "$withPath?ref=${ref.encodeURLPath()}"
+    }
 
     private fun listPath(filter: RepoFilter): String {
         val type = filter.type.name.lowercase()

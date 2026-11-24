@@ -7,6 +7,8 @@ package com.gy.githubclient.feature.repo.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.FileContent
+import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
@@ -95,6 +97,22 @@ interface RepoRepository {
         name: String,
         number: Int,
     ): NetworkResult<IssueDetail>
+
+    /** 列出仓库目录内容（v0.9.0 M17）；path 为空表示根目录。 */
+    suspend fun listContents(
+        owner: String,
+        name: String,
+        path: String = "",
+        ref: String,
+    ): NetworkResult<List<FileEntry>>
+
+    /** 读取仓库单文件文本（v0.9.0 M17）；过大/二进制时 content 为空并标记。 */
+    suspend fun getFileContent(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<FileContent>
 
     /** 清空本地仓库缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

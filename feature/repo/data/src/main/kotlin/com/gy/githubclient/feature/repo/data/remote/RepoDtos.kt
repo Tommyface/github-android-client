@@ -6,6 +6,8 @@
 package com.gy.githubclient.feature.repo.data.remote
 
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.FileContent
+import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueComment
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
@@ -19,6 +21,7 @@ import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.model.StarWeekEntry
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 @Serializable
 data class OwnerDto(
@@ -230,6 +233,66 @@ fun List<StarHistoryWeekDto>.toStarHistory(): StarHistory =
             )
         },
     )
+
+/**
+ * GET /repos/{o}/{r}/contents/{path} 的条目（目录为数组、单文件为对象，共用字段）。
+ * v0.9.0 M17。
+ */
+@Serializable
+data class ContentEntryDto(
+    val name: String = "",
+    val path: String = "",
+    val type: String = "",
+    val size: Long = 0,
+    val sha: String = "",
+    @SerialName("download_url") val downloadUrl: String? = null,
+    /** 单文件请求时返回（目录数组不含）；base64 编码。 */
+    val content: String? = null,
+    val encoding: String? = null,
+)
+
+fun ContentEntryDto.toFileEntry(): FileEntry =
+    FileEntry(
+        name = name,
+        path = path,
+        type = type,
+        size = size,
+        sha = sha,
+        downloadUrl = downloadUrl,
+    )
+
+/** 单文件内容 → 领域模型。base64 缺失/非文本/解码失败均标记 isTextUnavailable。 */
+@OptIn(ExperimentalEncodingApi::class)
+fun ContentEntryDto.toFileContent(): FileContent {
+    val rawContent = content
+    val decoded =
+        if (encoding == "base64" && !rawContent.isNullOrBlank()) {
+            runCatching {
+                // kotlin.io.encoding.Base64 为纯 Kotlin 实现，JVM 单测与 Android 真机行为一致；
+                // GitHub 返回的 content 含换行，先去除空白再按 Default 解码。
+                val clean = rawContent.filter { !it.isWhitespace() }
+                val bytes =
+                    kotlin.io.encoding.Base64.Default
+                        .decode(clean)
+                String(bytes, Charsets.UTF_8)
+            }.getOrNull()
+        } else {
+            null
+        }
+    // 粗略二进制判定：含 NUL 或大量替换字符视为不可读文本。
+    val readable =
+        decoded != null &&
+            !decoded.contains('\u0000') &&
+            decoded.count { it == '\uFFFD' } * 20 < decoded.length.coerceAtLeast(1)
+    return FileContent(
+        path = path,
+        name = name,
+        content = if (readable) decoded else "",
+        size = size,
+        isTextUnavailable = !readable,
+        downloadUrl = downloadUrl,
+    )
+}
 
 private fun String?.toVisibility(fallbackPrivate: Boolean): RepoVisibility =
     when (this?.lowercase()) {

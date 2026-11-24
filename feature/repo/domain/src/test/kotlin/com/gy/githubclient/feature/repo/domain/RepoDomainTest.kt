@@ -13,6 +13,8 @@ import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.model.StarWeekEntry
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
+import com.gy.githubclient.feature.repo.domain.usecase.GetFileContentUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListContentsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
 import kotlinx.coroutines.flow.Flow
@@ -55,6 +57,18 @@ class RepoDomainTest {
         assertEquals(listOf(3, 3), history.points.map { it.cumulativeStars })
         assertEquals(0, StarHistory.fromWeekly(emptyList()).currentTotal)
     }
+
+    @Test
+    fun contentsUseCasesDelegate() =
+        runTest {
+            val entries = ListContentsUseCase(StubRepoRepository())("o", "r", ref = "main")
+            assertTrue(entries is NetworkResult.Success)
+            assertTrue((entries as NetworkResult.Success).data.isEmpty())
+
+            val file = GetFileContentUseCase(StubRepoRepository())("o", "r", "a.txt", "main")
+            assertTrue(file is NetworkResult.Success)
+            assertEquals("hi", (file as NetworkResult.Success).data.content)
+        }
 
     @Test
     fun nextPageIncrementsPageOnly() {
@@ -166,6 +180,25 @@ private class StubRepoRepository(
         number: Int,
     ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.IssueDetail> =
         NetworkResult.Failure(ApiError.NotFound)
+
+    override suspend fun listContents(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.FileEntry>> =
+        NetworkResult.Success(emptyList())
+
+    override suspend fun getFileContent(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.FileContent> =
+        NetworkResult.Success(
+            com.gy.githubclient.feature.repo.domain.model
+                .FileContent(path = path, name = "a.txt", content = "hi", size = 2),
+        )
 
     override suspend fun clearCache() = Unit
 }

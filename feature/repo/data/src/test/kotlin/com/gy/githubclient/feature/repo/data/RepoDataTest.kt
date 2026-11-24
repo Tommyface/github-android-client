@@ -13,6 +13,7 @@ import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.data.local.RepoDao
 import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
+import com.gy.githubclient.feature.repo.data.remote.ContentEntryDto
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
 import com.gy.githubclient.feature.repo.data.remote.IssueCommentDto
 import com.gy.githubclient.feature.repo.data.remote.IssueDetailDto
@@ -21,6 +22,8 @@ import com.gy.githubclient.feature.repo.data.remote.OwnerDto
 import com.gy.githubclient.feature.repo.data.remote.RepositoryDto
 import com.gy.githubclient.feature.repo.data.remote.StarHistoryWeekDto
 import com.gy.githubclient.feature.repo.data.remote.toDomain
+import com.gy.githubclient.feature.repo.data.remote.toFileContent
+import com.gy.githubclient.feature.repo.data.remote.toFileEntry
 import com.gy.githubclient.feature.repo.data.remote.toStarHistory
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.RepoVisibility
@@ -278,6 +281,98 @@ class RepoDataTest {
                     .url.encodedPath
                     .endsWith("/issues"),
             )
+        }
+
+    @Test
+    fun contentEntryMapsDirectoryFields() {
+        val entry =
+            ContentEntryDto(name = "lib", path = "app/lib", type = "dir", size = 0, sha = "abc", downloadUrl = null)
+        val domain = entry.toFileEntry()
+        assertEquals("lib", domain.name)
+        assertEquals("app/lib", domain.path)
+        assertTrue(domain.isDirectory)
+    }
+
+    @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+    @Test
+    fun fileContentDecodesBase64Text() {
+        val encoded =
+            kotlin.io.encoding.Base64.Default
+                .encode("hello 文件\n第二行".toByteArray(Charsets.UTF_8))
+        val dto =
+            ContentEntryDto(name = "a.txt", path = "a.txt", type = "file", size = 10, encoding = "base64", content = encoded)
+        val domain = dto.toFileContent()
+        assertEquals("hello 文件\n第二行", domain.content)
+        assertTrue(!domain.isTextUnavailable)
+    }
+
+    @Test
+    fun fileContentWithoutBase64IsUnavailable() {
+        val dto = ContentEntryDto(name = "big.bin", path = "big.bin", type = "file", size = 5_000_000, content = null)
+        val domain = dto.toFileContent()
+        assertTrue(domain.isTextUnavailable)
+        assertEquals("", domain.content)
+    }
+
+    @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+    @Test
+    fun binaryContentIsMarkedUnavailable() {
+        val bytes = byteArrayOf(0x48, 0x69, 0x00, 0x01, 0x02) // "Hi" + NUL
+        val dto =
+            ContentEntryDto(
+                name = "x.bin",
+                path = "x.bin",
+                type = "file",
+                encoding = "base64",
+                content =
+                    kotlin.io.encoding.Base64.Default
+                        .encode(bytes),
+            )
+        assertTrue(dto.toFileContent().isTextUnavailable)
+    }
+
+    @Test
+    fun apiParsesContentsDirectoryWithPathEncodingAndOrdering() =
+        runTest {
+            val json =
+                """
+                [{"name":"z.txt","path":"dir/z.txt","type":"file","size":3},
+                 {"name":"alpha","path":"dir/alpha","type":"dir","size":0},
+                 {"name":"a.txt","path":"dir/a.txt","type":"file","size":5}]
+                """.trimIndent()
+            var requestedPath = ""
+            val engine =
+                MockEngine { request ->
+                    requestedPath = request.url.encodedPathAndQuery
+                    respond(json, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+            val result = buildApi(engine).listContents("o", "r", path = "dir with space/sub", ref = "main")
+
+            assertTrue(result is NetworkResult.Success)
+            val names = (result as NetworkResult.Success).data.map { it.name }
+            assertEquals(listOf("alpha", "a.txt", "z.txt"), names) // 目录在前，文件按名字典序
+            assertTrue(requestedPath.contains("/contents/dir%20with%20space/sub"))
+            assertTrue(requestedPath.contains("ref=main"))
+        }
+
+    @Test
+    fun apiParsesSingleFileContent() =
+        runTest {
+            @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+            val encoded =
+                kotlin.io.encoding.Base64.Default
+                    .encode("OK".toByteArray(Charsets.UTF_8))
+            val json =
+                """
+                {"name":"a.txt","path":"a.txt","type":"file","size":2,"encoding":"base64","content":"$encoded"}
+                """.trimIndent()
+            val engine =
+                MockEngine {
+                    respond(json, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+            val result = buildApi(engine).getFileContent("o", "r", "a.txt", "main")
+            assertTrue(result is NetworkResult.Success)
+            assertEquals("OK", (result as NetworkResult.Success).data.content)
         }
 
     private fun buildApi(engine: MockEngine): GitHubRepoApi =

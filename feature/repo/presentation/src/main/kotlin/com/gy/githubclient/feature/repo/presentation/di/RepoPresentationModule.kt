@@ -5,6 +5,7 @@
 
 package com.gy.githubclient.feature.repo.presentation.di
 
+import com.gy.githubclient.feature.repo.presentation.FileBrowserViewModel
 import com.gy.githubclient.feature.repo.presentation.RepoViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -27,4 +28,5 @@ val repoPresentationModule =
                 enqueueDownload = get(),
             )
         }
+        viewModel { FileBrowserViewModel(get(), get()) }
     }

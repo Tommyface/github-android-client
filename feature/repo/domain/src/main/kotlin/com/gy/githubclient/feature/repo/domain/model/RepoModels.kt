@@ -97,6 +97,32 @@ data class Readme(
     val content: String,
 )
 
+/**
+ * 文件树条目（v0.9.0 M17）：来自 GET /contents/{path} 的目录列表项。
+ * [type] = "file" | "dir" | "symlink" | "submodule"。
+ */
+data class FileEntry(
+    val name: String,
+    val path: String,
+    val type: String,
+    val size: Long = 0,
+    val sha: String = "",
+    val downloadUrl: String? = null,
+) {
+    val isDirectory: Boolean get() = type == "dir"
+}
+
+/** 文件内容（v0.9.0 M17）：base64 已解码为文本；过大或二进制时 [content] 为空并给出原因。 */
+data class FileContent(
+    val path: String,
+    val name: String,
+    val content: String,
+    val size: Long,
+    /** true 表示无内嵌文本（>1MB 或非 UTF-8），UI 应引导到浏览器/download_url。 */
+    val isTextUnavailable: Boolean = false,
+    val downloadUrl: String? = null,
+)
+
 /** Issue / PR 只读列表项。PR 与 Issue 共用端点，以 isPullRequest 区分。 */
 data class IssueItem(
     val number: Int,

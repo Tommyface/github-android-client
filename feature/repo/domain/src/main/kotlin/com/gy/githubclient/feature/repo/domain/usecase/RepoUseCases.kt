@@ -7,6 +7,8 @@ package com.gy.githubclient.feature.repo.domain.usecase
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.FileContent
+import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
@@ -125,6 +127,30 @@ class GetIssueDetailUseCase(
         name: String,
         number: Int,
     ): NetworkResult<IssueDetail> = repository.getIssueDetail(owner, name, number)
+}
+
+/** 列出仓库目录内容（v0.9.0 M17）。 */
+class ListContentsUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        path: String = "",
+        ref: String,
+    ): NetworkResult<List<FileEntry>> = repository.listContents(owner, name, path, ref)
+}
+
+/** 读取仓库单文件文本（v0.9.0 M17）。 */
+class GetFileContentUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<FileContent> = repository.getFileContent(owner, name, path, ref)
 }
 
 /** 清空缓存（登出时）。 */

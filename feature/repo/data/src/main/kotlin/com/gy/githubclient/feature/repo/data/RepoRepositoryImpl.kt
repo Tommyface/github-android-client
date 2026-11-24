@@ -13,6 +13,8 @@ import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.FileContent
+import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
@@ -177,6 +179,20 @@ class RepoRepositoryImpl(
                 NetworkResult.Success(detailResult.data.toDomainDto(comments))
             }
         }
+
+    override suspend fun listContents(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<List<FileEntry>> = api.listContents(owner, name, path, ref)
+
+    override suspend fun getFileContent(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<FileContent> = api.getFileContent(owner, name, path, ref)
 
     override suspend fun clearCache() {
         dao.clearAll()

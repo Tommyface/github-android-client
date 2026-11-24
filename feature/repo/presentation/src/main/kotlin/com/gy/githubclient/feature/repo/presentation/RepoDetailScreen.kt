@@ -46,11 +46,13 @@ import org.koin.androidx.compose.koinViewModel
 
 /** 仓库详情页：信息概览 + README（v0.6.0 M6）+ Star/Fork/ZIP 操作 + 分支列表。 */
 @Composable
+@Suppress("LongParameterList")
 fun RepoDetailScreen(
     owner: String,
     name: String,
     onBack: () -> Unit,
     onOpenReleases: () -> Unit = {},
+    onOpenFiles: (String) -> Unit = {},
     viewModel: RepoViewModel = koinViewModel(),
 ) {
     val repo by viewModel.detail.collectAsStateWithLifecycle()
@@ -119,6 +121,9 @@ fun RepoDetailScreen(
                 }
                 OutlinedButton(onClick = onOpenReleases, modifier = Modifier.fillMaxWidth()) {
                     Text("📦 Releases / Tags")
+                }
+                OutlinedButton(onClick = { onOpenFiles(current.defaultBranch) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("📂 浏览文件")
                 }
             }
         }

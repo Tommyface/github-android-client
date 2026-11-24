@@ -25,8 +25,8 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     applicationId = Config.namespacePrefix
                     minSdk = Config.minSdk
                     targetSdk = Config.targetSdk
-                    versionCode = 11
-                    versionName = "0.8.0"
+                    versionCode = 12
+                    versionName = "0.9.0"
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
                 }
                 // 固定 debug 签名：使用入库的 debug.keystore，保证跨机器/跨 CI 构建签名指纹一致，

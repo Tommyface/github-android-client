@@ -18,6 +18,7 @@ import com.gy.githubclient.feature.discover.presentation.ReleaseListScreen
 import com.gy.githubclient.feature.download.presentation.DownloadScreen
 import com.gy.githubclient.feature.download.presentation.MirrorSettingsScreen
 import com.gy.githubclient.feature.profile.presentation.ProfileScreen
+import com.gy.githubclient.feature.repo.presentation.FileBrowserScreen
 import com.gy.githubclient.feature.repo.presentation.RepoDetailScreen
 import com.gy.githubclient.feature.repo.presentation.RepoListScreen
 import com.gy.githubclient.feature.search.presentation.SearchScreen
@@ -77,6 +78,19 @@ sealed class Route(
             name: String,
         ) = "release_list/$owner/$name"
     }
+
+    /** 仓库文件浏览器（v0.9.0 M18）：ref 为分支/tag/sha。 */
+    data object FileBrowser : Route("file_browser/{owner}/{name}/{ref}") {
+        const val ARG_OWNER = "owner"
+        const val ARG_NAME = "name"
+        const val ARG_REF = "ref"
+
+        fun route(
+            owner: String,
+            name: String,
+            ref: String,
+        ) = "file_browser/$owner/$name/$ref"
+    }
 }
 
 @Composable
@@ -107,6 +121,26 @@ fun AppNavigation(
                 name = name,
                 onBack = { navController.popBackStack() },
                 onOpenReleases = { navController.navigate(Route.ReleaseList.route(owner, name)) },
+                onOpenFiles = { ref -> navController.navigate(Route.FileBrowser.route(owner, name, ref)) },
+            )
+        }
+        composable(
+            Route.FileBrowser.path,
+            arguments =
+                listOf(
+                    navArgument(Route.FileBrowser.ARG_OWNER) { type = NavType.StringType },
+                    navArgument(Route.FileBrowser.ARG_NAME) { type = NavType.StringType },
+                    navArgument(Route.FileBrowser.ARG_REF) { type = NavType.StringType },
+                ),
+        ) { backStackEntry ->
+            val owner = backStackEntry.arguments?.getString(Route.FileBrowser.ARG_OWNER).orEmpty()
+            val name = backStackEntry.arguments?.getString(Route.FileBrowser.ARG_NAME).orEmpty()
+            val ref = backStackEntry.arguments?.getString(Route.FileBrowser.ARG_REF).orEmpty()
+            FileBrowserScreen(
+                owner = owner,
+                name = name,
+                ref = ref,
+                onBack = { navController.popBackStack() },
             )
         }
         composable(

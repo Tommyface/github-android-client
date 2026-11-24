@@ -9,6 +9,8 @@ import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.discover.domain.model.DiscoverItem
 import com.gy.githubclient.feature.discover.domain.model.FeaturedRepo
 import com.gy.githubclient.feature.discover.domain.model.MirrorDownloadLink
+import com.gy.githubclient.feature.discover.domain.model.ReleaseInfo
+import com.gy.githubclient.feature.discover.domain.model.TagInfo
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -28,6 +30,25 @@ interface DiscoverRepository {
      * @return 成功更新的仓库数量。
      */
     suspend fun refreshReleases(): NetworkResult<Int>
+
+    /**
+     * 拉取任意仓库的多版本 Release 列表（v0.8.0 M14）。
+     * @param includePrerelease 是否包含预发布；draft 永远过滤（未发布资产不可下载）。
+     */
+    suspend fun listReleases(
+        owner: String,
+        name: String,
+        page: Int = 1,
+        perPage: Int = 30,
+        includePrerelease: Boolean = false,
+    ): NetworkResult<List<ReleaseInfo>>
+
+    /** 拉取任意仓库的 Git Tag 列表（v0.8.0 M14）。 */
+    suspend fun listTags(
+        owner: String,
+        name: String,
+        perPage: Int = 30,
+    ): NetworkResult<List<TagInfo>>
 
     /** 把 Release Asset 直连地址解析为镜像加速链接。 */
     fun resolveDownloadLink(assetUrl: String): MirrorDownloadLink

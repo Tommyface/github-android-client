@@ -16,6 +16,8 @@ import com.gy.githubclient.feature.discover.data.remote.GitHubReleaseApi
 import com.gy.githubclient.feature.discover.domain.repository.DiscoverRepository
 import com.gy.githubclient.feature.discover.domain.usecase.BuildShareTextUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.GetFeaturedReposUseCase
+import com.gy.githubclient.feature.discover.domain.usecase.ListReleasesUseCase
+import com.gy.githubclient.feature.discover.domain.usecase.ListTagsUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.ObserveDiscoverUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.RefreshDiscoverUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.ResolveDownloadLinkUseCase
@@ -51,6 +53,8 @@ val discoverDataModule =
         factory { ObserveDiscoverUseCase(get<DiscoverRepository>()) }
         factory { RefreshDiscoverUseCase(get<DiscoverRepository>()) }
         factory { GetFeaturedReposUseCase(get<DiscoverRepository>()) }
+        factory { ListReleasesUseCase(get<DiscoverRepository>()) }
+        factory { ListTagsUseCase(get<DiscoverRepository>()) }
         factory { ResolveDownloadLinkUseCase(get<DiscoverRepository>()) }
         factory { BuildShareTextUseCase(get<DiscoverRepository>()) }
     }

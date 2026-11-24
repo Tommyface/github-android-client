@@ -18,6 +18,8 @@ import com.gy.githubclient.feature.discover.data.remote.GitHubReleaseApi
 import com.gy.githubclient.feature.discover.domain.model.DiscoverItem
 import com.gy.githubclient.feature.discover.domain.model.FeaturedRepo
 import com.gy.githubclient.feature.discover.domain.model.MirrorDownloadLink
+import com.gy.githubclient.feature.discover.domain.model.ReleaseInfo
+import com.gy.githubclient.feature.discover.domain.model.TagInfo
 import com.gy.githubclient.feature.discover.domain.repository.DiscoverRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -84,6 +86,31 @@ class DiscoverRepositoryImpl(
                 NetworkResult.Success(successCount)
             }
         }
+
+    override suspend fun listReleases(
+        owner: String,
+        name: String,
+        page: Int,
+        perPage: Int,
+        includePrerelease: Boolean,
+    ): NetworkResult<List<ReleaseInfo>> =
+        when (val result = api.listReleases(owner, name, page, perPage)) {
+            is NetworkResult.Success -> {
+                val visible =
+                    result.data.filter { release ->
+                        !release.isDraft && (includePrerelease || !release.isPrerelease)
+                    }
+                NetworkResult.Success(visible)
+            }
+
+            is NetworkResult.Failure -> result
+        }
+
+    override suspend fun listTags(
+        owner: String,
+        name: String,
+        perPage: Int,
+    ): NetworkResult<List<TagInfo>> = api.listTags(owner, name, perPage)
 
     override fun resolveDownloadLink(assetUrl: String): MirrorDownloadLink {
         if (!MirrorRewriter.shouldRewrite(assetUrl)) {

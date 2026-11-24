@@ -6,6 +6,7 @@
 package com.gy.githubclient.feature.discover.presentation.di
 
 import com.gy.githubclient.feature.discover.presentation.DiscoverViewModel
+import com.gy.githubclient.feature.discover.presentation.ReleaseListViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -13,4 +14,5 @@ import org.koin.dsl.module
 val discoverPresentationModule =
     module {
         viewModel { DiscoverViewModel(get(), get(), get(), get(), get(), get()) }
+        viewModel { ReleaseListViewModel(get(), get(), get(), get()) }
     }

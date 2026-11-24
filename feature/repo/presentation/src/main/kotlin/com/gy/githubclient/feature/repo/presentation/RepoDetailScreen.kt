@@ -50,6 +50,7 @@ fun RepoDetailScreen(
     owner: String,
     name: String,
     onBack: () -> Unit,
+    onOpenReleases: () -> Unit = {},
     viewModel: RepoViewModel = koinViewModel(),
 ) {
     val repo by viewModel.detail.collectAsStateWithLifecycle()
@@ -115,6 +116,9 @@ fun RepoDetailScreen(
                 }
                 OutlinedButton(onClick = { viewModel.downloadZip(current) }, modifier = Modifier.fillMaxWidth()) {
                     Text("⬇ 下载 ZIP（${current.defaultBranch}）")
+                }
+                OutlinedButton(onClick = onOpenReleases, modifier = Modifier.fillMaxWidth()) {
+                    Text("📦 Releases / Tags")
                 }
             }
         }

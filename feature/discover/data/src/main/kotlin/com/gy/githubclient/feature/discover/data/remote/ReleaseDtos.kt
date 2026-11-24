@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.discover.data.remote
 
 import com.gy.githubclient.feature.discover.domain.model.ReleaseAsset
 import com.gy.githubclient.feature.discover.domain.model.ReleaseInfo
+import com.gy.githubclient.feature.discover.domain.model.TagInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -59,4 +60,22 @@ fun ReleaseDto.toDomain(): ReleaseInfo =
         isPrerelease = prerelease,
         isDraft = draft,
         assets = assets.map { it.toDomain() },
+    )
+
+/** GET /repos/{owner}/{repo}/tags 单条（v0.8.0 M14）。 */
+@Serializable
+data class TagDto(
+    val name: String = "",
+    val commit: TagCommitDto = TagCommitDto(),
+)
+
+@Serializable
+data class TagCommitDto(
+    val sha: String = "",
+)
+
+fun TagDto.toDomain(): TagInfo =
+    TagInfo(
+        name = name,
+        commitSha = commit.sha,
     )

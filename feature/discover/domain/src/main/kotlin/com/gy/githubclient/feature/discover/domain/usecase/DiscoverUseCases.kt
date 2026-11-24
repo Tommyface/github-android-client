@@ -11,6 +11,30 @@ import com.gy.githubclient.feature.discover.domain.model.MirrorDownloadLink
 import com.gy.githubclient.feature.discover.domain.repository.DiscoverRepository
 import kotlinx.coroutines.flow.Flow
 
+/** 拉取任意仓库的多版本 Release 列表（v0.8.0 M14）。 */
+class ListReleasesUseCase(
+    private val repository: DiscoverRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        page: Int = 1,
+        perPage: Int = 30,
+        includePrerelease: Boolean = false,
+    ) = repository.listReleases(owner, name, page, perPage, includePrerelease)
+}
+
+/** 拉取任意仓库的 Git Tag 列表（v0.8.0 M14）。 */
+class ListTagsUseCase(
+    private val repository: DiscoverRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        perPage: Int = 30,
+    ) = repository.listTags(owner, name, perPage)
+}
+
 /** 观察发现列表（数据库为单一数据源）。 */
 class ObserveDiscoverUseCase(
     private val repository: DiscoverRepository,

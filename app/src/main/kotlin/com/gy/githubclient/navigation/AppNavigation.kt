@@ -14,6 +14,7 @@ import androidx.navigation.navArgument
 import com.gy.githubclient.feature.auth.presentation.PermissionAuditScreen
 import com.gy.githubclient.feature.discover.presentation.DiscoverScreen
 import com.gy.githubclient.feature.discover.presentation.ReleaseDetailScreen
+import com.gy.githubclient.feature.discover.presentation.ReleaseListScreen
 import com.gy.githubclient.feature.download.presentation.DownloadScreen
 import com.gy.githubclient.feature.download.presentation.MirrorSettingsScreen
 import com.gy.githubclient.feature.profile.presentation.ProfileScreen
@@ -65,6 +66,17 @@ sealed class Route(
             name: String,
         ) = "release_detail/$owner/$name"
     }
+
+    /** 任意仓库的多版本 Release / Tag 列表（v0.8.0 M15）。 */
+    data object ReleaseList : Route("release_list/{owner}/{name}") {
+        const val ARG_OWNER = "owner"
+        const val ARG_NAME = "name"
+
+        fun route(
+            owner: String,
+            name: String,
+        ) = "release_list/$owner/$name"
+    }
 }
 
 @Composable
@@ -91,6 +103,23 @@ fun AppNavigation(
             val owner = backStackEntry.arguments?.getString(Route.RepoDetail.ARG_OWNER).orEmpty()
             val name = backStackEntry.arguments?.getString(Route.RepoDetail.ARG_NAME).orEmpty()
             RepoDetailScreen(
+                owner = owner,
+                name = name,
+                onBack = { navController.popBackStack() },
+                onOpenReleases = { navController.navigate(Route.ReleaseList.route(owner, name)) },
+            )
+        }
+        composable(
+            Route.ReleaseList.path,
+            arguments =
+                listOf(
+                    navArgument(Route.ReleaseList.ARG_OWNER) { type = NavType.StringType },
+                    navArgument(Route.ReleaseList.ARG_NAME) { type = NavType.StringType },
+                ),
+        ) { backStackEntry ->
+            val owner = backStackEntry.arguments?.getString(Route.ReleaseList.ARG_OWNER).orEmpty()
+            val name = backStackEntry.arguments?.getString(Route.ReleaseList.ARG_NAME).orEmpty()
+            ReleaseListScreen(
                 owner = owner,
                 name = name,
                 onBack = { navController.popBackStack() },

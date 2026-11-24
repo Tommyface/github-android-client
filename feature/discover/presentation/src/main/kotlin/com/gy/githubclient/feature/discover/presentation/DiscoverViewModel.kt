@@ -7,7 +7,6 @@ package com.gy.githubclient.feature.discover.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.core.domain.share.ShareManager
 import com.gy.githubclient.feature.discover.domain.model.DiscoverCategory
@@ -18,7 +17,6 @@ import com.gy.githubclient.feature.discover.domain.usecase.BuildShareTextUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.ObserveDiscoverUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.RefreshDiscoverUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.ResolveDownloadLinkUseCase
-import com.gy.githubclient.feature.download.domain.model.DownloadRequest
 import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -109,7 +107,7 @@ class DiscoverViewModel(
 
                 is NetworkResult.Failure -> {
                     _uiState.value = _uiState.value.copy(isRefreshing = false)
-                    _events.trySend(DiscoverEvent.ShowMessage(errorMessage(result.error)))
+                    _events.trySend(DiscoverEvent.ShowMessage(discoverErrorMessage(result.error)))
                 }
             }
         }
@@ -134,19 +132,7 @@ class DiscoverViewModel(
         tag: String,
     ) {
         val link = resolveLink(asset.downloadUrl)
-        val request =
-            DownloadRequest(
-                url = asset.downloadUrl,
-                fileName = asset.name.ifBlank { "download.bin" },
-                suggestedFileName = asset.name.ifBlank { null },
-                repoOwner = owner,
-                repoName = name,
-                releaseTag = tag,
-                assetId = asset.id,
-                totalBytes = asset.size,
-                useMirror = link.isAccelerated,
-                expectedSha256 = asset.sha256,
-            )
+        val request = buildAssetDownloadRequest(asset, owner, name, tag, link)
         viewModelScope.launch { enqueueDownload(request) }
     }
 
@@ -156,14 +142,4 @@ class DiscoverViewModel(
         shareManager.shareText(text)
         _events.trySend(DiscoverEvent.Share(text))
     }
-
-    private fun errorMessage(error: ApiError): String =
-        when (error) {
-            ApiError.Unauthorized -> "登录已失效，请重新登录"
-            is ApiError.RateLimited -> "请求太频繁，已触发 API 限流，请稍后再试"
-            ApiError.NotFound -> "未找到资源"
-            is ApiError.Network -> "网络错误：${error.cause}"
-            is ApiError.Http -> "请求失败（${error.code}）"
-            is ApiError.Unknown -> "未知错误：${error.message}"
-        }
 }

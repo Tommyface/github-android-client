@@ -57,6 +57,12 @@ data class ReleaseInfo(
     val assets: List<ReleaseAsset> = emptyList(),
 )
 
+/** Git Tag（v0.8.0 M14）：tag 名 + 指向的 commit 短 SHA。 */
+data class TagInfo(
+    val name: String,
+    val commitSha: String,
+)
+
 /** 发现列表条目：精选仓库 + 其最新 Release（可能未抓取到）。 */
 data class DiscoverItem(
     val featured: FeaturedRepo,

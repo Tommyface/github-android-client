@@ -16,6 +16,8 @@ import com.gy.githubclient.feature.discover.data.local.toDomain
 import com.gy.githubclient.feature.discover.data.local.toEntity
 import com.gy.githubclient.feature.discover.data.remote.GitHubReleaseApi
 import com.gy.githubclient.feature.discover.data.remote.ReleaseDto
+import com.gy.githubclient.feature.discover.data.remote.TagCommitDto
+import com.gy.githubclient.feature.discover.data.remote.TagDto
 import com.gy.githubclient.feature.discover.data.remote.toDomain
 import com.gy.githubclient.feature.discover.domain.model.DiscoverCategory
 import com.gy.githubclient.feature.discover.domain.model.DiscoverItem
@@ -212,6 +214,98 @@ class DiscoverDataTest {
         assertTrue(text.contains("githubclient://repo/square/retrofit"))
         assertTrue(text.contains("v2.9.0"))
     }
+
+    @Test
+    fun tagDtoMapsToDomain() {
+        val domain = TagDto("v8.1.1", TagCommitDto("4f638f48abcdef")).toDomain()
+        assertEquals("v8.1.1", domain.name)
+        assertEquals("4f638f48abcdef", domain.commitSha)
+    }
+
+    @Test
+    fun apiParsesReleaseListWithPaginationPath() =
+        runTest {
+            val json =
+                """
+                [{"tag_name":"v2.9.0","name":"2.9","html_url":"https://github.com/o/r/releases/tag/v2.9.0","assets":[]},
+                 {"tag_name":"v2.8.0","name":"2.8","html_url":"https://github.com/o/r/releases/tag/v2.8.0","prerelease":true,"assets":[]}]
+                """.trimIndent()
+            var requestedPath = ""
+            val engine =
+                MockEngine { request ->
+                    requestedPath = request.url.encodedPathAndQuery
+                    respond(json, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+            val api = GitHubReleaseApi(GitHubApiClient(buildTestClient(engine), FakeTokenProvider("t")))
+
+            val result = api.listReleases("o", "r", page = 2, perPage = 10)
+
+            assertTrue(result is NetworkResult.Success)
+            assertEquals(2, (result as NetworkResult.Success).data.size)
+            assertTrue(requestedPath.contains("/repos/o/r/releases"))
+            assertTrue(requestedPath.contains("per_page=10"))
+            assertTrue(requestedPath.contains("page=2"))
+        }
+
+    @Test
+    fun apiParsesTagList() =
+        runTest {
+            val json =
+                """
+                [{"name":"v8.1.1","commit":{"sha":"4f638f48abcdef"}}]
+                """.trimIndent()
+            val engine =
+                MockEngine {
+                    respond(json, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+            val api = GitHubReleaseApi(GitHubApiClient(buildTestClient(engine), FakeTokenProvider("t")))
+
+            val result = api.listTags("o", "r", perPage = 5)
+
+            assertTrue(result is NetworkResult.Success)
+            assertEquals("v8.1.1", (result as NetworkResult.Success).data.first().name)
+        }
+
+    @Test
+    fun repositoryFiltersDraftAndPrerelease() =
+        runTest {
+            val json =
+                """
+                [{"tag_name":"stable","name":"stable","html_url":"u","assets":[]},
+                 {"tag_name":"pre","name":"pre","html_url":"u","prerelease":true,"assets":[]},
+                 {"tag_name":"draft","name":"draft","html_url":"u","draft":true,"assets":[]}]
+                """.trimIndent()
+            val api =
+                buildApi(
+                    MockEngine {
+                        respond(json, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                    },
+                )
+            val repo = DiscoverRepositoryImpl(FakeDao(), api)
+
+            val stableOnly = repo.listReleases("o", "r")
+            assertTrue(stableOnly is NetworkResult.Success)
+            assertEquals(listOf("stable"), (stableOnly as NetworkResult.Success).data.map { it.tagName })
+
+            val withPre = repo.listReleases("o", "r", includePrerelease = true)
+            assertEquals(
+                setOf("stable", "pre"),
+                (withPre as NetworkResult.Success).data.map { it.tagName }.toSet(),
+            )
+        }
+
+    @Test
+    fun listReleasesTranslatesNotFound() =
+        runTest {
+            val api =
+                buildApi(
+                    MockEngine {
+                        respond("", HttpStatusCode.NotFound)
+                    },
+                )
+            val result = api.listReleases("o", "missing", page = 1, perPage = 30)
+            assertTrue(result is NetworkResult.Failure)
+        }
 
     private fun buildApi(engine: MockEngine): GitHubReleaseApi =
         GitHubReleaseApi(GitHubApiClient(buildTestClient(engine), FakeTokenProvider("t")))

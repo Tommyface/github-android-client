@@ -11,9 +11,12 @@ import com.gy.githubclient.feature.discover.domain.model.DiscoverItem
 import com.gy.githubclient.feature.discover.domain.model.FeaturedRepo
 import com.gy.githubclient.feature.discover.domain.model.MirrorDownloadLink
 import com.gy.githubclient.feature.discover.domain.model.ReleaseInfo
+import com.gy.githubclient.feature.discover.domain.model.TagInfo
 import com.gy.githubclient.feature.discover.domain.repository.DiscoverRepository
 import com.gy.githubclient.feature.discover.domain.usecase.BuildShareTextUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.GetFeaturedReposUseCase
+import com.gy.githubclient.feature.discover.domain.usecase.ListReleasesUseCase
+import com.gy.githubclient.feature.discover.domain.usecase.ListTagsUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.ObserveDiscoverUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.RefreshDiscoverUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.ResolveDownloadLinkUseCase
@@ -34,6 +37,23 @@ class DiscoverDomainTest {
             override fun observeItems(): Flow<List<DiscoverItem>> = flowOf(emptyList())
 
             override suspend fun refreshReleases(): NetworkResult<Int> = NetworkResult.Success(SEEDS.size)
+
+            override suspend fun listReleases(
+                owner: String,
+                name: String,
+                page: Int,
+                perPage: Int,
+                includePrerelease: Boolean,
+            ): NetworkResult<List<ReleaseInfo>> =
+                NetworkResult.Success(
+                    listOf(ReleaseInfo("v1", "r", null, "https://github.com/o/r", null, false, false)),
+                )
+
+            override suspend fun listTags(
+                owner: String,
+                name: String,
+                perPage: Int,
+            ): NetworkResult<List<TagInfo>> = NetworkResult.Success(listOf(TagInfo("v1", "abc12345")))
 
             override fun resolveDownloadLink(assetUrl: String) =
                 MirrorDownloadLink(
@@ -76,6 +96,18 @@ class DiscoverDomainTest {
             val result = RefreshDiscoverUseCase(repo)()
             assertTrue(result is NetworkResult.Success)
             assertEquals(SEEDS.size, (result as NetworkResult.Success).data)
+        }
+
+    @Test
+    fun listReleasesAndTagsUseCasesDelegate() =
+        runTest {
+            val releases = ListReleasesUseCase(repo)("o", "r")
+            assertTrue(releases is NetworkResult.Success)
+            assertEquals("v1", (releases as NetworkResult.Success).data.first().tagName)
+
+            val tags = ListTagsUseCase(repo)("o", "r")
+            assertTrue(tags is NetworkResult.Success)
+            assertEquals("v1", (tags as NetworkResult.Success).data.first().name)
         }
 
     @Test

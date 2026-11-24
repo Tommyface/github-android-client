@@ -25,6 +25,7 @@ import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
+import com.gy.githubclient.feature.repo.domain.model.WorkflowRunPage
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -229,6 +230,21 @@ class RepoRepositoryImpl(
             }
         return NetworkResult.Success(buildCheckOverview(sha, runs, statuses))
     }
+
+    override suspend fun listWorkflowRuns(
+        owner: String,
+        name: String,
+        page: Int,
+        perPage: Int,
+    ): NetworkResult<WorkflowRunPage> = api.listWorkflowRuns(owner, name, page, perPage)
+
+    override suspend fun listFileCommits(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.CommitSummary>> =
+        api.listFileCommits(owner, name, path, ref)
 
     override suspend fun clearCache() {
         dao.clearAll()

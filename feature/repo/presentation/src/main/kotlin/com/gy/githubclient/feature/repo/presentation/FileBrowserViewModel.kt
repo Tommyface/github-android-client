@@ -8,10 +8,12 @@ package com.gy.githubclient.feature.repo.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.feature.repo.domain.model.CommitSummary
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.usecase.GetFileContentUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListContentsUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListFileCommitsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +27,8 @@ data class FileBrowserUiState(
     val openFile: FileContent? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
+    /** 当前打开文件的提交历史（v0.14.0 A4 降级）；null=未加载。 */
+    val fileHistory: List<CommitSummary>? = null,
 ) {
     /** 面包屑：根目录 + 各段。 */
     val breadcrumbs: List<String>
@@ -38,6 +42,7 @@ data class FileBrowserUiState(
 class FileBrowserViewModel(
     private val listContents: ListContentsUseCase,
     private val getFileContent: GetFileContentUseCase,
+    private val listFileCommits: ListFileCommitsUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(FileBrowserUiState())
     val uiState: StateFlow<FileBrowserUiState> = _uiState.asStateFlow()
@@ -62,7 +67,7 @@ class FileBrowserViewModel(
         if (owner.isBlank() || name.isBlank()) return
         viewModelScope.launch {
             _uiState.value =
-                _uiState.value.copy(currentPath = path, isLoading = true, error = null, openFile = null)
+                _uiState.value.copy(currentPath = path, isLoading = true, error = null, openFile = null, fileHistory = null)
             when (val result = listContents(owner, name, path, ref)) {
                 is NetworkResult.Success -> _uiState.value = _uiState.value.copy(entries = result.data)
                 is NetworkResult.Failure ->
@@ -88,7 +93,7 @@ class FileBrowserViewModel(
     fun openFile(entry: FileEntry) {
         if (owner.isBlank() || name.isBlank()) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null, fileHistory = null)
             when (val result = getFileContent(owner, name, entry.path, ref)) {
                 is NetworkResult.Success -> _uiState.value = _uiState.value.copy(openFile = result.data)
                 is NetworkResult.Failure ->
@@ -98,8 +103,26 @@ class FileBrowserViewModel(
         }
     }
 
+    /**
+     * 加载当前打开文件的提交历史（v0.14.0 A4 降级）：
+     * GitHub REST 无公开 blame 端点（前置实测确认），改用 commits?path= 展示逐次提交，明示口径。
+     */
+    fun showFileHistory() {
+        val file = _uiState.value.openFile ?: return
+        if (owner.isBlank() || name.isBlank()) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            when (val result = listFileCommits(owner, name, file.path, ref)) {
+                is NetworkResult.Success -> _uiState.value = _uiState.value.copy(fileHistory = result.data)
+                is NetworkResult.Failure ->
+                    _uiState.value = _uiState.value.copy(error = "文件历史加载失败：${result.error}")
+            }
+            _uiState.value = _uiState.value.copy(isLoading = false)
+        }
+    }
+
     fun closeFile() {
-        _uiState.value = _uiState.value.copy(openFile = null)
+        _uiState.value = _uiState.value.copy(openFile = null, fileHistory = null)
     }
 
     fun dismissError() {

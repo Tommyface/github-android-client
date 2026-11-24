@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -93,7 +94,12 @@ fun FileBrowserScreen(
 
         val openFile = uiState.openFile
         if (openFile != null) {
-            FileContentView(file = openFile, onClose = { viewModel.closeFile() })
+            FileContentView(
+                file = openFile,
+                fileHistory = uiState.fileHistory,
+                onShowHistory = { viewModel.showFileHistory() },
+                onClose = { viewModel.closeFile() },
+            )
         } else {
             if (uiState.isLoading) {
                 Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
@@ -157,6 +163,8 @@ private fun FileEntryRow(
 @Composable
 private fun FileContentView(
     file: FileContent,
+    fileHistory: List<com.gy.githubclient.feature.repo.domain.model.CommitSummary>?,
+    onShowHistory: () -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -164,6 +172,36 @@ private fun FileContentView(
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onClose) { Text("← 返回目录") }
             Text(file.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            TextButton(onClick = onShowHistory) { Text("🕘 文件历史") }
+        }
+        // v0.14.0 A4 降级：REST 无公开 blame 端点，改用 commits?path= 展示逐次提交。
+        if (fileHistory != null) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("文件提交历史（${fileHistory.size}）", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(4.dp))
+                    if (fileHistory.isEmpty()) {
+                        Text(
+                            "该文件暂无提交历史记录。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        fileHistory.take(FILE_HISTORY_LIMIT).forEach { commit ->
+                            Text(
+                                "${commit.shortSha}  ${commit.title}",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                    Text(
+                        "数据来源：GitHub REST · commits?path=（非逐行 blame）",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
         }
         if (file.isTextUnavailable) {
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -191,6 +229,8 @@ private fun FileContentView(
         }
     }
 }
+
+private const val FILE_HISTORY_LIMIT = 20
 
 /** 把词法 token 序列着色为 AnnotatedString（缓存到内容/语言不变为止）。 */
 @Composable

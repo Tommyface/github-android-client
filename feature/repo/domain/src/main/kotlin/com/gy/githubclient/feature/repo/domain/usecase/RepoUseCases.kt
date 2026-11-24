@@ -16,6 +16,7 @@ import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
+import com.gy.githubclient.feature.repo.domain.model.WorkflowRunPage
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import kotlinx.coroutines.flow.Flow
 
@@ -163,6 +164,31 @@ class GetCheckOverviewUseCase(
         name: String,
         sha: String,
     ): NetworkResult<CheckOverview> = repository.getCheckOverview(owner, name, sha)
+}
+
+/** 获取 Actions workflow run 分页列表（v0.14.0 A3，只读）。 */
+class ListWorkflowRunsUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        page: Int = 1,
+        perPage: Int = 30,
+    ): NetworkResult<WorkflowRunPage> = repository.listWorkflowRuns(owner, name, page, perPage)
+}
+
+/** 获取某文件的提交历史（v0.14.0 A4 降级，只读）。 */
+class ListFileCommitsUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.CommitSummary>> =
+        repository.listFileCommits(owner, name, path, ref)
 }
 
 /** 清空缓存（登出时）。 */

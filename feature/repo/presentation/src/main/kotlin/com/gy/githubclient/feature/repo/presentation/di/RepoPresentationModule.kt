@@ -5,6 +5,7 @@
 
 package com.gy.githubclient.feature.repo.presentation.di
 
+import com.gy.githubclient.feature.repo.presentation.ActionsViewModel
 import com.gy.githubclient.feature.repo.presentation.CommitViewModel
 import com.gy.githubclient.feature.repo.presentation.FileBrowserViewModel
 import com.gy.githubclient.feature.repo.presentation.RepoViewModel
@@ -30,6 +31,7 @@ val repoPresentationModule =
                 enqueueDownload = get(),
             )
         }
-        viewModel { FileBrowserViewModel(get(), get()) }
+        viewModel { FileBrowserViewModel(get(), get(), get()) }
         viewModel { CommitViewModel(get(), get()) }
+        viewModel { ActionsViewModel(get()) }
     }

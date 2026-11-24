@@ -224,5 +224,23 @@ private class StubRepoRepository(
                 .CheckOverview(sha = sha),
         )
 
+    override suspend fun listWorkflowRuns(
+        owner: String,
+        name: String,
+        page: Int,
+        perPage: Int,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.WorkflowRunPage> =
+        NetworkResult.Success(
+            com.gy.githubclient.feature.repo.domain.model
+                .WorkflowRunPage(emptyList(), false),
+        )
+
+    override suspend fun listFileCommits(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.CommitSummary>> = NetworkResult.Success(emptyList())
+
     override suspend fun clearCache() = Unit
 }

@@ -57,6 +57,7 @@ fun RepoDetailScreen(
     onOpenReleases: () -> Unit = {},
     onOpenFiles: (String) -> Unit = {},
     onOpenCommits: () -> Unit = {},
+    onOpenActions: () -> Unit = {},
     viewModel: RepoViewModel = koinViewModel(),
 ) {
     val repo by viewModel.detail.collectAsStateWithLifecycle()
@@ -133,6 +134,9 @@ fun RepoDetailScreen(
                 }
                 OutlinedButton(onClick = onOpenCommits, modifier = Modifier.fillMaxWidth()) {
                     Text("🕘 提交历史 / Diff")
+                }
+                OutlinedButton(onClick = onOpenActions, modifier = Modifier.fillMaxWidth()) {
+                    Text("⚙ Actions 运行记录")
                 }
             }
         }

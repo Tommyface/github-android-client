@@ -18,6 +18,7 @@ import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
+import com.gy.githubclient.feature.repo.domain.model.WorkflowRunPage
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -141,6 +142,22 @@ interface RepoRepository {
         name: String,
         sha: String,
     ): NetworkResult<CheckOverview>
+
+    /** Actions workflow run 列表（v0.14.0 A3）：page 从 1 开始，只读。 */
+    suspend fun listWorkflowRuns(
+        owner: String,
+        name: String,
+        page: Int = 1,
+        perPage: Int = 30,
+    ): NetworkResult<WorkflowRunPage>
+
+    /** 某文件的提交历史（v0.14.0 A4 降级）：REST commits?path=，只读。 */
+    suspend fun listFileCommits(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<List<CommitSummary>>
 
     /** 清空本地仓库缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

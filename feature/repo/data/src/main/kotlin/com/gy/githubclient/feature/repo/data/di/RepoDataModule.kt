@@ -25,7 +25,9 @@ import com.gy.githubclient.feature.repo.domain.usecase.IsStarredUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListCommitsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListContentsUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListFileCommitsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListIssuesUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListWorkflowRunsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
@@ -69,6 +71,8 @@ val repoDataModule =
         factory { ListCommitsUseCase(get<RepoRepository>()) }
         factory { GetCommitDetailUseCase(get<RepoRepository>()) }
         factory { GetCheckOverviewUseCase(get<RepoRepository>()) }
+        factory { ListWorkflowRunsUseCase(get<RepoRepository>()) }
+        factory { ListFileCommitsUseCase(get<RepoRepository>()) }
         factory { SetStarredUseCase(get<RepoRepository>()) }
         factory { IsStarredUseCase(get<RepoRepository>()) }
         factory { ForkRepositoryUseCase(get<RepoRepository>()) }

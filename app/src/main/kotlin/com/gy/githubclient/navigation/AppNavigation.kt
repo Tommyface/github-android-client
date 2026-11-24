@@ -20,6 +20,7 @@ import com.gy.githubclient.feature.download.presentation.MirrorSettingsScreen
 import com.gy.githubclient.feature.library.presentation.LibraryScreen
 import com.gy.githubclient.feature.profile.presentation.ActivityScreen
 import com.gy.githubclient.feature.profile.presentation.ProfileScreen
+import com.gy.githubclient.feature.repo.presentation.ActionsScreen
 import com.gy.githubclient.feature.repo.presentation.CommitScreen
 import com.gy.githubclient.feature.repo.presentation.FileBrowserScreen
 import com.gy.githubclient.feature.repo.presentation.RepoDetailScreen
@@ -111,6 +112,17 @@ sealed class Route(
             name: String,
         ) = "commits/$owner/$name"
     }
+
+    /** Actions Run 只读列表（v0.14.0 A3）。 */
+    data object Actions : Route("actions/{owner}/{name}") {
+        const val ARG_OWNER = "owner"
+        const val ARG_NAME = "name"
+
+        fun route(
+            owner: String,
+            name: String,
+        ) = "actions/$owner/$name"
+    }
 }
 
 @Composable
@@ -143,6 +155,7 @@ fun AppNavigation(
                 onOpenReleases = { navController.navigate(Route.ReleaseList.route(owner, name)) },
                 onOpenFiles = { ref -> navController.navigate(Route.FileBrowser.route(owner, name, ref)) },
                 onOpenCommits = { navController.navigate(Route.Commits.route(owner, name)) },
+                onOpenActions = { navController.navigate(Route.Actions.route(owner, name)) },
             )
         }
         composable(
@@ -156,6 +169,22 @@ fun AppNavigation(
             val owner = backStackEntry.arguments?.getString(Route.Commits.ARG_OWNER).orEmpty()
             val name = backStackEntry.arguments?.getString(Route.Commits.ARG_NAME).orEmpty()
             CommitScreen(
+                owner = owner,
+                name = name,
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            Route.Actions.path,
+            arguments =
+                listOf(
+                    navArgument(Route.Actions.ARG_OWNER) { type = NavType.StringType },
+                    navArgument(Route.Actions.ARG_NAME) { type = NavType.StringType },
+                ),
+        ) { backStackEntry ->
+            val owner = backStackEntry.arguments?.getString(Route.Actions.ARG_OWNER).orEmpty()
+            val name = backStackEntry.arguments?.getString(Route.Actions.ARG_NAME).orEmpty()
+            ActionsScreen(
                 owner = owner,
                 name = name,
                 onBack = { navController.popBackStack() },

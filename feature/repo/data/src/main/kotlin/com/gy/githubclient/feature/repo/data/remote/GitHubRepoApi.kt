@@ -268,6 +268,38 @@ class GitHubRepoApi(
             },
         )
 
+    /** Actions workflow run 列表（v0.14.0 A3）：GET /repos/{o}/{r}/actions/runs?page=&per_page=。 */
+    suspend fun listWorkflowRuns(
+        owner: String,
+        name: String,
+        page: Int,
+        perPage: Int,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.WorkflowRunPage> =
+        client.request(
+            path = "/repos/$owner/$name/actions/runs?page=$page&per_page=$perPage",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(WorkflowRunsResponseDto.serializer(), response.bodyAsText())
+                    .toPage(perPage)
+            },
+        )
+
+    /** 某文件的提交历史（v0.14.0 A4 降级）：GET /repos/{o}/{r}/commits?path=&ref=。 */
+    suspend fun listFileCommits(
+        owner: String,
+        name: String,
+        path: String,
+        ref: String,
+    ): NetworkResult<List<CommitSummary>> =
+        client.request(
+            path = "/repos/$owner/$name/commits?path=${path.encodeURLPath()}&ref=${ref.encodeURLPath()}&per_page=$FILE_COMMITS_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(CommitItemDto.serializer()), response.bodyAsText())
+                    .map { it.toSummary() }
+            },
+        )
+
     /** combined commit status（v0.13.0 A2）：GET /repos/{o}/{r}/commits/{sha}/status。 */
     suspend fun getCombinedStatus(
         owner: String,
@@ -331,5 +363,6 @@ class GitHubRepoApi(
         const val STAR_HISTORY_WEEKS = 30
         const val ISSUES_PER_PAGE = 30
         const val CHECKS_PER_PAGE = 30
+        const val FILE_COMMITS_PER_PAGE = 30
     }
 }

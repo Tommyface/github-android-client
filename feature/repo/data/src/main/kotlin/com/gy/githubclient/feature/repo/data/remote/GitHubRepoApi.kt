@@ -10,6 +10,8 @@ import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.CommitDetail
+import com.gy.githubclient.feature.repo.domain.model.CommitSummary
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueComment
@@ -219,6 +221,35 @@ class GitHubRepoApi(
             path = contentsPath(owner, name, path, ref),
             mapper = { response: HttpResponse ->
                 GitHubJson.decode(ContentEntryDto.serializer(), response.bodyAsText()).toFileContent()
+            },
+        )
+
+    /** 提交历史（v0.12.0 N10）：GET /repos/{o}/{r}/commits?page=&per_page=。 */
+    suspend fun listCommits(
+        owner: String,
+        name: String,
+        page: Int,
+        perPage: Int,
+    ): NetworkResult<List<CommitSummary>> =
+        client.request(
+            path = "/repos/$owner/$name/commits?page=$page&per_page=$perPage",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(CommitItemDto.serializer()), response.bodyAsText())
+                    .map { it.toSummary() }
+            },
+        )
+
+    /** 单次提交详情（v0.12.0 N10）：GET /repos/{o}/{r}/commits/{sha}。 */
+    suspend fun getCommitDetail(
+        owner: String,
+        name: String,
+        sha: String,
+    ): NetworkResult<CommitDetail> =
+        client.request(
+            path = "/repos/$owner/$name/commits/${sha.encodeURLPath()}",
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(CommitDetailDto.serializer(), response.bodyAsText()).toDetail()
             },
         )
 

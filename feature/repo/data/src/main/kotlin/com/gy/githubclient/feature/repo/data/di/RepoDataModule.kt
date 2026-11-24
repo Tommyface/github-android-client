@@ -14,6 +14,7 @@ import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import com.gy.githubclient.feature.repo.domain.usecase.ClearRepoCacheUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.GetCommitDetailUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetFileContentUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetIssueDetailUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetReadmeUseCase
@@ -21,6 +22,7 @@ import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetStarHistoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.IsStarredUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListCommitsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListContentsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListIssuesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
@@ -63,6 +65,8 @@ val repoDataModule =
         factory { ListBranchesUseCase(get<RepoRepository>()) }
         factory { ListContentsUseCase(get<RepoRepository>()) }
         factory { GetFileContentUseCase(get<RepoRepository>()) }
+        factory { ListCommitsUseCase(get<RepoRepository>()) }
+        factory { GetCommitDetailUseCase(get<RepoRepository>()) }
         factory { SetStarredUseCase(get<RepoRepository>()) }
         factory { IsStarredUseCase(get<RepoRepository>()) }
         factory { ForkRepositoryUseCase(get<RepoRepository>()) }

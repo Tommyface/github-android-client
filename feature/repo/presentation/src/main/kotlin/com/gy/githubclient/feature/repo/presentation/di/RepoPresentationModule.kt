@@ -5,6 +5,7 @@
 
 package com.gy.githubclient.feature.repo.presentation.di
 
+import com.gy.githubclient.feature.repo.presentation.CommitViewModel
 import com.gy.githubclient.feature.repo.presentation.FileBrowserViewModel
 import com.gy.githubclient.feature.repo.presentation.RepoViewModel
 import org.koin.core.module.dsl.viewModel
@@ -29,4 +30,5 @@ val repoPresentationModule =
             )
         }
         viewModel { FileBrowserViewModel(get(), get()) }
+        viewModel { CommitViewModel(get(), get()) }
     }

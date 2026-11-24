@@ -5,6 +5,8 @@
 
 package com.gy.githubclient.feature.profile.presentation
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +58,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("我的", style = MaterialTheme.typography.headlineMedium)
@@ -89,6 +93,23 @@ fun ProfileScreen(
                 FullWidthButton(text = "🔐 权限体检", onClick = onOpenPermissionAudit)
                 HorizontalDivider()
                 FullWidthButton(text = "⬆️ 检查更新", onClick = onOpenUpdateCheck)
+                HorizontalDivider()
+                // v0.12.0 N9：贡献热力图仅 GraphQL contributionsCollection 提供，
+                // fine-grained PAT 不支持 GraphQL（官方明示）；诚实降级为跳网页，不臆造数据。
+                val profileUrl = profile?.htmlUrl?.ifBlank { "https://github.com/${profile?.login.orEmpty()}" } ?: "https://github.com"
+                FullWidthButton(
+                    text = "📊 贡献热力图（网页查看）",
+                    onClick = {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(profileUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }
+                    },
+                )
+                Text(
+                    "热力图数据仅 GitHub GraphQL 提供，当前登录方式不支持；已为您跳转网页查看。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 

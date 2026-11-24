@@ -20,6 +20,7 @@ import com.gy.githubclient.feature.download.presentation.MirrorSettingsScreen
 import com.gy.githubclient.feature.library.presentation.LibraryScreen
 import com.gy.githubclient.feature.profile.presentation.ActivityScreen
 import com.gy.githubclient.feature.profile.presentation.ProfileScreen
+import com.gy.githubclient.feature.repo.presentation.CommitScreen
 import com.gy.githubclient.feature.repo.presentation.FileBrowserScreen
 import com.gy.githubclient.feature.repo.presentation.RepoDetailScreen
 import com.gy.githubclient.feature.repo.presentation.RepoListScreen
@@ -99,6 +100,17 @@ sealed class Route(
             ref: String,
         ) = "file_browser/$owner/$name/$ref"
     }
+
+    /** 提交历史与 Diff（v0.12.0 N10）。 */
+    data object Commits : Route("commits/{owner}/{name}") {
+        const val ARG_OWNER = "owner"
+        const val ARG_NAME = "name"
+
+        fun route(
+            owner: String,
+            name: String,
+        ) = "commits/$owner/$name"
+    }
 }
 
 @Composable
@@ -130,6 +142,23 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() },
                 onOpenReleases = { navController.navigate(Route.ReleaseList.route(owner, name)) },
                 onOpenFiles = { ref -> navController.navigate(Route.FileBrowser.route(owner, name, ref)) },
+                onOpenCommits = { navController.navigate(Route.Commits.route(owner, name)) },
+            )
+        }
+        composable(
+            Route.Commits.path,
+            arguments =
+                listOf(
+                    navArgument(Route.Commits.ARG_OWNER) { type = NavType.StringType },
+                    navArgument(Route.Commits.ARG_NAME) { type = NavType.StringType },
+                ),
+        ) { backStackEntry ->
+            val owner = backStackEntry.arguments?.getString(Route.Commits.ARG_OWNER).orEmpty()
+            val name = backStackEntry.arguments?.getString(Route.Commits.ARG_NAME).orEmpty()
+            CommitScreen(
+                owner = owner,
+                name = name,
+                onBack = { navController.popBackStack() },
             )
         }
         composable(

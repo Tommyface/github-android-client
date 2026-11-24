@@ -200,5 +200,19 @@ private class StubRepoRepository(
                 .FileContent(path = path, name = "a.txt", content = "hi", size = 2),
         )
 
+    override suspend fun listCommits(
+        owner: String,
+        name: String,
+        page: Int,
+        perPage: Int,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.CommitSummary>> = NetworkResult.Success(emptyList())
+
+    override suspend fun getCommitDetail(
+        owner: String,
+        name: String,
+        sha: String,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.CommitDetail> =
+        NetworkResult.Failure(ApiError.NotFound)
+
     override suspend fun clearCache() = Unit
 }

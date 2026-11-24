@@ -7,6 +7,8 @@ package com.gy.githubclient.feature.repo.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.CommitDetail
+import com.gy.githubclient.feature.repo.domain.model.CommitSummary
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
@@ -113,6 +115,21 @@ interface RepoRepository {
         path: String,
         ref: String,
     ): NetworkResult<FileContent>
+
+    /** 提交历史（v0.12.0 N10）：page 从 1 开始。 */
+    suspend fun listCommits(
+        owner: String,
+        name: String,
+        page: Int = 1,
+        perPage: Int = 30,
+    ): NetworkResult<List<CommitSummary>>
+
+    /** 单次提交详情（含变更文件 patch，v0.12.0 N10）。 */
+    suspend fun getCommitDetail(
+        owner: String,
+        name: String,
+        sha: String,
+    ): NetworkResult<CommitDetail>
 
     /** 清空本地仓库缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

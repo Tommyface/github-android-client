@@ -6,8 +6,10 @@
 package com.gy.githubclient.feature.repo.presentation
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,20 +17,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -41,8 +48,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.gy.githubclient.feature.repo.domain.model.CheckConclusion
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
+import com.gy.githubclient.feature.repo.domain.model.Contributor
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
+import com.gy.githubclient.feature.repo.domain.model.LanguageShare
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.model.StarHistoryPoint
@@ -69,6 +78,8 @@ fun RepoDetailScreen(
     val starHistory by viewModel.starHistory.collectAsStateWithLifecycle()
     val issues by viewModel.issues.collectAsStateWithLifecycle()
     val issueDetail by viewModel.issueDetail.collectAsStateWithLifecycle()
+    val languages by viewModel.languages.collectAsStateWithLifecycle()
+    val contributors by viewModel.contributors.collectAsStateWithLifecycle()
 
     LaunchedEffect(owner, name) {
         viewModel.openDetail(owner, name)
@@ -152,6 +163,14 @@ fun RepoDetailScreen(
 
         item {
             RepoInfoCard(repo = current)
+        }
+
+        item {
+            LanguageCard(languages = languages)
+        }
+
+        item {
+            ContributorCard(contributors = contributors)
         }
 
         item {
@@ -482,6 +501,98 @@ private fun InfoLine(
     Row(Modifier.fillMaxWidth()) {
         Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/** 语言构成卡（v0.16.0 P2-b，只读）：按字节占比排序，逐条显示语言与百分比。 */
+@Composable
+private fun LanguageCard(languages: List<LanguageShare>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("语言构成", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            if (languages.isEmpty()) {
+                Text("暂无语言统计数据", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                // 占比条：每段宽度按 percent 加权，颜色在主题主色系内循环区分。
+                Row(Modifier.fillMaxWidth().height(8.dp)) {
+                    languages.forEachIndexed { index, share ->
+                        Spacer(
+                            Modifier
+                                .weight(share.percent.coerceAtLeast(0.1).toFloat())
+                                .height(8.dp)
+                                .background(languageBarColor(index)),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                languages.forEach { share ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+                        Text(share.language, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        Text("${share.percent}%", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "数据来源：GitHub REST · languages（按字节数占比，只读）",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun languageBarColor(index: Int): androidx.compose.ui.graphics.Color {
+    val scheme = MaterialTheme.colorScheme
+    return listOf(scheme.primary, scheme.secondary, scheme.tertiary, scheme.primaryContainer, scheme.secondaryContainer)[
+        index % 5,
+    ]
+}
+
+/** 贡献者卡（v0.16.0 P2-c，只读）：头像 + login + 贡献数。 */
+@Composable
+private fun ContributorCard(contributors: List<Contributor>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("贡献者（${contributors.size}）", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            if (contributors.isEmpty()) {
+                Text("暂无贡献者数据", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                contributors.take(20).forEach { contributor ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                        val avatarUrl = contributor.avatarUrl
+                        if (avatarUrl.isNullOrBlank()) {
+                            Surface(
+                                modifier = Modifier.size(32.dp).clip(CircleShape),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(contributor.login.take(1).uppercase(), style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        } else {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = contributor.login,
+                                modifier = Modifier.size(32.dp).clip(CircleShape),
+                            )
+                        }
+                        Spacer(Modifier.padding(4.dp))
+                        Text("@${contributor.login}", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        Text("${contributor.contributions} 次", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "数据来源：GitHub REST · contributors（只读，最多显示 20 位）",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

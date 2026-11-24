@@ -26,6 +26,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.encodeURLPath
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 
 /** 仓库列表响应：数据 + 本次响应 ETag，供缓存层持久化以供下次条件请求。 */
 data class RepoListPayload(
@@ -300,6 +302,50 @@ class GitHubRepoApi(
             },
         )
 
+    /** 递归文件树（v0.16.0 P2-a）：GET /repos/{o}/{r}/git/trees/{ref}?recursive=1。 */
+    suspend fun getTree(
+        owner: String,
+        name: String,
+        ref: String,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.RepoTree> =
+        client.request(
+            path = "/repos/$owner/$name/git/trees/${ref.encodeURLPath()}?recursive=1",
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(GitTreeResponseDto.serializer(), response.bodyAsText()).toDomain()
+            },
+        )
+
+    /** 语言构成（v0.16.0 P2-b）：GET /repos/{o}/{r}/languages，返回 Map<语言, 字节数>。 */
+    suspend fun getLanguages(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.LanguageShare>> =
+        client.request(
+            path = "/repos/$owner/$name/languages",
+            mapper = { response: HttpResponse ->
+                val bytes =
+                    GitHubJson.decode(
+                        MapSerializer(String.serializer(), Long.serializer()),
+                        response.bodyAsText(),
+                    )
+                bytes.toLanguageShares()
+            },
+        )
+
+    /** 贡献者（v0.16.0 P2-c）：GET /repos/{o}/{r}/contributors。 */
+    suspend fun listContributors(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Contributor>> =
+        client.request(
+            path = "/repos/$owner/$name/contributors?per_page=$CONTRIBUTORS_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(ContributorDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
+        )
+
     /** combined commit status（v0.13.0 A2）：GET /repos/{o}/{r}/commits/{sha}/status。 */
     suspend fun getCombinedStatus(
         owner: String,
@@ -364,5 +410,6 @@ class GitHubRepoApi(
         const val ISSUES_PER_PAGE = 30
         const val CHECKS_PER_PAGE = 30
         const val FILE_COMMITS_PER_PAGE = 30
+        const val CONTRIBUTORS_PER_PAGE = 100
     }
 }

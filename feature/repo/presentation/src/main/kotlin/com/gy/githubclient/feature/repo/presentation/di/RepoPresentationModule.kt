@@ -28,10 +28,12 @@ val repoPresentationModule =
                 listIssues = get(),
                 getIssueDetail = get(),
                 getCheckOverview = get(),
+                getLanguages = get(),
+                listContributors = get(),
                 enqueueDownload = get(),
             )
         }
-        viewModel { FileBrowserViewModel(get(), get(), get()) }
+        viewModel { FileBrowserViewModel(get(), get(), get(), get()) }
         viewModel { CommitViewModel(get(), get()) }
         viewModel { ActionsViewModel(get()) }
     }

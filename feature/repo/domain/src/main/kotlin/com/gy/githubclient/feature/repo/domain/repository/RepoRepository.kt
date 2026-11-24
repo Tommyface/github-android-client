@@ -10,12 +10,15 @@ import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.CommitSummary
+import com.gy.githubclient.feature.repo.domain.model.Contributor
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
+import com.gy.githubclient.feature.repo.domain.model.LanguageShare
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
+import com.gy.githubclient.feature.repo.domain.model.RepoTree
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.model.WorkflowRunPage
@@ -158,6 +161,25 @@ interface RepoRepository {
         path: String,
         ref: String,
     ): NetworkResult<List<CommitSummary>>
+
+    /** 递归文件树（v0.16.0 P2-a）：GET /git/trees/{ref}?recursive=1，只读。 */
+    suspend fun getTree(
+        owner: String,
+        name: String,
+        ref: String,
+    ): NetworkResult<RepoTree>
+
+    /** 语言构成（v0.16.0 P2-b）：GET /languages 字节占比，只读。 */
+    suspend fun getLanguages(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<LanguageShare>>
+
+    /** 贡献者（v0.16.0 P2-c）：GET /contributors，只读。 */
+    suspend fun listContributors(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<Contributor>>
 
     /** 清空本地仓库缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

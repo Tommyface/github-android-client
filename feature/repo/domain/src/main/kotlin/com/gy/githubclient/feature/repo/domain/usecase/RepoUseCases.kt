@@ -8,12 +8,15 @@ package com.gy.githubclient.feature.repo.domain.usecase
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
+import com.gy.githubclient.feature.repo.domain.model.Contributor
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
+import com.gy.githubclient.feature.repo.domain.model.LanguageShare
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
+import com.gy.githubclient.feature.repo.domain.model.RepoTree
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.model.WorkflowRunPage
@@ -189,6 +192,37 @@ class ListFileCommitsUseCase(
         ref: String,
     ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.CommitSummary>> =
         repository.listFileCommits(owner, name, path, ref)
+}
+
+/** 递归文件树（v0.16.0 P2-a，只读）。 */
+class GetTreeUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        ref: String,
+    ): NetworkResult<RepoTree> = repository.getTree(owner, name, ref)
+}
+
+/** 语言构成（v0.16.0 P2-b，只读）。 */
+class GetLanguagesUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<LanguageShare>> = repository.getLanguages(owner, name)
+}
+
+/** 贡献者列表（v0.16.0 P2-c，只读）。 */
+class ListContributorsUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<Contributor>> = repository.listContributors(owner, name)
 }
 
 /** 清空缓存（登出时）。 */

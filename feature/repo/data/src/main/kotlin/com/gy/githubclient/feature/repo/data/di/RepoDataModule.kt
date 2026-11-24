@@ -18,13 +18,16 @@ import com.gy.githubclient.feature.repo.domain.usecase.GetCheckOverviewUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetCommitDetailUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetFileContentUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetIssueDetailUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.GetLanguagesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetReadmeUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetStarHistoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.GetTreeUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.IsStarredUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListCommitsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListContentsUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListContributorsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListFileCommitsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListIssuesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListWorkflowRunsUseCase
@@ -73,6 +76,9 @@ val repoDataModule =
         factory { GetCheckOverviewUseCase(get<RepoRepository>()) }
         factory { ListWorkflowRunsUseCase(get<RepoRepository>()) }
         factory { ListFileCommitsUseCase(get<RepoRepository>()) }
+        factory { GetTreeUseCase(get<RepoRepository>()) }
+        factory { GetLanguagesUseCase(get<RepoRepository>()) }
+        factory { ListContributorsUseCase(get<RepoRepository>()) }
         factory { SetStarredUseCase(get<RepoRepository>()) }
         factory { IsStarredUseCase(get<RepoRepository>()) }
         factory { ForkRepositoryUseCase(get<RepoRepository>()) }

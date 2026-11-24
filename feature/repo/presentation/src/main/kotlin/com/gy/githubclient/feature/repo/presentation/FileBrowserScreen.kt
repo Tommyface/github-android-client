@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
+import com.gy.githubclient.feature.repo.domain.model.RepoTree
+import com.gy.githubclient.feature.repo.domain.model.TreeNode
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -64,7 +66,10 @@ fun FileBrowserScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("← 返回") }
             Text("$owner/$name", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = { viewModel.refresh() }) { Text("刷新") }
+            // v0.16.0 P2-a：在逐级浏览 / 完整文件树之间切换。
+            TextButton(onClick = { viewModel.toggleTreeMode() }) {
+                Text(if (uiState.treeMode) "📁 逐级" else "🌳 完整树")
+            }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -93,39 +98,47 @@ fun FileBrowserScreen(
         }
 
         val openFile = uiState.openFile
-        if (openFile != null) {
-            FileContentView(
-                file = openFile,
-                fileHistory = uiState.fileHistory,
-                onShowHistory = { viewModel.showFileHistory() },
-                onClose = { viewModel.closeFile() },
-            )
-        } else {
-            if (uiState.isLoading) {
-                Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+        when {
+            uiState.treeMode -> {
+                TreeView(tree = uiState.tree, isLoading = uiState.isLoading)
             }
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                if (!uiState.isLoading && uiState.entries.isEmpty() && uiState.error == null) {
-                    item {
-                        Text(
-                            "该目录为空。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+
+            openFile != null -> {
+                FileContentView(
+                    file = openFile,
+                    fileHistory = uiState.fileHistory,
+                    onShowHistory = { viewModel.showFileHistory() },
+                    onClose = { viewModel.closeFile() },
+                )
+            }
+
+            else -> {
+                if (uiState.isLoading) {
+                    Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
                     }
                 }
-                items(uiState.entries, key = { "entry_${it.path}" }) { entry ->
-                    FileEntryRow(
-                        entry = entry,
-                        onClick = {
-                            if (entry.isDirectory) viewModel.enterDirectory(entry.name) else viewModel.openFile(entry)
-                        },
-                    )
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    if (!uiState.isLoading && uiState.entries.isEmpty() && uiState.error == null) {
+                        item {
+                            Text(
+                                "该目录为空。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    items(uiState.entries, key = { "entry_${it.path}" }) { entry ->
+                        FileEntryRow(
+                            entry = entry,
+                            onClick = {
+                                if (entry.isDirectory) viewModel.enterDirectory(entry.name) else viewModel.openFile(entry)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -153,6 +166,78 @@ private fun FileEntryRow(
         if (!entry.isDirectory) {
             Text(
                 formatFileSize(entry.size),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 完整文件树视图（v0.16.0 P2-a）：一次展示递归树全部节点，含截断提示。 */
+@Composable
+private fun TreeView(
+    tree: RepoTree?,
+    isLoading: Boolean,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (isLoading && tree == null) {
+            Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        if (tree != null) {
+            Text(
+                "文件 ${tree.fileCount} · 目录 ${tree.dirCount}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
+            if (tree.isTruncated) {
+                Text(
+                    "⚠ GitHub 返回的树已截断（文件过多），当前仅显示部分节点。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                items(tree.nodes, key = { "tree_${it.type}_${it.path}" }) { node ->
+                    TreeNodeRow(node = node)
+                }
+            }
+        } else if (!isLoading) {
+            Text("尚未加载文件树。", style = MaterialTheme.typography.bodySmall)
+        }
+        Text(
+            "数据来源：GitHub REST · git/trees?recursive=1（只读）",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun TreeNodeRow(node: TreeNode) {
+    val depth = node.path.count { it == '/' }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp, horizontal = (depth * 8).dp.coerceAtMost(48.dp)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(if (node.isDirectory) "📁" else "📄")
+        Text(
+            node.path.substringAfterLast('/'),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f).padding(start = 6.dp),
+        )
+        if (node.isFile) {
+            Text(
+                formatFileSize(node.size),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

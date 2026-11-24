@@ -137,6 +137,26 @@ class CommitDomainTest {
                 ref: String,
             ): NetworkResult<List<CommitSummary>> = NetworkResult.Success(emptyList())
 
+            override suspend fun getTree(
+                owner: String,
+                name: String,
+                ref: String,
+            ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.RepoTree> =
+                NetworkResult.Success(
+                    com.gy.githubclient.feature.repo.domain.model
+                        .RepoTree(emptyList()),
+                )
+
+            override suspend fun getLanguages(
+                owner: String,
+                name: String,
+            ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.LanguageShare>> = NetworkResult.Success(emptyList())
+
+            override suspend fun listContributors(
+                owner: String,
+                name: String,
+            ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Contributor>> = NetworkResult.Success(emptyList())
+
             override suspend fun clearCache() = Unit
         }
 

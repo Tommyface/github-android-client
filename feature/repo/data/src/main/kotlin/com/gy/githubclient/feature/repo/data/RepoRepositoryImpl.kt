@@ -246,6 +246,24 @@ class RepoRepositoryImpl(
     ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.CommitSummary>> =
         api.listFileCommits(owner, name, path, ref)
 
+    override suspend fun getTree(
+        owner: String,
+        name: String,
+        ref: String,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.RepoTree> = api.getTree(owner, name, ref)
+
+    override suspend fun getLanguages(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.LanguageShare>> =
+        api.getLanguages(owner, name)
+
+    override suspend fun listContributors(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Contributor>> =
+        api.listContributors(owner, name)
+
     override suspend fun clearCache() {
         dao.clearAll()
         dao.clearAllMeta()

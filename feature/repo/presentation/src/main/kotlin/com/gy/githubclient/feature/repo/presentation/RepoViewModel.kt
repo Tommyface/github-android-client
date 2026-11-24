@@ -13,8 +13,10 @@ import com.gy.githubclient.feature.download.domain.model.DownloadRequest
 import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCase
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
+import com.gy.githubclient.feature.repo.domain.model.Contributor
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
+import com.gy.githubclient.feature.repo.domain.model.LanguageShare
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.RepoType
@@ -23,10 +25,12 @@ import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetCheckOverviewUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetIssueDetailUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.GetLanguagesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetReadmeUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetStarHistoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListContributorsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListIssuesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
@@ -91,6 +95,8 @@ class RepoViewModel(
     private val listIssues: ListIssuesUseCase,
     private val getIssueDetail: GetIssueDetailUseCase,
     private val getCheckOverview: GetCheckOverviewUseCase,
+    private val getLanguages: GetLanguagesUseCase,
+    private val listContributors: ListContributorsUseCase,
     private val enqueueDownload: EnqueueDownloadUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RepoListUiState())
@@ -156,6 +162,14 @@ class RepoViewModel(
     private val _issueDetail = MutableStateFlow<IssueDetail?>(null)
     val issueDetail: StateFlow<IssueDetail?> = _issueDetail.asStateFlow()
 
+    /** 语言构成（v0.16.0 P2-b）：按字节占比降序。 */
+    private val _languages = MutableStateFlow<List<LanguageShare>>(emptyList())
+    val languages: StateFlow<List<LanguageShare>> = _languages.asStateFlow()
+
+    /** 贡献者（v0.16.0 P2-c）：只读列表。 */
+    private val _contributors = MutableStateFlow<List<Contributor>>(emptyList())
+    val contributors: StateFlow<List<Contributor>> = _contributors.asStateFlow()
+
     init {
         refresh()
     }
@@ -209,6 +223,8 @@ class RepoViewModel(
                     loadStarHistory(owner, name)
                     loadIssues(owner, name)
                     loadChecks(owner, name, _selectedRef.value)
+                    loadLanguages(owner, name)
+                    loadContributors(owner, name)
                 }
 
                 is NetworkResult.Failure -> _events.trySend(RepoEvent.ShowMessage(errorMessage(result.error)))
@@ -376,6 +392,34 @@ class RepoViewModel(
                 when (val result = getCheckOverview(owner, name, ref)) {
                     is NetworkResult.Success -> result.data
                     is NetworkResult.Failure -> CheckOverview(sha = ref)
+                }
+        }
+    }
+
+    /** 语言构成（v0.16.0 P2-b）：失败以空列表降级，不打扰详情主流程。 */
+    private fun loadLanguages(
+        owner: String,
+        name: String,
+    ) {
+        viewModelScope.launch {
+            _languages.value =
+                when (val result = getLanguages(owner, name)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> emptyList()
+                }
+        }
+    }
+
+    /** 贡献者（v0.16.0 P2-c）：失败以空列表降级。 */
+    private fun loadContributors(
+        owner: String,
+        name: String,
+    ) {
+        viewModelScope.launch {
+            _contributors.value =
+                when (val result = listContributors(owner, name)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> emptyList()
                 }
         }
     }

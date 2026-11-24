@@ -102,7 +102,8 @@ class GitHubOAuthApi(
                 runCatching { GitHubJson.decode(DeviceCodeResponseDto.serializer(), text) }
                     .fold(
                         onSuccess = { DeviceCodeResult.Success(it) },
-                        onFailure = { DeviceCodeResult.Error(-1, it.message ?: "解析失败") },
+                        // -2 = 解析失败（区别于 -1 传输异常，上层据此决定是否重试）。
+                        onFailure = { DeviceCodeResult.Error(PARSE_ERROR_CODE, it.message ?: "解析失败") },
                     )
             }
         } catch (t: Exception) {
@@ -135,7 +136,7 @@ class GitHubOAuthApi(
                 runCatching { parseTokenBody(text) }
                     .fold(
                         onSuccess = { OAuthTokenResult.Success(it) },
-                        onFailure = { OAuthTokenResult.Error(-1, it.message ?: "解析失败") },
+                        onFailure = { OAuthTokenResult.Error(PARSE_ERROR_CODE, it.message ?: "解析失败") },
                     )
             }
         } catch (t: Exception) {
@@ -178,6 +179,12 @@ class GitHubOAuthApi(
 
         /** OAuth App client_id 属公开信息（Device Flow 无需 client_secret），由 app 层 BuildConfig 注入，此值仅作兜底。 */
         const val DEFAULT_CLIENT_ID = "Ov23li50RuIKE1lG7qe4"
+
+        /** 网络传输异常约定码（SocketTimeout / 连接被重置 / DNS 失败等），上层据此重试。 */
+        const val TRANSPORT_ERROR_CODE = -1
+
+        /** 响应解析失败约定码，重试无意义。 */
+        const val PARSE_ERROR_CODE = -2
 
         private const val MAX_ERROR_BODY = 200
     }

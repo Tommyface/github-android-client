@@ -14,6 +14,7 @@ import io.ktor.client.plugins.HttpTimeout
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -41,6 +42,8 @@ class OAuthDeviceFlowRepositoryImplTest {
             OAuthDeviceFlowRepositoryImpl(
                 api = GitHubOAuthApi(client, baseUrl = server.url("/").toString().removeSuffix("/")),
                 clientId = "test-client",
+                // 测试注入 0 退避，避免重试用例真实等待 6 秒。
+                retryDelayMillis = 0L,
             )
     }
 
@@ -113,6 +116,33 @@ class OAuthDeviceFlowRepositoryImplTest {
             server.enqueue(MockResponse().setResponseCode(500).setBody("boom"))
             val result = repository.pollForToken("dev-1")
             assertTrue(result is DeviceFlowPollResult.NetworkError)
+        }
+
+    @Test
+    fun startRetriesTransportErrorsThenSucceeds() =
+        runBlocking {
+            // 前两次模拟传输层异常（连接即断开），第三次成功——验证退避重试闭环。
+            repeat(2) { server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START)) }
+            server.enqueue(
+                json(
+                    """{"device_code":"dev-ok","user_code":"AAAA-1111",""" +
+                        """"verification_uri":"https://github.com/login/device",""" +
+                        """"expires_in":900,"interval":5}""",
+                ),
+            )
+            val result = repository.startDeviceFlow()
+            assertTrue("传输异常重试后应成功", result is DeviceFlowStartResult.Success)
+            assertEquals(3, server.requestCount)
+        }
+
+    @Test
+    fun startDoesNotRetryHttpError() =
+        runBlocking {
+            // HTTP 状态码错误（非传输层）不应重试，直接失败。
+            server.enqueue(MockResponse().setResponseCode(503).setBody("unavailable"))
+            val result = repository.startDeviceFlow()
+            assertTrue("HTTP 错误应立即失败", result is DeviceFlowStartResult.Error)
+            assertEquals(1, server.requestCount)
         }
 
     @Test

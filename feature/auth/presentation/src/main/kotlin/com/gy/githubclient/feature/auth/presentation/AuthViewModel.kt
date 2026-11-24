@@ -157,7 +157,9 @@ class AuthViewModel(
                 when (val result = startDeviceFlow()) {
                     is DeviceFlowStartResult.Error -> {
                         _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Idle)
-                        _events.trySend(AuthEvent.ShowMessage("发起授权失败：${result.message}"))
+                        _events.trySend(
+                            AuthEvent.ShowMessage("发起授权失败：${friendlyDeviceFlowError(result.message)}"),
+                        )
                     }
 
                     is DeviceFlowStartResult.Success -> {
@@ -226,7 +228,9 @@ class AuthViewModel(
                     if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
                         _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Idle)
                         _events.trySend(
-                            AuthEvent.ShowMessage("网络异常，授权已中止：${result.message}"),
+                            AuthEvent.ShowMessage(
+                                "网络异常，授权已中止：${friendlyDeviceFlowError(result.message)}",
+                            ),
                         )
                         return
                     }
@@ -307,5 +311,35 @@ class AuthViewModel(
         const val MIN_INTERVAL_SECONDS = 2
         const val SLOW_DOWN_EXTRA_SECONDS = 5
         const val MAX_CONSECUTIVE_ERRORS = 3
+    }
+}
+
+/**
+ * 把底层网络异常的英文原文翻译成用户可读的中文指引（顶层便于单测）。
+ *
+ * 国内直连 github.com 常见失败形态：Socket timeout / 连接重置 / DNS 解析失败；
+ * Device Flow 端点无法走文件镜像加速，只能引导用户切换网络或开代理。
+ */
+internal fun friendlyDeviceFlowError(raw: String): String {
+    val lower = raw.lowercase()
+    return when {
+        "timeout" in lower ->
+            "网络连接超时：直连 github.com 无响应。请切换网络（WiFi ↔ 流量）、开启代理，" +
+                "或稍后重试（github.com 在国内间歇可达）"
+
+        listOf("unable to resolve", "unknownhost", "no address").any { it in lower } ->
+            "域名解析失败：当前网络无法访问 github.com。请切换网络或开启代理后重试"
+
+        listOf(
+            "reset",
+            "failed to connect",
+            "unexpected end",
+            "connection closed",
+            "econnreset",
+            "broken pipe",
+        ).any { it in lower } ->
+            "网络连接中断：请求被重置。请切换网络（WiFi ↔ 流量）或开启代理后重试"
+
+        else -> raw
     }
 }

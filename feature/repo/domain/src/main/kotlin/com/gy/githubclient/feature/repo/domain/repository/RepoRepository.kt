@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.repo.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.CommitSummary
 import com.gy.githubclient.feature.repo.domain.model.FileContent
@@ -130,6 +131,16 @@ interface RepoRepository {
         name: String,
         sha: String,
     ): NetworkResult<CommitDetail>
+
+    /**
+     * 某次提交的 CI 检查概览（v0.13.0 A2）：check-runs + statuses 聚合。
+     * 两个端点任一失败时以空列表降级，不阻塞详情展示。
+     */
+    suspend fun getCheckOverview(
+        owner: String,
+        name: String,
+        sha: String,
+    ): NetworkResult<CheckOverview>
 
     /** 清空本地仓库缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

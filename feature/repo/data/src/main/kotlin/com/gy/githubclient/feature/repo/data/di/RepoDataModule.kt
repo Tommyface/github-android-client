@@ -14,6 +14,7 @@ import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import com.gy.githubclient.feature.repo.domain.usecase.ClearRepoCacheUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.GetCheckOverviewUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetCommitDetailUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetFileContentUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetIssueDetailUseCase
@@ -67,6 +68,7 @@ val repoDataModule =
         factory { GetFileContentUseCase(get<RepoRepository>()) }
         factory { ListCommitsUseCase(get<RepoRepository>()) }
         factory { GetCommitDetailUseCase(get<RepoRepository>()) }
+        factory { GetCheckOverviewUseCase(get<RepoRepository>()) }
         factory { SetStarredUseCase(get<RepoRepository>()) }
         factory { IsStarredUseCase(get<RepoRepository>()) }
         factory { ForkRepositoryUseCase(get<RepoRepository>()) }

@@ -253,6 +253,36 @@ class GitHubRepoApi(
             },
         )
 
+    /** CI check runs（v0.13.0 A2）：GET /repos/{o}/{r}/commits/{sha}/check-runs。 */
+    suspend fun listCheckRuns(
+        owner: String,
+        name: String,
+        sha: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.CheckRun>> =
+        client.request(
+            path = "/repos/$owner/$name/commits/${sha.encodeURLPath()}/check-runs?per_page=$CHECKS_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(CheckRunsResponseDto.serializer(), response.bodyAsText())
+                    .toDomainRuns()
+            },
+        )
+
+    /** combined commit status（v0.13.0 A2）：GET /repos/{o}/{r}/commits/{sha}/status。 */
+    suspend fun getCombinedStatus(
+        owner: String,
+        name: String,
+        sha: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.CommitStatus>> =
+        client.request(
+            path = "/repos/$owner/$name/commits/${sha.encodeURLPath()}/status",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(CombinedStatusDto.serializer(), response.bodyAsText())
+                    .toDomainStatuses()
+            },
+        )
+
     /** Issue / PR 评论时间线（v0.7.0 M11）。 */
     suspend fun listIssueComments(
         owner: String,
@@ -300,5 +330,6 @@ class GitHubRepoApi(
         const val BRANCHES_PER_PAGE = 100
         const val STAR_HISTORY_WEEKS = 30
         const val ISSUES_PER_PAGE = 30
+        const val CHECKS_PER_PAGE = 30
     }
 }

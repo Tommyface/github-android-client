@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.repo.domain.usecase
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
@@ -151,6 +152,17 @@ class GetFileContentUseCase(
         path: String,
         ref: String,
     ): NetworkResult<FileContent> = repository.getFileContent(owner, name, path, ref)
+}
+
+/** 获取某次提交的 CI 检查概览（v0.13.0 A2）。 */
+class GetCheckOverviewUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        sha: String,
+    ): NetworkResult<CheckOverview> = repository.getCheckOverview(owner, name, sha)
 }
 
 /** 清空缓存（登出时）。 */

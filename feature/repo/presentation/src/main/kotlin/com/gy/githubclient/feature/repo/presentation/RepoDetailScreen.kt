@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -38,6 +39,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.gy.githubclient.feature.repo.domain.model.CheckConclusion
+import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
@@ -58,6 +61,8 @@ fun RepoDetailScreen(
 ) {
     val repo by viewModel.detail.collectAsStateWithLifecycle()
     val branches by viewModel.branches.collectAsStateWithLifecycle()
+    val selectedRef by viewModel.selectedRef.collectAsStateWithLifecycle()
+    val checkOverview by viewModel.checkOverview.collectAsStateWithLifecycle()
     val readmeState by viewModel.readme.collectAsStateWithLifecycle()
     val starHistory by viewModel.starHistory.collectAsStateWithLifecycle()
     val issues by viewModel.issues.collectAsStateWithLifecycle()
@@ -118,13 +123,13 @@ fun RepoDetailScreen(
                     Text(if (current.isFork) "这是一个 Fork" else "Fork 到我的账号")
                 }
                 OutlinedButton(onClick = { viewModel.downloadZip(current) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("⬇ 下载 ZIP（${current.defaultBranch}）")
+                    Text("⬇ 下载 ZIP（$selectedRef）")
                 }
                 OutlinedButton(onClick = onOpenReleases, modifier = Modifier.fillMaxWidth()) {
                     Text("📦 Releases / Tags")
                 }
-                OutlinedButton(onClick = { onOpenFiles(current.defaultBranch) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("📂 浏览文件")
+                OutlinedButton(onClick = { onOpenFiles(selectedRef) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("📂 浏览文件（$selectedRef）")
                 }
                 OutlinedButton(onClick = onOpenCommits, modifier = Modifier.fillMaxWidth()) {
                     Text("🕘 提交历史 / Diff")
@@ -134,6 +139,10 @@ fun RepoDetailScreen(
 
         item {
             StarTrendCard(starHistory = starHistory)
+        }
+
+        item {
+            CheckCard(overview = checkOverview, ref = selectedRef)
         }
 
         item {
@@ -189,12 +198,28 @@ fun RepoDetailScreen(
         }
 
         item {
-            Text("分支（${branches.size}）", style = MaterialTheme.typography.titleMedium)
+            Text("分支（${branches.size}）· 点击切换当前分支", style = MaterialTheme.typography.titleMedium)
         }
         items(branches, key = { "branch_${it.name}" }) { branch ->
-            Card(modifier = Modifier.fillMaxWidth()) {
+            val isSelected = branch.name == selectedRef
+            Card(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.selectBranch(branch.name) },
+                colors =
+                    if (isSelected) {
+                        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    } else {
+                        CardDefaults.cardColors()
+                    },
+            ) {
                 Row(Modifier.padding(12.dp)) {
-                    Text(branch.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(
+                        if (isSelected) "✓ ${branch.name}" else branch.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
                     if (branch.isProtected) {
                         Text("受保护", style = MaterialTheme.typography.labelSmall)
                     }
@@ -349,6 +374,80 @@ internal fun StarTrendCard(starHistory: StarHistory?) {
         }
     }
 }
+
+/**
+ * CI 检查卡片（v0.13.0 A2）：只读展示当前 ref 的 check runs + statuses。
+ * 全部来自 REST，结论归一化后着色；无数据明示「该分支暂无 CI 记录」，不臆造。
+ */
+@Composable
+internal fun CheckCard(
+    overview: CheckOverview?,
+    ref: String,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("CI 检查状态（$ref）", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            when {
+                overview == null ->
+                    Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                overview.isEmpty ->
+                    Text(
+                        "该分支暂无 CI 检查记录",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                else -> {
+                    Text("总体：${conclusionLabel(overview.overall)}", style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(4.dp))
+                    overview.runs.forEach { run -> CheckLine(name = run.name, conclusion = run.normalized) }
+                    overview.statuses.forEach { status -> CheckLine(name = status.context, conclusion = status.normalized) }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "数据来源：GitHub REST · check-runs / statuses（只读）",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CheckLine(
+    name: String,
+    conclusion: CheckConclusion,
+) {
+    Row(Modifier.padding(vertical = 2.dp)) {
+        Text(
+            "${conclusionIcon(conclusion)} $name",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f),
+        )
+        Text(conclusionLabel(conclusion), style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+internal fun conclusionIcon(conclusion: CheckConclusion): String =
+    when (conclusion) {
+        CheckConclusion.SUCCESS -> "✓"
+        CheckConclusion.FAILURE -> "✕"
+        CheckConclusion.NEUTRAL -> "–"
+        CheckConclusion.PENDING -> "◷"
+        CheckConclusion.UNKNOWN -> "?"
+    }
+
+internal fun conclusionLabel(conclusion: CheckConclusion): String =
+    when (conclusion) {
+        CheckConclusion.SUCCESS -> "通过"
+        CheckConclusion.FAILURE -> "失败"
+        CheckConclusion.NEUTRAL -> "中性"
+        CheckConclusion.PENDING -> "进行中"
+        CheckConclusion.UNKNOWN -> "未知"
+    }
 
 /** 用 Compose Canvas 自绘累计折线，零第三方图表依赖。 */
 @Composable

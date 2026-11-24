@@ -12,7 +12,9 @@ import com.gy.githubclient.feature.repo.data.local.RepoDao
 import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
+import com.gy.githubclient.feature.repo.data.remote.buildCheckOverview
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.CommitSummary
 import com.gy.githubclient.feature.repo.domain.model.FileContent
@@ -208,6 +210,25 @@ class RepoRepositoryImpl(
         name: String,
         sha: String,
     ): NetworkResult<CommitDetail> = api.getCommitDetail(owner, name, sha)
+
+    override suspend fun getCheckOverview(
+        owner: String,
+        name: String,
+        sha: String,
+    ): NetworkResult<CheckOverview> {
+        // 两个端点独立加载：任一失败以空列表降级，不阻塞 CI 概览其它部分。
+        val runs =
+            when (val result = api.listCheckRuns(owner, name, sha)) {
+                is NetworkResult.Success -> result.data
+                is NetworkResult.Failure -> emptyList()
+            }
+        val statuses =
+            when (val result = api.getCombinedStatus(owner, name, sha)) {
+                is NetworkResult.Success -> result.data
+                is NetworkResult.Failure -> emptyList()
+            }
+        return NetworkResult.Success(buildCheckOverview(sha, runs, statuses))
+    }
 
     override suspend fun clearCache() {
         dao.clearAll()

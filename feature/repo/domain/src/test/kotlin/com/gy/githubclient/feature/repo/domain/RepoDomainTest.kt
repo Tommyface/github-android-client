@@ -214,5 +214,15 @@ private class StubRepoRepository(
     ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.CommitDetail> =
         NetworkResult.Failure(ApiError.NotFound)
 
+    override suspend fun getCheckOverview(
+        owner: String,
+        name: String,
+        sha: String,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.CheckOverview> =
+        NetworkResult.Success(
+            com.gy.githubclient.feature.repo.domain.model
+                .CheckOverview(sha = sha),
+        )
+
     override suspend fun clearCache() = Unit
 }

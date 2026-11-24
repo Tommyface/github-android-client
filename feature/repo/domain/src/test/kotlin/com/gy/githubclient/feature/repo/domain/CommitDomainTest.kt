@@ -8,6 +8,7 @@ package com.gy.githubclient.feature.repo.domain
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.CommitSummary
 import com.gy.githubclient.feature.repo.domain.model.DiffLineKind
@@ -111,6 +112,12 @@ class CommitDomainTest {
                 name: String,
                 sha: String,
             ): NetworkResult<CommitDetail> = NetworkResult.Failure(ApiError.NotFound)
+
+            override suspend fun getCheckOverview(
+                owner: String,
+                name: String,
+                sha: String,
+            ): NetworkResult<CheckOverview> = NetworkResult.Success(CheckOverview(sha = sha))
 
             override suspend fun clearCache() = Unit
         }

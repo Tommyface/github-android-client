@@ -26,6 +26,7 @@ val repoPresentationModule =
                 getStarHistory = get(),
                 listIssues = get(),
                 getIssueDetail = get(),
+                getCheckOverview = get(),
                 enqueueDownload = get(),
             )
         }

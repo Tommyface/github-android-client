@@ -12,6 +12,7 @@ import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.download.domain.model.DownloadRequest
 import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCase
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
@@ -20,6 +21,7 @@ import com.gy.githubclient.feature.repo.domain.model.RepoType
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.GetCheckOverviewUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetIssueDetailUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetReadmeUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
@@ -88,6 +90,7 @@ class RepoViewModel(
     private val getStarHistory: GetStarHistoryUseCase,
     private val listIssues: ListIssuesUseCase,
     private val getIssueDetail: GetIssueDetailUseCase,
+    private val getCheckOverview: GetCheckOverviewUseCase,
     private val enqueueDownload: EnqueueDownloadUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RepoListUiState())
@@ -126,6 +129,17 @@ class RepoViewModel(
 
     private val _branches = MutableStateFlow<List<Branch>>(emptyList())
     val branches: StateFlow<List<Branch>> = _branches.asStateFlow()
+
+    /**
+     * 当前选中的 ref（v0.13.0 A1）：默认分支，点击分支列表可切换。
+     * 驱动「浏览文件」与「下载 ZIP」的 ref。
+     */
+    private val _selectedRef = MutableStateFlow("")
+    val selectedRef: StateFlow<String> = _selectedRef.asStateFlow()
+
+    /** 详情页 CI 检查概览（v0.13.0 A2）：null=加载中/无数据。 */
+    private val _checkOverview = MutableStateFlow<CheckOverview?>(null)
+    val checkOverview: StateFlow<CheckOverview?> = _checkOverview.asStateFlow()
 
     /** 详情页 README 状态（v0.6.0 M6）。 */
     private val _readme = MutableStateFlow<ReadmeUiState>(ReadmeUiState.Idle)
@@ -187,11 +201,14 @@ class RepoViewModel(
             when (val result = getRepository(owner, name)) {
                 is NetworkResult.Success -> {
                     _detail.value = result.data
+                    // 默认分支作为初始选中 ref（A1）；空分支名兜底 main。
+                    _selectedRef.value = result.data.defaultBranch.ifBlank { "main" }
                     _events.trySend(RepoEvent.OpenDetail)
                     loadBranches(owner, name)
                     loadReadme(owner, name)
                     loadStarHistory(owner, name)
                     loadIssues(owner, name)
+                    loadChecks(owner, name, _selectedRef.value)
                 }
 
                 is NetworkResult.Failure -> _events.trySend(RepoEvent.ShowMessage(errorMessage(result.error)))
@@ -216,6 +233,15 @@ class RepoViewModel(
                 is NetworkResult.Failure -> _events.trySend(RepoEvent.ShowMessage(errorMessage(result.error)))
             }
         }
+    }
+
+    /** 切换当前 ref（v0.13.0 A1）：分支名作为后续浏览文件 / 下载 ZIP / CI 的 ref。 */
+    fun selectBranch(branchName: String) {
+        if (branchName.isBlank() || branchName == _selectedRef.value) return
+        _selectedRef.value = branchName
+        val repo = _detail.value ?: return
+        loadChecks(repo.owner.login, repo.name, branchName)
+        _events.trySend(RepoEvent.ShowMessage("已切换到分支：$branchName"))
     }
 
     /**
@@ -306,13 +332,13 @@ class RepoViewModel(
     }
 
     /**
-     * 快捷下载仓库 ZIP（默认分支）：
+     * 快捷下载仓库 ZIP（v0.13.0 A1：当前选中分支）：
      * /archive/refs/heads/{branch}.zip 走既有下载引擎（断点续传/镜像/前台通知全部复用）。
      * archive 无官方 digest，expectedSha256 置空跳过完整性校验。
      */
     fun downloadZip(repo: Repository) {
         viewModelScope.launch {
-            val branch = repo.defaultBranch.ifBlank { "main" }
+            val branch = _selectedRef.value.ifBlank { repo.defaultBranch.ifBlank { "main" } }
             val fileName = "${repo.name}-$branch.zip"
             val request =
                 DownloadRequest(
@@ -336,6 +362,21 @@ class RepoViewModel(
         when (val result = listBranches(owner, name)) {
             is NetworkResult.Success -> _branches.value = result.data
             is NetworkResult.Failure -> _branches.value = emptyList()
+        }
+    }
+
+    /** 拉取 CI 检查概览（v0.13.0 A2）：ref 可传分支名；失败以空概览降级。 */
+    private fun loadChecks(
+        owner: String,
+        name: String,
+        ref: String,
+    ) {
+        viewModelScope.launch {
+            _checkOverview.value =
+                when (val result = getCheckOverview(owner, name, ref)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> CheckOverview(sha = ref)
+                }
         }
     }
 

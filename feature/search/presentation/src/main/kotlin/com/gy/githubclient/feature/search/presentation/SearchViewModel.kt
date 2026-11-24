@@ -138,7 +138,7 @@ class SearchViewModel(
                 }
 
                 is NetworkResult.Failure ->
-                    _events.trySend(SearchEvent.ShowMessage(errorMessage(result.error)))
+                    _events.trySend(SearchEvent.ShowMessage(starErrorMessage(result.error)))
             }
         }
     }
@@ -170,21 +170,52 @@ class SearchViewModel(
         }
     }
 
-    private fun errorMessage(error: ApiError): String =
-        when (error) {
-            ApiError.Unauthorized -> "登录已失效，请重新登录"
-            is ApiError.RateLimited -> "搜索太频繁，已触发独立限流，请稍后再试"
-            ApiError.NotFound -> "未找到相关资源"
-            is ApiError.Network -> "网络错误：${error.cause}"
-            is ApiError.Http -> "搜索失败（${error.code}）"
-            is ApiError.Unknown -> "未知错误：${error.message}"
-        }
+    private fun errorMessage(error: ApiError): String = searchErrorMessage(error)
+
+    /** 收藏失败走专属文案，避免与搜索错误混淆。 */
+    private fun starErrorMessage(error: ApiError): String = starMessage(error)
 
     private companion object {
         const val DEBOUNCE_MS = 300L
         const val PAGE_SIZE = SearchQuery.DEFAULT_PER_PAGE
     }
 }
+
+private const val HTTP_FORBIDDEN = 403
+
+/** 搜索失败文案（顶层便于单测）。403 单独提示频次保护语义。 */
+internal fun searchErrorMessage(error: ApiError): String =
+    when (error) {
+        ApiError.Unauthorized -> "登录已失效，请重新登录"
+        is ApiError.RateLimited -> "搜索太频繁，已触发 GitHub 限流，请稍后再试"
+        ApiError.NotFound -> "未找到相关资源"
+        is ApiError.Network -> "网络错误：${error.cause}"
+        is ApiError.Http ->
+            if (error.code == HTTP_FORBIDDEN) {
+                "搜索被 GitHub 拒绝（403）：可能触发频次保护，请稍后重试；已登录时上限为每分钟 30 次"
+            } else {
+                "搜索失败（${error.code}）"
+            }
+        is ApiError.Unknown -> "未知错误：${error.message}"
+    }
+
+/** 收藏（PUT star）失败文案：与搜索文案分离，403 直接给出权限修复指引。 */
+internal fun starMessage(error: ApiError): String =
+    when (error) {
+        ApiError.Unauthorized -> "登录已失效，请重新登录后再收藏"
+        is ApiError.RateLimited -> "操作过于频繁，已触发 GitHub 限流，请稍后再试"
+        ApiError.NotFound -> "仓库不存在或已删除，无法收藏"
+        is ApiError.Network -> "网络错误：${error.cause}"
+        is ApiError.Http ->
+            if (error.code == HTTP_FORBIDDEN) {
+                "收藏失败（403）：当前凭证没有星标写权限。" +
+                    "fine-grained PAT 需在 GitHub 勾选「Starring: Read and write」；" +
+                    "OAuth 账号请重新授权。可到「我的 → 权限体检」核对当前凭证能力"
+            } else {
+                "收藏失败（${error.code}）"
+            }
+        is ApiError.Unknown -> "收藏失败：${error.message}"
+    }
 
 /** 供 UI 展示的结果副标题。 */
 fun SearchHit.subtitle(): String =

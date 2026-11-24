@@ -13,4 +13,6 @@ dependencies {
     implementation(libs.bundles.koin.common)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
+
+    testImplementation(libs.junit)
 }

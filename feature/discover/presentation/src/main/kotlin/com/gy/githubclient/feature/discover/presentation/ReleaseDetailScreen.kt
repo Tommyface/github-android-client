@@ -24,12 +24,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.feature.discover.domain.model.ReleaseAsset
+import com.gy.githubclient.feature.discover.domain.model.ReleaseInfo
 import org.koin.androidx.compose.koinViewModel
 
-/** Release 详情页：展示最新发布的资产列表，支持镜像加速下载与分享。 */
+/**
+ * Release 详情页：展示发布说明与资产列表，支持镜像加速下载与分享。
+ * 整页单一 LazyColumn（信息区作为普通 item），避免 Column 嵌套导致的滚动截断。
+ */
 @Composable
 fun ReleaseDetailScreen(
     owner: String,
@@ -40,42 +45,55 @@ fun ReleaseDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val item = uiState.allItems.firstOrNull { it.featured.owner == owner && it.featured.name == name }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("← 返回") }
-            Text("$owner/$name", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(8.dp))
-
-        if (item == null) {
+    if (item == null) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onBack) { Text("← 返回") }
+                Text("$owner/$name", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            }
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("未找到该应用，请返回列表刷新后重试", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            return@Column
         }
+        return
+    }
 
-        val release = item.latestRelease
-        if (release == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("该仓库暂无 Release 或拉取失败", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val release = item.latestRelease
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item(key = "header") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onBack) { Text("← 返回") }
+                Text("$owner/$name", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             }
-            return@Column
         }
 
-        Text("版本 ${release.tagName}", style = MaterialTheme.typography.titleMedium)
-        if (release.isPrerelease) {
-            Text("预发布版本", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+        if (release == null) {
+            item(key = "empty_release") {
+                Box(Modifier.fillMaxWidth().height(320.dp), contentAlignment = Alignment.Center) {
+                    Text("该仓库暂无 Release 或拉取失败", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            return@LazyColumn
         }
-        Spacer(Modifier.height(6.dp))
-        release.publishedAt?.let {
-            Text("发布于 $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(Modifier.height(12.dp))
-        Text("下载资产", style = MaterialTheme.typography.titleSmall)
-        Spacer(Modifier.height(8.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(release.assets, key = { it.id }) { asset ->
+        item(key = "release_info") { ReleaseInfoSection(release) }
+        item(key = "assets_title") {
+            Text("下载资产", style = MaterialTheme.typography.titleSmall)
+        }
+
+        if (release.assets.isEmpty()) {
+            item(key = "assets_empty") {
+                Text(
+                    "该版本没有附件资产——可返回发现页选择其他版本，或到 GitHub 网页查看发布说明。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            items(release.assets, key = { "asset_${it.id}" }) { asset ->
                 AssetCard(
                     asset = asset,
                     resolveLink = { viewModel.resolveDownload(it) },
@@ -85,6 +103,41 @@ fun ReleaseDetailScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ReleaseInfoSection(release: ReleaseInfo) {
+    Column {
+        Text("版本 ${release.tagName}", style = MaterialTheme.typography.titleMedium)
+        if (release.isPrerelease) {
+            Text("预发布版本", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+        }
+        Spacer(Modifier.height(6.dp))
+        release.publishedAt?.let {
+            Text(
+                "发布于 ${formatPublishedAt(it)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        release.body?.takeIf { it.isNotBlank() }?.let { body ->
+            Spacer(Modifier.height(10.dp))
+            Text("发布说明", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                body,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Default,
+            )
+        }
+    }
+}
+
+/** ISO 8601（2023-07-13T11:09:53Z）→「2023-07-13 11:09 UTC」；解析失败原样返回。 */
+internal fun formatPublishedAt(iso: String): String {
+    val match = Regex("""^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})""").find(iso) ?: return iso
+    val (date, time) = match.destructured
+    return "$date $time UTC"
 }
 
 @Composable

@@ -63,13 +63,14 @@ class OkHttpDownloader(
             try {
                 val preference = mirrorRepository.observePreference().first()
                 val catalog = mirrorRepository.observeCatalog().first()
-                val mirrorUrl =
+                val latencies = mirrorRepository.observeMeasuredLatencies().first()
+                // v0.5.3 M1：选定镜像失败 → 池内其他镜像（按延迟）→ 直连，全池轮换。
+                val urls =
                     if (bypassMirror) {
-                        null
+                        listOf(url)
                     } else {
-                        MirrorUrlResolver.resolve(url, preference, catalog)
+                        MirrorUrlResolver.candidateUrls(url, preference, catalog, latencies)
                     }
-                val urls = listOfNotNull(mirrorUrl, url).distinct()
 
                 var lastError: IOException? = null
                 var succeeded = false
@@ -84,8 +85,8 @@ class OkHttpDownloader(
                         throw e
                     } catch (e: IOException) {
                         lastError = e
-                        // 镜像失败：清掉可能不兼容的 .part，回退直连从头下。
-                        if (candidate != url) fileStore.deletePartAndMeta(fileName)
+                        // 镜像失败：清掉可能不兼容的 .part，切下一候选从头下。
+                        if (candidate != urls.last()) fileStore.deletePartAndMeta(fileName)
                     }
                 }
                 if (!succeeded) {

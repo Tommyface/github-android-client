@@ -58,6 +58,7 @@ class PermissionAuditRepositoryImpl(
             login = login,
             scopes = scopes,
             capabilities = capabilities,
+            rateLimit = api.rateLimit(token),
         )
     }
 

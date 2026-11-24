@@ -17,6 +17,16 @@ data class Capability(
     val basis: String,
 )
 
+/** 核心 API 限流余量（GET /rate_limit，端点自身免配额）。 */
+data class RateLimitInfo(
+    /** 当前窗口额度总量（认证用户通常 5000/小时）。 */
+    val limit: Int,
+    /** 剩余可用次数。 */
+    val remaining: Int,
+    /** 额度重置时间（epoch 秒）。 */
+    val resetEpochSeconds: Long,
+)
+
 /** 权限体检报告。 */
 data class PermissionReport(
     /** 凭证类型。 */
@@ -30,6 +40,8 @@ data class PermissionReport(
      */
     val scopes: List<String>,
     val capabilities: List<Capability>,
+    /** 核心限流余量（查询失败时为 null，不影响主报告）。 */
+    val rateLimit: RateLimitInfo? = null,
 ) {
     val grantedCount: Int get() = capabilities.count { it.granted }
 }

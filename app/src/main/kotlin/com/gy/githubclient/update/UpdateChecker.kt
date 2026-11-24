@@ -26,6 +26,7 @@ data class ReleaseLatestDto(
     @SerialName("tag_name") val tagName: String = "",
     @SerialName("html_url") val htmlUrl: String = "",
     @SerialName("name") val releaseName: String? = null,
+    @SerialName("body") val body: String? = null,
     @SerialName("assets") val assets: List<ReleaseAssetDto> = emptyList(),
 )
 
@@ -124,7 +125,7 @@ class UpdateChecker(
             prefs.edit().putString(KEY_ETAG, etag).apply()
         }
         val dto = GitHubJson.decode(ReleaseLatestDto.serializer(), response.bodyAsText())
-        if (!SemanticVersion.isNewer(dto.tagName, BuildConfig.VERSION_NAME)) return null
+        if (!isRemoteNewer(dto)) return null
         return UpdateInfo(
             tagName = dto.tagName,
             downloadUrl =
@@ -133,6 +134,21 @@ class UpdateChecker(
                     ?.downloadUrl,
             htmlUrl = dto.htmlUrl,
         )
+    }
+
+    /**
+     * v0.5.3 M4：versionCode 权威判定优先。
+     * 发布约定：Release body 首行写 `versionCode: N`；
+     * 存在该标记时与 BuildConfig.VERSION_CODE 直接比较（不受 tag 命名影响），
+     * 缺失时回退 tag 语义版本比较（宁可不提示，不误报）。
+     */
+    private fun isRemoteNewer(dto: ReleaseLatestDto): Boolean {
+        val remoteCode = versionCodeFromReleaseBody(dto.body)
+        return if (remoteCode != null) {
+            remoteCode > BuildConfig.VERSION_CODE
+        } else {
+            SemanticVersion.isNewer(dto.tagName, BuildConfig.VERSION_NAME)
+        }
     }
 
     private companion object {
@@ -146,3 +162,16 @@ class UpdateChecker(
         const val REPO_NAME = "github-android-client"
     }
 }
+
+/**
+ * 从 Release body 提取发布约定标记 `versionCode: N`（首部出现即生效）。
+ * 兼容冒号/等号与可选空白；提取失败返回 null（回退语义版本判定）。
+ * 顶层函数便于单测。
+ */
+internal fun versionCodeFromReleaseBody(body: String?): Int? {
+    val text = body ?: return null
+    val match = VERSION_CODE_PATTERN.find(text) ?: return null
+    return match.groupValues[1].toIntOrNull()?.takeIf { it > 0 }
+}
+
+private val VERSION_CODE_PATTERN = Regex("""versionCode\s*[:=]\s*(\d{1,6})""", RegexOption.IGNORE_CASE)

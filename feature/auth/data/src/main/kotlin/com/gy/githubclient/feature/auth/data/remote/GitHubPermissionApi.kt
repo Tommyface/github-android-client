@@ -6,6 +6,7 @@
 package com.gy.githubclient.feature.auth.data.remote
 
 import com.gy.githubclient.core.data.network.GitHubJson
+import com.gy.githubclient.feature.auth.domain.model.RateLimitInfo
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
@@ -37,11 +38,30 @@ private data class ProbeUserDto(
     val login: String = "",
 )
 
+/** GET /rate_limit 响应的最小解析（两层包裹：resources.core）。 */
+@Serializable
+private data class RateLimitResponseDto(
+    val resources: RateLimitResourcesDto = RateLimitResourcesDto(),
+)
+
+@Serializable
+private data class RateLimitResourcesDto(
+    val core: RateLimitCoreDto = RateLimitCoreDto(),
+)
+
+@Serializable
+private data class RateLimitCoreDto(
+    val limit: Int = 0,
+    val remaining: Int = 0,
+    val reset: Long = 0,
+)
+
 /**
  * 权限探测 API：对代表性端点发 GET，以状态码 + 响应头判定能力。
  * - GET /user：身份 + classic PAT 的 x-oauth-scopes 头。
  * - GET /notifications：通知权限。
  * - GET /user/starred?per_page=1：星标读写。
+ * - GET /rate_limit：核心 API 限流余量（该端点本身不消耗配额）。
  */
 class GitHubPermissionApi(
     private val client: HttpClient,
@@ -76,6 +96,30 @@ class GitHubPermissionApi(
 
     @Suppress("TooGenericExceptionCaught")
     suspend fun probeStarred(token: String): ProbeResult = probe(token, "/user/starred?per_page=1")
+
+    /**
+     * 核心限流余量（GET /rate_limit，端点自身免配额）。
+     * 任何失败均返回 null——限流信息是辅助展示，不得影响体检主报告。
+     */
+    @Suppress("TooGenericExceptionCaught")
+    suspend fun rateLimit(token: String): RateLimitInfo? =
+        try {
+            val response: HttpResponse = client.get("$baseUrl/rate_limit") { authHeaders(token) }
+            if (response.status.value == 200) {
+                runCatching {
+                    val dto = GitHubJson.decode(RateLimitResponseDto.serializer(), response.bodyAsText())
+                    RateLimitInfo(
+                        limit = dto.resources.core.limit,
+                        remaining = dto.resources.core.remaining,
+                        resetEpochSeconds = dto.resources.core.reset,
+                    )
+                }.getOrNull()
+            } else {
+                null
+            }
+        } catch (t: Exception) {
+            null
+        }
 
     @Suppress("TooGenericExceptionCaught")
     private suspend fun probe(

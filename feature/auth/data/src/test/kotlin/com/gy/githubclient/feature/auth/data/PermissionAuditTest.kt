@@ -187,4 +187,43 @@ class PermissionAuditTest {
             assertNull(report.login)
             assertTrue(report.capabilities.isEmpty())
         }
+
+    @Test
+    fun rateLimitIsParsedIntoReport() =
+        runTest {
+            // 专用引擎：/rate_limit 返回真实 core JSON，其余路径返回 /user。
+            val rateLimitJson = """{"resources":{"core":{"limit":5000,"remaining":4964,"reset":1795497400}}}"""
+            val dedicated =
+                MockEngine { request ->
+                    when (request.url.encodedPath) {
+                        "/rate_limit" ->
+                            respond(rateLimitJson, HttpStatusCode.OK, headersOf("Content-Type", listOf("application/json")))
+                        else ->
+                            respond(userJson, HttpStatusCode.OK, headersOf("Content-Type", listOf("application/json")))
+                    }
+                }
+            val report =
+                PermissionAuditRepositoryImpl(
+                    RecordingAuthRepository(AuthMethod.OAUTH, listOf("repo")),
+                    GitHubPermissionApi(HttpClient(dedicated)),
+                ).audit()
+
+            assertEquals(5000, report.rateLimit?.limit)
+            assertEquals(4964, report.rateLimit?.remaining)
+            assertEquals(1795497400L, report.rateLimit?.resetEpochSeconds)
+        }
+
+    @Test
+    fun rateLimitFailureDoesNotBreakAudit() =
+        runTest {
+            val engine = routingEngine(mapOf("/user" to (200 to emptyList())))
+            val report =
+                PermissionAuditRepositoryImpl(
+                    RecordingAuthRepository(AuthMethod.OAUTH, listOf("repo")),
+                    GitHubPermissionApi(HttpClient(engine)),
+                ).audit()
+
+            assertNull(report.rateLimit)
+            assertTrue(report.capabilities.isNotEmpty())
+        }
 }

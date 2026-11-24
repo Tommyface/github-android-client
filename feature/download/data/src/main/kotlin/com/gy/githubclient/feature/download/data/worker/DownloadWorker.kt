@@ -6,11 +6,14 @@
 package com.gy.githubclient.feature.download.data.worker
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.gy.githubclient.core.domain.network.AssetIdentity
 import com.gy.githubclient.core.domain.network.Downloader
+import com.gy.githubclient.feature.download.data.download.ApkSignatureVerifier
 import com.gy.githubclient.feature.download.data.download.Sha256Verifier
 import com.gy.githubclient.feature.download.data.local.DownloadDao
 import com.gy.githubclient.feature.download.domain.model.DownloadStatus
@@ -100,6 +103,22 @@ class DownloadWorker(
                 return Result.failure()
             }
 
+            // APK 签名指纹校验（v0.5.3 M3）：摘要缺失场景下的防替换兜底，不匹配即删。
+            if (fileName.endsWith(".apk")) {
+                val certHex = apkCertificateHex(path)
+                if (certHex == null || !ApkSignatureVerifier.matches(certHex)) {
+                    java.io.File(path).delete()
+                    markStatus(taskId, DownloadStatus.FAILED, "APK 签名指纹不匹配（防替换校验），文件已删除")
+                    setForeground(
+                        ForegroundInfo(
+                            notificationId,
+                            DownloadNotifications.build(applicationContext, title, "签名不匹配已删除", 100),
+                        ),
+                    )
+                    return Result.failure()
+                }
+            }
+
             dao.updateComplete(taskId, path, DownloadStatus.DONE.name, now())
             setForeground(
                 ForegroundInfo(
@@ -120,6 +139,28 @@ class DownloadWorker(
         error: String?,
     ) {
         dao.updateStatus(taskId, status.name, error, now())
+    }
+
+    /** 读取 APK 的签名证书 SHA-256（hex）；解析失败返回 null（调用方按不匹配处理）。 */
+    private fun apkCertificateHex(apkPath: String): String? {
+        val pm = applicationContext.packageManager
+        val flags =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                PackageManager.GET_SIGNING_CERTIFICATES
+            } else {
+                @Suppress("DEPRECATION")
+                PackageManager.GET_SIGNATURES
+            }
+        val info = pm.getPackageArchiveInfo(apkPath, flags) ?: return null
+        val signatures =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.signingInfo?.apkContentsSigners?.toList()
+            } else {
+                @Suppress("DEPRECATION")
+                info.signatures?.toList()
+            }
+        val cert = signatures?.firstOrNull() ?: return null
+        return ApkSignatureVerifier.certificateSha256Hex(cert.toByteArray())
     }
 
     private fun now(): String = Clock.System.now().toString()

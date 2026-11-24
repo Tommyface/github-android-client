@@ -35,8 +35,12 @@ echo "[7/8] Android Lint ..."
 ./gradlew lintDebug --no-daemon
 
 echo "[8/8] Room 迁移测试（当前为占位，P3 补充）..."
-# 限定 :app 单模块，避免 --tests filter 拖动全模块 test 任务重跑并集体失败（假阳性）。
-./gradlew :app:testDebugUnitTest --tests "*MigrationTest" --no-daemon 2>/dev/null || echo "  (暂无 migration test，跳过)"
+# 仅当源码存在 MigrationTest 时才执行（避免 --tests filter 无匹配导致任务假性 FAILED）。
+if grep -rq "MigrationTest" --include="*.kt" app/src core feature 2>/dev/null; then
+    ./gradlew :app:testDebugUnitTest --tests "*MigrationTest" --no-daemon
+else
+    echo "  (暂无 migration test，跳过)"
+fi
 
 echo ""
 echo "========== 全部门禁通过 =========="

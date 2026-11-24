@@ -35,3 +35,22 @@ class SemanticVersionTest {
         assertFalse(SemanticVersion.isNewer("v1.2", "bad-local"))
     }
 }
+
+/** v0.5.3 M4 回归：Release body `versionCode:` 发布约定解析。 */
+class VersionCodeFromBodyTest {
+    @Test
+    fun extractsFromBodyFirstLine() {
+        assertEquals(8, versionCodeFromReleaseBody("versionCode: 8\n\n更新说明…"))
+        assertEquals(12, versionCodeFromReleaseBody("versionCode:12"))
+        assertEquals(100, versionCodeFromReleaseBody("说明\nversionCode = 100"))
+    }
+
+    @Test
+    fun caseInsensitiveAndRejectsInvalid() {
+        assertEquals(9, versionCodeFromReleaseBody("VersionCode: 9"))
+        assertEquals(null, versionCodeFromReleaseBody("没有标记的 body"))
+        assertEquals(null, versionCodeFromReleaseBody("versionCode: 0"))
+        assertEquals(null, versionCodeFromReleaseBody(null))
+        assertEquals(null, versionCodeFromReleaseBody("versionCode: abc"))
+    }
+}

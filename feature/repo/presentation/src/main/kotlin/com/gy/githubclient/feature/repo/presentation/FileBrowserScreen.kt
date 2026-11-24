@@ -28,8 +28,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.feature.repo.domain.model.FileContent
@@ -175,11 +180,38 @@ private fun FileContentView(
                 }
             }
         } else {
+            // v0.11.0 N8：零依赖轻量语法高亮；按扩展名给语言提示，token 着色后等宽展示。
+            val languageHint = file.name.substringAfterLast('.', "")
+            val annotated = rememberHighlightedCode(file.content, languageHint)
             Text(
-                file.content,
+                annotated,
                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.fillMaxSize(),
             )
         }
     }
 }
+
+/** 把词法 token 序列着色为 AnnotatedString（缓存到内容/语言不变为止）。 */
+@Composable
+private fun rememberHighlightedCode(
+    content: String,
+    languageHint: String,
+): AnnotatedString =
+    androidx.compose.runtime.remember(content, languageHint) {
+        val tokens = tokenizeCode(content, languageHint)
+        buildAnnotatedString {
+            tokens.forEach { token ->
+                val color =
+                    when (token.kind) {
+                        TokenKind.KEYWORD -> Color(0xFF7B5CD6)
+                        TokenKind.STRING -> Color(0xFF2E8B57)
+                        TokenKind.COMMENT -> Color(0xFF9E9E9E)
+                        TokenKind.NUMBER -> Color(0xFFC67600)
+                        TokenKind.FUNCTION -> Color(0xFF1A73E8)
+                        TokenKind.PLAIN -> Color.Unspecified
+                    }
+                if (color == Color.Unspecified) append(token.text) else withStyle(SpanStyle(color = color)) { append(token.text) }
+            }
+        }
+    }

@@ -12,6 +12,7 @@ import com.gy.githubclient.core.domain.share.ShareManager
 import com.gy.githubclient.feature.discover.domain.model.DiscoverCategory
 import com.gy.githubclient.feature.discover.domain.model.DiscoverItem
 import com.gy.githubclient.feature.discover.domain.model.MirrorDownloadLink
+import com.gy.githubclient.feature.discover.domain.model.RankQueryFactory
 import com.gy.githubclient.feature.discover.domain.model.ReleaseAsset
 import com.gy.githubclient.feature.discover.domain.usecase.BuildShareTextUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.ObserveDiscoverUseCase
@@ -30,9 +31,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
-/** 榜单类型（v0.10.0 N5）：精选 / 新发布 / 热门。 */
+/** 榜单类型：精选 / 趋势（v0.11.0 N6）/ 新发布 / 热门。 */
 enum class RankTab {
     FEATURED,
+    TRENDING,
     NEW,
     HOT,
 }
@@ -46,6 +48,10 @@ data class DiscoverUiState(
     val rankTab: RankTab = RankTab.FEATURED,
     val rankItems: List<RepoHit> = emptyList(),
     val isRankLoading: Boolean = false,
+    /** v0.11.0 N6：语言筛选，取值为 RankQueryFactory.LANGUAGES 之一。 */
+    val rankLanguage: String = RankQueryFactory.LANGUAGES.first(),
+    /** 榜单查询口径说明（非官方近似标注），随 tab 变化。 */
+    val rankNote: String = "",
 ) {
     /** 按当前分类筛选后的可见列表（派生，不额外存储）。 */
     val items: List<DiscoverItem>
@@ -113,19 +119,34 @@ class DiscoverViewModel(
         _uiState.value = _uiState.value.copy(category = category)
     }
 
-    /** 切换榜单 tab；非精选时按排序拉取仓库榜（v0.10.0 N5）。 */
+    /** 切换榜单 tab；非精选时按排序拉取仓库榜（v0.10.0 N5 / v0.11.0 N6 趋势）。 */
     fun onRankTabSelected(tab: RankTab) {
         _uiState.value = _uiState.value.copy(rankTab = tab)
         if (tab == RankTab.FEATURED) return
+        loadRank(tab, _uiState.value.rankLanguage)
+    }
+
+    /** v0.11.0 N6：切换语言筛选后重拉当前榜单。 */
+    fun onRankLanguageSelected(language: String) {
+        _uiState.value = _uiState.value.copy(rankLanguage = language)
+        val tab = _uiState.value.rankTab
+        if (tab != RankTab.FEATURED) loadRank(tab, language)
+    }
+
+    private fun loadRank(
+        tab: RankTab,
+        language: String,
+    ) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isRankLoading = true)
+            _uiState.value = _uiState.value.copy(isRankLoading = true, rankNote = rankNoteFor(tab))
+            val trending = tab == RankTab.TRENDING
             val query =
                 SearchQuery(
-                    term = RANK_QUERY,
+                    term = RankQueryFactory.buildTerm(language, RankQueryFactory.sinceDate(), trending),
                     type = SearchType.REPOSITORY,
-                    sort = if (tab == RankTab.HOT) "stars" else "updated",
+                    sort = if (tab == RankTab.NEW) "updated" else "stars",
                     order = SearchOrder.DESC,
-                    perPage = 20,
+                    perPage = RANK_PER_PAGE,
                 )
             when (val result = searchRepos(query)) {
                 is NetworkResult.Success ->
@@ -141,6 +162,15 @@ class DiscoverViewModel(
             }
         }
     }
+
+    /** 榜单口径明示：趋势为「近 30 天新建」近似，其余为 Search API 排序，均非官方 Trending。 */
+    private fun rankNoteFor(tab: RankTab): String =
+        when (tab) {
+            RankTab.FEATURED -> ""
+            RankTab.TRENDING -> "非官方近似 · 近 30 天新建按 ★ 排序 · 基于 Search API"
+            RankTab.NEW -> "非官方榜单 · 按最近更新排序 · 基于 Search API"
+            RankTab.HOT -> "非官方榜单 · 按 ★ 排序 · 基于 Search API"
+        }
 
     fun refresh() {
         if (_uiState.value.isRefreshing) return
@@ -190,7 +220,6 @@ class DiscoverViewModel(
     }
 
     private companion object {
-        /** 榜单候选门槛：过滤掉明星项目以外的噪音，Search API 官方 qualifier。 */
-        const val RANK_QUERY = "stars:>1000"
+        const val RANK_PER_PAGE = 20
     }
 }

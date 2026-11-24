@@ -73,6 +73,8 @@ data class RepoHit(
     val forksCount: Int,
     val isPrivate: Boolean,
     val updatedAt: String?,
+    /** 仓库主题标签（v0.11.0 N7）：平台启发式推断的数据源之一。 */
+    val topics: List<String> = emptyList(),
 ) : SearchHit
 
 data class CodeHit(

@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.feature.discover.domain.model.DiscoverCategory
 import com.gy.githubclient.feature.discover.domain.model.DiscoverItem
+import com.gy.githubclient.feature.discover.domain.model.PlatformInference
+import com.gy.githubclient.feature.discover.domain.model.RankQueryFactory
 import com.gy.githubclient.feature.search.domain.model.RepoHit
 import org.koin.androidx.compose.koinViewModel
 
@@ -64,7 +66,7 @@ fun DiscoverScreen(
         )
         Spacer(Modifier.height(12.dp))
 
-        // v0.10.0 N5：榜单 tab（精选 / 新发布 / 热门）。
+        // 榜单 tab（v0.11.0 N6 加「趋势」）。
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             RankTab.entries.forEach { tab ->
                 FilterChip(
@@ -77,7 +79,7 @@ fun DiscoverScreen(
         Spacer(Modifier.height(8.dp))
 
         when (uiState.rankTab) {
-            RankTab.NEW, RankTab.HOT -> RankList(uiState, onOpenRelease)
+            RankTab.TRENDING, RankTab.NEW, RankTab.HOT -> RankList(uiState, viewModel, onOpenRelease)
             RankTab.FEATURED -> FeaturedContent(uiState, viewModel, onOpenRelease)
         }
     }
@@ -167,6 +169,17 @@ private fun DiscoverCard(
                 style = MaterialTheme.typography.labelMedium,
                 color = if (release != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // v0.11.0 N7：仅 Release 资产下载数有公开字段；明示口径，不冒充仓库总下载数。
+            release?.let { rel ->
+                val total = rel.assets.sumOf { it.downloadCount }
+                if (total > 0) {
+                    Text(
+                        "Release 资产下载 $total 次（仅官方发布资产，非仓库总下载）",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Spacer(Modifier.height(6.dp))
             Row {
                 TextButton(onClick = onOpen) { Text("详情 / 下载") }
@@ -202,27 +215,48 @@ private fun HandleDiscoverEvents(
     }
 }
 
-/** 榜单列表（v0.10.0 N5）：新发布/热门仓库卡片，复用 Search API 结果。 */
+/** 榜单列表（v0.11.0 N6）：语言筛选 + 趋势/新发布/热门仓库卡片，复用 Search API 结果。 */
 @Composable
 private fun RankList(
     uiState: DiscoverUiState,
+    viewModel: DiscoverViewModel,
     onOpenRelease: (owner: String, name: String) -> Unit,
 ) {
-    when {
-        uiState.isRankLoading && uiState.rankItems.isEmpty() -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        }
-
-        uiState.rankItems.isEmpty() -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("暂无榜单数据（Search API 可能限流）", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            RankQueryFactory.LANGUAGES.forEach { language ->
+                FilterChip(
+                    selected = uiState.rankLanguage == language,
+                    onClick = { viewModel.onRankLanguageSelected(language) },
+                    label = { Text(language) },
+                )
             }
         }
+        Spacer(Modifier.height(6.dp))
+        if (uiState.rankNote.isNotBlank()) {
+            Text(
+                uiState.rankNote,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(6.dp))
+        }
+        when {
+            uiState.isRankLoading && uiState.rankItems.isEmpty() -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            }
 
-        else -> {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(uiState.rankItems, key = { it.id }) { hit ->
-                    RankCard(hit, onOpenRelease)
+            uiState.rankItems.isEmpty() -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("暂无榜单数据（Search API 可能限流）", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            else -> {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(uiState.rankItems, key = { it.id }) { hit ->
+                        RankCard(hit, onOpenRelease)
+                    }
                 }
             }
         }
@@ -250,8 +284,18 @@ private fun RankCard(
                 Text("★ ${hit.stargazersCount}", style = MaterialTheme.typography.labelSmall)
                 Text("⑂ ${hit.forksCount}", style = MaterialTheme.typography.labelSmall)
             }
+            // v0.11.0 N7：平台标签启发式推断，仅展示并明示「推断」，不声称官方数据。
+            val platforms = PlatformInference.infer(hit.topics, emptyList())
+            if (platforms.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "平台（推断）：${platforms.joinToString(" / ")}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
             Text(
-                "非官方榜单 · 基于 GitHub Search API",
+                "非官方榜单 · 基于 GitHub Search API · 下载数无公开 API 故不展示",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -263,6 +307,7 @@ private val RankTab.label: String
     get() =
         when (this) {
             RankTab.FEATURED -> "精选"
+            RankTab.TRENDING -> "趋势"
             RankTab.NEW -> "新发布"
             RankTab.HOT -> "热门"
         }

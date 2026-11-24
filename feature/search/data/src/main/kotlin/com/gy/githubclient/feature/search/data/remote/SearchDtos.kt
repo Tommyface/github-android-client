@@ -40,6 +40,7 @@ data class RepoSearchItemDto(
     @SerialName("stargazers_count") val stargazersCount: Int = 0,
     @SerialName("forks_count") val forksCount: Int = 0,
     @SerialName("updated_at") val updatedAt: String? = null,
+    val topics: List<String> = emptyList(),
 )
 
 @Serializable
@@ -117,6 +118,7 @@ fun RepoSearchItemDto.toHit(): RepoHit =
         forksCount = forksCount,
         isPrivate = `private`,
         updatedAt = updatedAt,
+        topics = topics,
     )
 
 fun CodeSearchItemDto.toHit(): CodeHit =

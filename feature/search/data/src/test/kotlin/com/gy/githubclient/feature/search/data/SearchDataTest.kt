@@ -44,6 +44,7 @@ class SearchDataTest {
                 stargazersCount = 12,
                 language = "Kotlin",
                 `private` = true,
+                topics = listOf("android", "kotlin"),
             )
 
         val hit = dto.toHit()
@@ -51,6 +52,7 @@ class SearchDataTest {
         assertEquals("glorywork/licai-ledger", hit.fullName)
         assertEquals("Kotlin", hit.language)
         assertTrue(hit.isPrivate)
+        assertEquals(listOf("android", "kotlin"), hit.topics)
     }
 
     @Test

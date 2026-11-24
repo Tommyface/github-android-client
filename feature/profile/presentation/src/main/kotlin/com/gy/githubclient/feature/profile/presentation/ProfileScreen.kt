@@ -50,6 +50,8 @@ fun ProfileScreen(
     onOpenPermissionAudit: () -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     onOpenUpdateCheck: () -> Unit = {},
+    onOpenLibrary: () -> Unit = {},
+    onOpenActivity: () -> Unit = {},
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
@@ -73,6 +75,10 @@ fun ProfileScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp)) {
                 FullWidthButton(text = "⭐ 星标仓库", onClick = onOpenStarred)
+                HorizontalDivider()
+                FullWidthButton(text = "🕒 个人动态", onClick = onOpenActivity)
+                HorizontalDivider()
+                FullWidthButton(text = "📱 应用库", onClick = onOpenLibrary)
                 HorizontalDivider()
                 FullWidthButton(text = "🔔 通知中心", onClick = onOpenNotifications)
                 HorizontalDivider()
@@ -145,13 +151,27 @@ private fun ProfileHeader(profile: UserProfile) {
                 Spacer(Modifier.height(4.dp))
                 Text(meta, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            // v0.10.0 N4：补全个人网站与创建时间（截图对照项）。
+            if (!profile.blog.isNullOrBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text("🔗 ${profile.blog}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
+            profile.createdAt?.let { created ->
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "创建于：${created.take(10)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(16.dp))
             HorizontalDivider()
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 StatItem(value = profile.publicRepos, label = "仓库")
                 StatItem(value = profile.followers, label = "关注者")
-                StatItem(value = profile.following, label = "正在关注")
+                StatItem(value = profile.following, label = "关注")
+                StatItem(value = profile.publicGists, label = "Gist")
             }
         }
     }

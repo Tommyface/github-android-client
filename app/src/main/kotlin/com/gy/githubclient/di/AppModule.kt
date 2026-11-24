@@ -12,6 +12,8 @@ import com.gy.githubclient.feature.discover.data.di.discoverDataModule
 import com.gy.githubclient.feature.discover.presentation.di.discoverPresentationModule
 import com.gy.githubclient.feature.download.data.di.downloadDataModule
 import com.gy.githubclient.feature.download.presentation.di.downloadPresentationModule
+import com.gy.githubclient.feature.library.data.di.libraryDataModule
+import com.gy.githubclient.feature.library.presentation.di.libraryPresentationModule
 import com.gy.githubclient.feature.profile.data.di.profileDataModule
 import com.gy.githubclient.feature.profile.presentation.di.profilePresentationModule
 import com.gy.githubclient.feature.repo.data.di.repoDataModule
@@ -53,4 +55,6 @@ val appModules =
         profilePresentationModule,
         starredDataModule,
         starredPresentationModule,
+        libraryDataModule,
+        libraryPresentationModule,
     )

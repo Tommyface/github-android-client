@@ -17,6 +17,8 @@ import com.gy.githubclient.feature.discover.presentation.ReleaseDetailScreen
 import com.gy.githubclient.feature.discover.presentation.ReleaseListScreen
 import com.gy.githubclient.feature.download.presentation.DownloadScreen
 import com.gy.githubclient.feature.download.presentation.MirrorSettingsScreen
+import com.gy.githubclient.feature.library.presentation.LibraryScreen
+import com.gy.githubclient.feature.profile.presentation.ActivityScreen
 import com.gy.githubclient.feature.profile.presentation.ProfileScreen
 import com.gy.githubclient.feature.repo.presentation.FileBrowserScreen
 import com.gy.githubclient.feature.repo.presentation.RepoDetailScreen
@@ -47,6 +49,12 @@ sealed class Route(
     data object UpdateCheck : Route("update_check")
 
     data object Notifications : Route("notifications")
+
+    /** 应用库（v0.10.0 N1）：追踪仓库 Release + 批量更新。 */
+    data object Library : Route("library")
+
+    /** 个人动态（v0.10.0 N4）：公开事件流。 */
+    data object Activity : Route("activity")
 
     data object RepoDetail : Route("repo_detail/{owner}/{name}") {
         const val ARG_OWNER = "owner"
@@ -191,6 +199,18 @@ fun AppNavigation(
                 onOpenPermissionAudit = { navController.navigate(Route.PermissionAudit.path) },
                 onOpenNotifications = { navController.navigate(Route.Notifications.path) },
                 onOpenUpdateCheck = { navController.navigate(Route.UpdateCheck.path) },
+                onOpenLibrary = { navController.navigate(Route.Library.path) },
+                onOpenActivity = { navController.navigate(Route.Activity.path) },
+            )
+        }
+        composable(Route.Activity.path) {
+            ActivityScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Route.Library.path) {
+            LibraryScreen(
+                onOpenRelease = { owner, name ->
+                    navController.navigate(Route.ReleaseList.route(owner, name))
+                },
             )
         }
         composable(Route.Starred.path) {

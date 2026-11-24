@@ -14,6 +14,7 @@ import com.gy.githubclient.feature.profile.data.remote.GitHubUserApi
 import com.gy.githubclient.feature.profile.domain.repository.ProfileRepository
 import com.gy.githubclient.feature.profile.domain.usecase.ClearProfileCacheUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ListNotificationsUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.ListUserEventsUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.MarkNotificationReadUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ObserveProfileUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.RefreshProfileUseCase
@@ -49,4 +50,5 @@ val profileDataModule =
         factory { ClearProfileCacheUseCase(get<ProfileRepository>()) }
         factory { ListNotificationsUseCase(get<ProfileRepository>()) }
         factory { MarkNotificationReadUseCase(get<ProfileRepository>()) }
+        factory { ListUserEventsUseCase(get<ProfileRepository>()) }
     }

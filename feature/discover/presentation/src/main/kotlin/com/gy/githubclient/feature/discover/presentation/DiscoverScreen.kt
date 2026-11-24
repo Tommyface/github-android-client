@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.feature.discover.domain.model.DiscoverCategory
 import com.gy.githubclient.feature.discover.domain.model.DiscoverItem
+import com.gy.githubclient.feature.search.domain.model.RepoHit
 import org.koin.androidx.compose.koinViewModel
 
 /** 商店发现页：分类筛选 + 精选 Release 卡片列表 + 下拉刷新 + 分享。 */
@@ -63,6 +64,32 @@ fun DiscoverScreen(
         )
         Spacer(Modifier.height(12.dp))
 
+        // v0.10.0 N5：榜单 tab（精选 / 新发布 / 热门）。
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            RankTab.entries.forEach { tab ->
+                FilterChip(
+                    selected = uiState.rankTab == tab,
+                    onClick = { viewModel.onRankTabSelected(tab) },
+                    label = { Text(tab.label) },
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+
+        when (uiState.rankTab) {
+            RankTab.NEW, RankTab.HOT -> RankList(uiState, onOpenRelease)
+            RankTab.FEATURED -> FeaturedContent(uiState, viewModel, onOpenRelease)
+        }
+    }
+}
+
+@Composable
+private fun FeaturedContent(
+    uiState: DiscoverUiState,
+    viewModel: DiscoverViewModel,
+    onOpenRelease: (owner: String, name: String) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             DiscoverCategory.entries.forEach { category ->
                 FilterChip(
@@ -174,6 +201,71 @@ private fun HandleDiscoverEvents(
         }
     }
 }
+
+/** 榜单列表（v0.10.0 N5）：新发布/热门仓库卡片，复用 Search API 结果。 */
+@Composable
+private fun RankList(
+    uiState: DiscoverUiState,
+    onOpenRelease: (owner: String, name: String) -> Unit,
+) {
+    when {
+        uiState.isRankLoading && uiState.rankItems.isEmpty() -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        }
+
+        uiState.rankItems.isEmpty() -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("暂无榜单数据（Search API 可能限流）", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        else -> {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(uiState.rankItems, key = { it.id }) { hit ->
+                    RankCard(hit, onOpenRelease)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RankCard(
+    hit: RepoHit,
+    onOpen: (owner: String, name: String) -> Unit,
+) {
+    val parts = hit.fullName.split("/")
+    val owner = parts.getOrNull(0).orEmpty()
+    val name = parts.getOrNull(1).orEmpty()
+    Card(modifier = Modifier.fillMaxWidth(), onClick = { if (owner.isNotBlank() && name.isNotBlank()) onOpen(owner, name) }) {
+        Column(Modifier.padding(14.dp)) {
+            Text(hit.fullName, style = MaterialTheme.typography.titleMedium)
+            hit.description?.let { desc ->
+                Spacer(Modifier.height(4.dp))
+                Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                hit.language?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+                Text("★ ${hit.stargazersCount}", style = MaterialTheme.typography.labelSmall)
+                Text("⑂ ${hit.forksCount}", style = MaterialTheme.typography.labelSmall)
+            }
+            Text(
+                "非官方榜单 · 基于 GitHub Search API",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private val RankTab.label: String
+    get() =
+        when (this) {
+            RankTab.FEATURED -> "精选"
+            RankTab.NEW -> "新发布"
+            RankTab.HOT -> "热门"
+        }
 
 private val DiscoverCategory.label: String
     get() =

@@ -18,6 +18,11 @@ import com.gy.githubclient.feature.discover.domain.usecase.ObserveDiscoverUseCas
 import com.gy.githubclient.feature.discover.domain.usecase.RefreshDiscoverUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.ResolveDownloadLinkUseCase
 import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCase
+import com.gy.githubclient.feature.search.domain.model.RepoHit
+import com.gy.githubclient.feature.search.domain.model.SearchOrder
+import com.gy.githubclient.feature.search.domain.model.SearchQuery
+import com.gy.githubclient.feature.search.domain.model.SearchType
+import com.gy.githubclient.feature.search.domain.usecase.SearchUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,12 +30,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
+/** 榜单类型（v0.10.0 N5）：精选 / 新发布 / 热门。 */
+enum class RankTab {
+    FEATURED,
+    NEW,
+    HOT,
+}
+
 /** 发现页 UI 状态。 */
 data class DiscoverUiState(
     val allItems: List<DiscoverItem> = emptyList(),
     val category: DiscoverCategory = DiscoverCategory.ALL,
     val isRefreshing: Boolean = false,
     val selected: DiscoverItem? = null,
+    val rankTab: RankTab = RankTab.FEATURED,
+    val rankItems: List<RepoHit> = emptyList(),
+    val isRankLoading: Boolean = false,
 ) {
     /** 按当前分类筛选后的可见列表（派生，不额外存储）。 */
     val items: List<DiscoverItem>
@@ -68,6 +83,7 @@ sealed interface DiscoverEvent {
  * - 下拉刷新触发并发 Release 拉取；
  * - 点击卡片进入 Release 详情；下载按钮解析镜像链接后交 UI 用浏览器/系统打开。
  */
+@Suppress("LongParameterList") // 7 个用例注入，属 ViewModel 聚合入口的常规形态
 class DiscoverViewModel(
     private val observeDiscover: ObserveDiscoverUseCase,
     private val refreshDiscover: RefreshDiscoverUseCase,
@@ -75,6 +91,7 @@ class DiscoverViewModel(
     private val buildShareText: BuildShareTextUseCase,
     private val shareManager: ShareManager,
     private val enqueueDownload: EnqueueDownloadUseCase,
+    private val searchRepos: SearchUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(DiscoverUiState())
     val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
@@ -94,6 +111,35 @@ class DiscoverViewModel(
     fun onCategorySelected(category: DiscoverCategory) {
         // 仅切换分类，派生属性会即时重算可见列表，无需重复订阅或请求网络。
         _uiState.value = _uiState.value.copy(category = category)
+    }
+
+    /** 切换榜单 tab；非精选时按排序拉取仓库榜（v0.10.0 N5）。 */
+    fun onRankTabSelected(tab: RankTab) {
+        _uiState.value = _uiState.value.copy(rankTab = tab)
+        if (tab == RankTab.FEATURED) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRankLoading = true)
+            val query =
+                SearchQuery(
+                    term = RANK_QUERY,
+                    type = SearchType.REPOSITORY,
+                    sort = if (tab == RankTab.HOT) "stars" else "updated",
+                    order = SearchOrder.DESC,
+                    perPage = 20,
+                )
+            when (val result = searchRepos(query)) {
+                is NetworkResult.Success ->
+                    _uiState.value =
+                        _uiState.value.copy(
+                            rankItems = result.data.items.filterIsInstance<RepoHit>(),
+                            isRankLoading = false,
+                        )
+
+                is NetworkResult.Failure ->
+                    _uiState.value =
+                        _uiState.value.copy(rankItems = emptyList(), isRankLoading = false)
+            }
+        }
     }
 
     fun refresh() {
@@ -141,5 +187,10 @@ class DiscoverViewModel(
         // 系统分享通过注入的 ShareManager 直接触发；事件用于 UI 侧同步提示。
         shareManager.shareText(text)
         _events.trySend(DiscoverEvent.Share(text))
+    }
+
+    private companion object {
+        /** 榜单候选门槛：过滤掉明星项目以外的噪音，Search API 官方 qualifier。 */
+        const val RANK_QUERY = "stars:>1000"
     }
 }

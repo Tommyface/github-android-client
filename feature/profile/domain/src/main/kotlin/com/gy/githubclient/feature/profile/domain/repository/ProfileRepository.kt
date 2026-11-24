@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.profile.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
+import com.gy.githubclient.feature.profile.domain.model.UserEvent
 import com.gy.githubclient.feature.profile.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 
@@ -31,6 +32,9 @@ interface ProfileRepository {
 
     /** 标记单条通知线程已读；成功与否以 [NetworkResult] 表达。 */
     suspend fun markThreadRead(threadId: Long): NetworkResult<Unit>
+
+    /** 拉取用户公开动态事件（v0.10.0 N4）。 */
+    suspend fun listUserEvents(login: String): NetworkResult<List<UserEvent>>
 
     /** 清空本地缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

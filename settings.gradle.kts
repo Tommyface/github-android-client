@@ -31,7 +31,7 @@ include(":core:data")
 include(":core:presentation")
 
 val features = listOf(
-    "auth", "repo", "discover", "release", "download", "share", "search", "starred", "profile"
+    "auth", "repo", "discover", "release", "download", "share", "search", "starred", "profile", "library"
 )
 features.forEach { name ->
     if (name == "share") {

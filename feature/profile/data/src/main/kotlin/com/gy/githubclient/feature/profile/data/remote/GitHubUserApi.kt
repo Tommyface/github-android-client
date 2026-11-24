@@ -9,6 +9,7 @@ import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
+import com.gy.githubclient.feature.profile.domain.model.UserEvent
 import com.gy.githubclient.feature.profile.domain.model.UserProfile
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -47,8 +48,20 @@ class GitHubUserApi(
             mapper = { _: HttpResponse -> Unit },
         )
 
+    /** 拉取用户公开动态事件（v0.10.0 N4）。 */
+    suspend fun listUserEvents(login: String): NetworkResult<List<UserEvent>> =
+        client.request(
+            path = "/users/$login/events/public?per_page=$EVENTS_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(EventDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
+        )
+
     private companion object {
         const val PROFILE_PATH = "/user"
         const val NOTIFICATIONS_PER_PAGE = 50
+        const val EVENTS_PER_PAGE = 20
     }
 }

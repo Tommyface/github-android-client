@@ -46,6 +46,9 @@ dependencies {
     implementation(projects.feature.profile.domain)
     implementation(projects.feature.profile.data)
     implementation(projects.feature.profile.presentation)
+    implementation(projects.feature.library.domain)
+    implementation(projects.feature.library.data)
+    implementation(projects.feature.library.presentation)
 
     implementation(libs.bundles.ktor.common)
     implementation(libs.ktor.client.okhttp)

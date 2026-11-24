@@ -225,6 +225,39 @@ class ListContributorsUseCase(
     ): NetworkResult<List<Contributor>> = repository.listContributors(owner, name)
 }
 
+/** 仓库标签（v0.17.0 P3-a，只读）。 */
+class ListLabelsUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.RepoLabel>> =
+        repository.listLabels(owner, name)
+}
+
+/** 里程碑（v0.17.0 P3-b，只读）。 */
+class ListMilestonesUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Milestone>> =
+        repository.listMilestones(owner, name)
+}
+
+/** Fork 列表（v0.17.0 P3-c，只读）。 */
+class ListForksUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.ForkItem>> =
+        repository.listForks(owner, name)
+}
+
 /** 清空缓存（登出时）。 */
 class ClearRepoCacheUseCase(
     private val repository: RepoRepository,

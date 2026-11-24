@@ -25,6 +25,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -49,12 +50,16 @@ import coil.compose.AsyncImage
 import com.gy.githubclient.feature.repo.domain.model.CheckConclusion
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.Contributor
+import com.gy.githubclient.feature.repo.domain.model.ForkItem
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.LanguageShare
+import com.gy.githubclient.feature.repo.domain.model.Milestone
+import com.gy.githubclient.feature.repo.domain.model.RepoLabel
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.model.StarHistoryPoint
+import com.gy.githubclient.feature.repo.domain.model.milestoneProgressPercent
 import org.koin.androidx.compose.koinViewModel
 
 /** 仓库详情页：信息概览 + README（v0.6.0 M6）+ Star/Fork/ZIP 操作 + 分支列表。 */
@@ -80,6 +85,9 @@ fun RepoDetailScreen(
     val issueDetail by viewModel.issueDetail.collectAsStateWithLifecycle()
     val languages by viewModel.languages.collectAsStateWithLifecycle()
     val contributors by viewModel.contributors.collectAsStateWithLifecycle()
+    val labels by viewModel.labels.collectAsStateWithLifecycle()
+    val milestones by viewModel.milestones.collectAsStateWithLifecycle()
+    val forks by viewModel.forks.collectAsStateWithLifecycle()
 
     LaunchedEffect(owner, name) {
         viewModel.openDetail(owner, name)
@@ -171,6 +179,18 @@ fun RepoDetailScreen(
 
         item {
             ContributorCard(contributors = contributors)
+        }
+
+        item {
+            LabelCard(labels = labels)
+        }
+
+        item {
+            MilestoneCard(milestones = milestones)
+        }
+
+        item {
+            ForkCard(forks = forks)
         }
 
         item {
@@ -595,6 +615,131 @@ private fun ContributorCard(contributors: List<Contributor>) {
         }
     }
 }
+
+/** 仓库标签卡（v0.17.0 P3-a，只读）：颜色 chip + 标签名，无标签时明示。 */
+@Composable
+private fun LabelCard(labels: List<RepoLabel>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("标签（${labels.size}）", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            if (labels.isEmpty()) {
+                Text("该仓库暂无标签", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                labels.take(LABEL_PREVIEW_LIMIT).forEach { label ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            modifier = Modifier.size(12.dp).clip(CircleShape),
+                            color = parseLabelColor(label.color),
+                        ) {}
+                        Spacer(Modifier.padding(4.dp))
+                        Text(label.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        label.description?.let {
+                            if (it.isNotBlank()) {
+                                Text(
+                                    it.take(24),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "数据来源：GitHub REST · labels（只读）",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 里程碑卡（v0.17.0 P3-b，只读）：状态 + 完成度进度条 + closed/open issue 计数。 */
+@Composable
+private fun MilestoneCard(milestones: List<Milestone>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("里程碑（${milestones.size}）", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            if (milestones.isEmpty()) {
+                Text("该仓库暂无里程碑", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                milestones.take(MILESTONE_PREVIEW_LIMIT).forEach { ms ->
+                    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Text(
+                            "#${ms.number} ${ms.title}（${if (ms.isOpen) "开放" else "已关闭"}）",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        val progress = milestoneProgressPercent(ms.openIssues, ms.closedIssues)
+                        LinearProgressIndicator(
+                            progress = { progress / 100f },
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        )
+                        Text(
+                            "完成度 $progress% · ${ms.closedIssues}/${ms.totalIssues} issue 已完成",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "数据来源：GitHub REST · milestones（只读）",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Fork 列表卡（v0.17.0 P3-c，只读）：派生仓库全名 + owner + star 数，最多显示 10 位。 */
+@Composable
+private fun ForkCard(forks: List<ForkItem>) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("Fork（${forks.size}）", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            if (forks.isEmpty()) {
+                Text("该仓库暂无 Fork", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                forks.take(FORK_PREVIEW_LIMIT).forEach { fork ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                        Text(fork.fullName, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        Text("★ ${fork.stargazersCount}", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "数据来源：GitHub REST · forks（只读，最多显示 10 个）",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 把标签 6 位十六进制色解析为 Compose 颜色；非法值回退到主色容器色。 */
+@Composable
+private fun parseLabelColor(hex: String): androidx.compose.ui.graphics.Color {
+    val fallback = MaterialTheme.colorScheme.primaryContainer
+    val raw = hex.trim().removePrefix("#")
+    return if (raw.length == 6) {
+        runCatching {
+            androidx.compose.ui.graphics
+                .Color(0xFF000000L or raw.toLong(16))
+        }.getOrDefault(fallback)
+    } else {
+        fallback
+    }
+}
+
+private const val LABEL_PREVIEW_LIMIT = 30
+private const val MILESTONE_PREVIEW_LIMIT = 10
+private const val FORK_PREVIEW_LIMIT = 10
 
 @Composable
 private fun CheckLine(

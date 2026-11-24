@@ -157,6 +157,21 @@ class CommitDomainTest {
                 name: String,
             ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Contributor>> = NetworkResult.Success(emptyList())
 
+            override suspend fun listLabels(
+                owner: String,
+                name: String,
+            ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.RepoLabel>> = NetworkResult.Success(emptyList())
+
+            override suspend fun listMilestones(
+                owner: String,
+                name: String,
+            ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Milestone>> = NetworkResult.Success(emptyList())
+
+            override suspend fun listForks(
+                owner: String,
+                name: String,
+            ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.ForkItem>> = NetworkResult.Success(emptyList())
+
             override suspend fun clearCache() = Unit
         }
 

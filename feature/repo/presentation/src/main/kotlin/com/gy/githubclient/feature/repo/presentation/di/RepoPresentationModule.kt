@@ -30,6 +30,9 @@ val repoPresentationModule =
                 getCheckOverview = get(),
                 getLanguages = get(),
                 listContributors = get(),
+                listLabels = get(),
+                listMilestones = get(),
+                listForks = get(),
                 enqueueDownload = get(),
             )
         }

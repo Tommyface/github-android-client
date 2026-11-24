@@ -346,6 +346,48 @@ class GitHubRepoApi(
             },
         )
 
+    /** 仓库标签（v0.17.0 P3-a）：GET /repos/{o}/{r}/labels。 */
+    suspend fun listLabels(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.RepoLabel>> =
+        client.request(
+            path = "/repos/$owner/$name/labels?per_page=$LABELS_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(LabelDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
+        )
+
+    /** 里程碑（v0.17.0 P3-b）：GET /repos/{o}/{r}/milestones?state=all。 */
+    suspend fun listMilestones(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Milestone>> =
+        client.request(
+            path = "/repos/$owner/$name/milestones?state=all&per_page=$MILESTONES_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(MilestoneDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
+        )
+
+    /** Fork 列表（v0.17.0 P3-c）：GET /repos/{o}/{r}/forks。 */
+    suspend fun listForks(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.ForkItem>> =
+        client.request(
+            path = "/repos/$owner/$name/forks?per_page=$FORKS_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(ForkRepoDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
+        )
+
     /** combined commit status（v0.13.0 A2）：GET /repos/{o}/{r}/commits/{sha}/status。 */
     suspend fun getCombinedStatus(
         owner: String,
@@ -411,5 +453,8 @@ class GitHubRepoApi(
         const val CHECKS_PER_PAGE = 30
         const val FILE_COMMITS_PER_PAGE = 30
         const val CONTRIBUTORS_PER_PAGE = 100
+        const val LABELS_PER_PAGE = 100
+        const val MILESTONES_PER_PAGE = 100
+        const val FORKS_PER_PAGE = 100
     }
 }

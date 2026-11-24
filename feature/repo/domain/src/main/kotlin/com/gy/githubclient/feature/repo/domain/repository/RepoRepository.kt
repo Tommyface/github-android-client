@@ -181,6 +181,24 @@ interface RepoRepository {
         name: String,
     ): NetworkResult<List<Contributor>>
 
+    /** 仓库标签（v0.17.0 P3-a）：GET /labels，只读。 */
+    suspend fun listLabels(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.RepoLabel>>
+
+    /** 里程碑（v0.17.0 P3-b）：GET /milestones?state=all，只读。 */
+    suspend fun listMilestones(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Milestone>>
+
+    /** Fork 列表（v0.17.0 P3-c）：GET /forks，只读。 */
+    suspend fun listForks(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.ForkItem>>
+
     /** 清空本地仓库缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()
 }

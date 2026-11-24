@@ -14,11 +14,14 @@ import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCas
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.Contributor
+import com.gy.githubclient.feature.repo.domain.model.ForkItem
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.LanguageShare
+import com.gy.githubclient.feature.repo.domain.model.Milestone
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
+import com.gy.githubclient.feature.repo.domain.model.RepoLabel
 import com.gy.githubclient.feature.repo.domain.model.RepoType
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
@@ -31,7 +34,10 @@ import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetStarHistoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListContributorsUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListForksUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListIssuesUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListLabelsUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListMilestonesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
@@ -97,6 +103,9 @@ class RepoViewModel(
     private val getCheckOverview: GetCheckOverviewUseCase,
     private val getLanguages: GetLanguagesUseCase,
     private val listContributors: ListContributorsUseCase,
+    private val listLabels: ListLabelsUseCase,
+    private val listMilestones: ListMilestonesUseCase,
+    private val listForks: ListForksUseCase,
     private val enqueueDownload: EnqueueDownloadUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RepoListUiState())
@@ -170,6 +179,18 @@ class RepoViewModel(
     private val _contributors = MutableStateFlow<List<Contributor>>(emptyList())
     val contributors: StateFlow<List<Contributor>> = _contributors.asStateFlow()
 
+    /** 仓库标签（v0.17.0 P3-a）：只读列表。 */
+    private val _labels = MutableStateFlow<List<RepoLabel>>(emptyList())
+    val labels: StateFlow<List<RepoLabel>> = _labels.asStateFlow()
+
+    /** 里程碑（v0.17.0 P3-b）：只读列表。 */
+    private val _milestones = MutableStateFlow<List<Milestone>>(emptyList())
+    val milestones: StateFlow<List<Milestone>> = _milestones.asStateFlow()
+
+    /** Fork 列表（v0.17.0 P3-c）：只读列表。 */
+    private val _forks = MutableStateFlow<List<ForkItem>>(emptyList())
+    val forks: StateFlow<List<ForkItem>> = _forks.asStateFlow()
+
     init {
         refresh()
     }
@@ -225,6 +246,9 @@ class RepoViewModel(
                     loadChecks(owner, name, _selectedRef.value)
                     loadLanguages(owner, name)
                     loadContributors(owner, name)
+                    loadLabels(owner, name)
+                    loadMilestones(owner, name)
+                    loadForks(owner, name)
                 }
 
                 is NetworkResult.Failure -> _events.trySend(RepoEvent.ShowMessage(errorMessage(result.error)))
@@ -418,6 +442,48 @@ class RepoViewModel(
         viewModelScope.launch {
             _contributors.value =
                 when (val result = listContributors(owner, name)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> emptyList()
+                }
+        }
+    }
+
+    /** 仓库标签（v0.17.0 P3-a）：失败以空列表降级。 */
+    private fun loadLabels(
+        owner: String,
+        name: String,
+    ) {
+        viewModelScope.launch {
+            _labels.value =
+                when (val result = listLabels(owner, name)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> emptyList()
+                }
+        }
+    }
+
+    /** 里程碑（v0.17.0 P3-b）：失败以空列表降级。 */
+    private fun loadMilestones(
+        owner: String,
+        name: String,
+    ) {
+        viewModelScope.launch {
+            _milestones.value =
+                when (val result = listMilestones(owner, name)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> emptyList()
+                }
+        }
+    }
+
+    /** Fork 列表（v0.17.0 P3-c）：失败以空列表降级。 */
+    private fun loadForks(
+        owner: String,
+        name: String,
+    ) {
+        viewModelScope.launch {
+            _forks.value =
+                when (val result = listForks(owner, name)) {
                     is NetworkResult.Success -> result.data
                     is NetworkResult.Failure -> emptyList()
                 }

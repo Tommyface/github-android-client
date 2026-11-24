@@ -29,7 +29,10 @@ import com.gy.githubclient.feature.repo.domain.usecase.ListCommitsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListContentsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListContributorsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListFileCommitsUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListForksUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListIssuesUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListLabelsUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListMilestonesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListWorkflowRunsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
@@ -79,6 +82,9 @@ val repoDataModule =
         factory { GetTreeUseCase(get<RepoRepository>()) }
         factory { GetLanguagesUseCase(get<RepoRepository>()) }
         factory { ListContributorsUseCase(get<RepoRepository>()) }
+        factory { ListLabelsUseCase(get<RepoRepository>()) }
+        factory { ListMilestonesUseCase(get<RepoRepository>()) }
+        factory { ListForksUseCase(get<RepoRepository>()) }
         factory { SetStarredUseCase(get<RepoRepository>()) }
         factory { IsStarredUseCase(get<RepoRepository>()) }
         factory { ForkRepositoryUseCase(get<RepoRepository>()) }

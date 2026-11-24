@@ -264,6 +264,21 @@ class RepoRepositoryImpl(
     ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Contributor>> =
         api.listContributors(owner, name)
 
+    override suspend fun listLabels(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.RepoLabel>> = api.listLabels(owner, name)
+
+    override suspend fun listMilestones(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.Milestone>> = api.listMilestones(owner, name)
+
+    override suspend fun listForks(
+        owner: String,
+        name: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.ForkItem>> = api.listForks(owner, name)
+
     override suspend fun clearCache() {
         dao.clearAll()
         dao.clearAllMeta()

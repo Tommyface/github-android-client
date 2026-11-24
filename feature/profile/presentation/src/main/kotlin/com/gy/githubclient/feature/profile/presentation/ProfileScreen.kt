@@ -55,6 +55,8 @@ fun ProfileScreen(
     onOpenUpdateCheck: () -> Unit = {},
     onOpenLibrary: () -> Unit = {},
     onOpenActivity: () -> Unit = {},
+    onOpenOrg: () -> Unit = {},
+    onOpenGists: () -> Unit = {},
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
@@ -81,6 +83,10 @@ fun ProfileScreen(
                 FullWidthButton(text = "⭐ 星标仓库", onClick = onOpenStarred)
                 HorizontalDivider()
                 FullWidthButton(text = "🕒 个人动态", onClick = onOpenActivity)
+                HorizontalDivider()
+                FullWidthButton(text = "📝 我的 Gist", onClick = onOpenGists)
+                HorizontalDivider()
+                FullWidthButton(text = "🏢 组织信息", onClick = onOpenOrg)
                 HorizontalDivider()
                 FullWidthButton(text = "📱 应用库", onClick = onOpenLibrary)
                 HorizontalDivider()

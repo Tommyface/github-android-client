@@ -6,7 +6,10 @@
 package com.gy.githubclient.feature.profile.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.feature.profile.domain.model.GistItem
 import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
+import com.gy.githubclient.feature.profile.domain.model.OrgMember
+import com.gy.githubclient.feature.profile.domain.model.OrgSummary
 import com.gy.githubclient.feature.profile.domain.model.UserEvent
 import com.gy.githubclient.feature.profile.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
@@ -35,6 +38,18 @@ interface ProfileRepository {
 
     /** 拉取用户公开动态事件（v0.10.0 N4）。 */
     suspend fun listUserEvents(login: String): NetworkResult<List<UserEvent>>
+
+    /** 组织概要（v0.15.0 A5）：GET /orgs/{org}，只读。 */
+    suspend fun getOrg(login: String): NetworkResult<OrgSummary>
+
+    /** 组织成员（v0.15.0 A5）：GET /orgs/{org}/members，只读。 */
+    suspend fun listOrgMembers(login: String): NetworkResult<List<OrgMember>>
+
+    /** 用户 Gist 列表（v0.15.0 A6）：GET /users/{login}/gists，只读。 */
+    suspend fun listUserGists(login: String): NetworkResult<List<GistItem>>
+
+    /** 单条 Gist 详情（v0.15.0 A6）：GET /gists/{id}，只读。 */
+    suspend fun getGist(id: String): NetworkResult<GistItem>
 
     /** 清空本地缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

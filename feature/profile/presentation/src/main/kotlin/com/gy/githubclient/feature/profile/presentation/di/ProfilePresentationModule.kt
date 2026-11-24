@@ -6,7 +6,9 @@
 package com.gy.githubclient.feature.profile.presentation.di
 
 import com.gy.githubclient.feature.profile.presentation.ActivityViewModel
+import com.gy.githubclient.feature.profile.presentation.GistViewModel
 import com.gy.githubclient.feature.profile.presentation.NotificationsViewModel
+import com.gy.githubclient.feature.profile.presentation.OrgViewModel
 import com.gy.githubclient.feature.profile.presentation.ProfileViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -32,6 +34,19 @@ val profilePresentationModule =
             ActivityViewModel(
                 observeProfile = get(),
                 listUserEvents = get(),
+            )
+        }
+        viewModel {
+            OrgViewModel(
+                getOrg = get(),
+                listOrgMembers = get(),
+            )
+        }
+        viewModel {
+            GistViewModel(
+                observeProfile = get(),
+                listUserGists = get(),
+                getGist = get(),
             )
         }
     }

@@ -43,6 +43,7 @@ import com.gy.githubclient.feature.repo.domain.model.CheckConclusion
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
 import com.gy.githubclient.feature.repo.domain.model.IssueItem
+import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.model.StarHistoryPoint
 import org.koin.androidx.compose.koinViewModel
@@ -147,6 +148,10 @@ fun RepoDetailScreen(
 
         item {
             CheckCard(overview = checkOverview, ref = selectedRef)
+        }
+
+        item {
+            RepoInfoCard(repo = current)
         }
 
         item {
@@ -417,6 +422,66 @@ internal fun CheckCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+/**
+ * 仓库信息卡（v0.15.0 A7，只读）：复用详情已加载的 [Repository] 字段做只读展示，
+ * 不引入任何 PATCH 写操作，保持「发现–评估–下载」定位。
+ */
+@Composable
+private fun RepoInfoCard(repo: Repository) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("仓库信息（只读）", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Text("可见性", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                Text(
+                    when {
+                        repo.isPrivate -> "私有"
+                        else -> "公开"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            InfoLine(label = "默认分支", value = repo.defaultBranch)
+            InfoLine(label = "语言", value = repo.language ?: "未标注")
+            InfoLine(label = "许可证", value = repo.license?.name ?: "无")
+            InfoLine(label = "Fork", value = if (repo.isFork) "是" else "否")
+            InfoLine(label = "已归档", value = if (repo.isArchived) "是" else "否")
+            if (repo.topics.isNotEmpty()) {
+                InfoLine(label = "Topics", value = repo.topics.joinToString(", "))
+            }
+            repo.permission?.let { perm ->
+                InfoLine(
+                    label = "我的权限",
+                    value =
+                        buildList {
+                            if (perm.admin) add("管理")
+                            if (perm.push) add("写入")
+                            if (perm.pull) add("读取")
+                        }.ifEmpty { listOf("读取") }.joinToString("/"),
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "数据来源：GitHub REST · 仓库详情字段（只读，未做任何修改）",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoLine(
+    label: String,
+    value: String,
+) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodySmall)
     }
 }
 

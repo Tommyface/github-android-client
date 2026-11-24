@@ -10,7 +10,10 @@ import com.gy.githubclient.feature.profile.data.local.ProfileDao
 import com.gy.githubclient.feature.profile.data.local.toDomain
 import com.gy.githubclient.feature.profile.data.local.toEntity
 import com.gy.githubclient.feature.profile.data.remote.GitHubUserApi
+import com.gy.githubclient.feature.profile.domain.model.GistItem
 import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
+import com.gy.githubclient.feature.profile.domain.model.OrgMember
+import com.gy.githubclient.feature.profile.domain.model.OrgSummary
 import com.gy.githubclient.feature.profile.domain.model.UserEvent
 import com.gy.githubclient.feature.profile.domain.model.UserProfile
 import com.gy.githubclient.feature.profile.domain.repository.ProfileRepository
@@ -40,6 +43,14 @@ class ProfileRepositoryImpl(
     override suspend fun markThreadRead(threadId: Long): NetworkResult<Unit> = api.markThreadRead(threadId)
 
     override suspend fun listUserEvents(login: String): NetworkResult<List<UserEvent>> = api.listUserEvents(login)
+
+    override suspend fun getOrg(login: String): NetworkResult<OrgSummary> = api.getOrg(login)
+
+    override suspend fun listOrgMembers(login: String): NetworkResult<List<OrgMember>> = api.listOrgMembers(login)
+
+    override suspend fun listUserGists(login: String): NetworkResult<List<GistItem>> = api.listUserGists(login)
+
+    override suspend fun getGist(id: String): NetworkResult<GistItem> = api.getGist(id)
 
     override suspend fun clearCache() = dao.clear()
 }

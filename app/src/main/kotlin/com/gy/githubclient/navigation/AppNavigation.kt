@@ -19,6 +19,8 @@ import com.gy.githubclient.feature.download.presentation.DownloadScreen
 import com.gy.githubclient.feature.download.presentation.MirrorSettingsScreen
 import com.gy.githubclient.feature.library.presentation.LibraryScreen
 import com.gy.githubclient.feature.profile.presentation.ActivityScreen
+import com.gy.githubclient.feature.profile.presentation.GistScreen
+import com.gy.githubclient.feature.profile.presentation.OrgScreen
 import com.gy.githubclient.feature.profile.presentation.ProfileScreen
 import com.gy.githubclient.feature.repo.presentation.ActionsScreen
 import com.gy.githubclient.feature.repo.presentation.CommitScreen
@@ -57,6 +59,12 @@ sealed class Route(
 
     /** 个人动态（v0.10.0 N4）：公开事件流。 */
     data object Activity : Route("activity")
+
+    /** 组织信息只读（v0.15.0 A5）。 */
+    data object Org : Route("org")
+
+    /** Gist 浏览只读（v0.15.0 A6）。 */
+    data object Gists : Route("gists")
 
     data object RepoDetail : Route("repo_detail/{owner}/{name}") {
         const val ARG_OWNER = "owner"
@@ -259,10 +267,18 @@ fun AppNavigation(
                 onOpenUpdateCheck = { navController.navigate(Route.UpdateCheck.path) },
                 onOpenLibrary = { navController.navigate(Route.Library.path) },
                 onOpenActivity = { navController.navigate(Route.Activity.path) },
+                onOpenOrg = { navController.navigate(Route.Org.path) },
+                onOpenGists = { navController.navigate(Route.Gists.path) },
             )
         }
         composable(Route.Activity.path) {
             ActivityScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Route.Org.path) {
+            OrgScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Route.Gists.path) {
+            GistScreen(onBack = { navController.popBackStack() })
         }
         composable(Route.Library.path) {
             LibraryScreen(

@@ -13,8 +13,12 @@ import com.gy.githubclient.feature.profile.data.local.ProfileDatabase
 import com.gy.githubclient.feature.profile.data.remote.GitHubUserApi
 import com.gy.githubclient.feature.profile.domain.repository.ProfileRepository
 import com.gy.githubclient.feature.profile.domain.usecase.ClearProfileCacheUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.GetGistUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.GetOrgUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ListNotificationsUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.ListOrgMembersUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ListUserEventsUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.ListUserGistsUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.MarkNotificationReadUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ObserveProfileUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.RefreshProfileUseCase
@@ -51,4 +55,8 @@ val profileDataModule =
         factory { ListNotificationsUseCase(get<ProfileRepository>()) }
         factory { MarkNotificationReadUseCase(get<ProfileRepository>()) }
         factory { ListUserEventsUseCase(get<ProfileRepository>()) }
+        factory { GetOrgUseCase(get<ProfileRepository>()) }
+        factory { ListOrgMembersUseCase(get<ProfileRepository>()) }
+        factory { ListUserGistsUseCase(get<ProfileRepository>()) }
+        factory { GetGistUseCase(get<ProfileRepository>()) }
     }

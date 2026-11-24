@@ -8,7 +8,10 @@ package com.gy.githubclient.feature.profile.data.remote
 import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.feature.profile.domain.model.GistItem
 import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
+import com.gy.githubclient.feature.profile.domain.model.OrgMember
+import com.gy.githubclient.feature.profile.domain.model.OrgSummary
 import com.gy.githubclient.feature.profile.domain.model.UserEvent
 import com.gy.githubclient.feature.profile.domain.model.UserProfile
 import io.ktor.client.statement.HttpResponse
@@ -59,9 +62,51 @@ class GitHubUserApi(
             },
         )
 
+    /** 组织概要（v0.15.0 A5）。 */
+    suspend fun getOrg(login: String): NetworkResult<OrgSummary> =
+        client.request(
+            path = "/orgs/$login",
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(OrgDto.serializer(), response.bodyAsText()).toDomain()
+            },
+        )
+
+    /** 组织成员（v0.15.0 A5）。 */
+    suspend fun listOrgMembers(login: String): NetworkResult<List<OrgMember>> =
+        client.request(
+            path = "/orgs/$login/members?per_page=$ORG_MEMBERS_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(OrgMemberDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
+        )
+
+    /** 用户 Gist 列表（v0.15.0 A6）。 */
+    suspend fun listUserGists(login: String): NetworkResult<List<GistItem>> =
+        client.request(
+            path = "/users/$login/gists?per_page=$GISTS_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(GistDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
+        )
+
+    /** 单条 Gist 详情（v0.15.0 A6）。 */
+    suspend fun getGist(id: String): NetworkResult<GistItem> =
+        client.request(
+            path = "/gists/$id",
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(GistDto.serializer(), response.bodyAsText()).toDomain()
+            },
+        )
+
     private companion object {
         const val PROFILE_PATH = "/user"
         const val NOTIFICATIONS_PER_PAGE = 50
         const val EVENTS_PER_PAGE = 20
+        const val ORG_MEMBERS_PER_PAGE = 100
+        const val GISTS_PER_PAGE = 50
     }
 }

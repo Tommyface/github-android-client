@@ -90,6 +90,7 @@ class DownloadManagerImpl(
                 .putString(DownloadWorker.KEY_FILE_NAME, task.request.fileName)
                 .putLong(DownloadWorker.KEY_ASSET_ID, task.request.assetId)
                 .putLong(DownloadWorker.KEY_TOTAL_BYTES, task.request.totalBytes)
+                .putString(DownloadWorker.KEY_SHA256, task.request.expectedSha256)
                 .build()
         val work =
             OneTimeWorkRequestBuilder<DownloadWorker>()

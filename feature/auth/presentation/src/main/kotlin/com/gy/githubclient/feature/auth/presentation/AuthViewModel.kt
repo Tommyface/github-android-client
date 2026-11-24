@@ -199,7 +199,7 @@ class AuthViewModel(
             delay(interval * MILLIS_PER_SECOND)
             when (val result = pollDeviceToken(challenge.deviceCode)) {
                 is DeviceFlowPollResult.Authorized -> {
-                    completeOAuthSignIn(result.accessToken)
+                    completeOAuthSignIn(result.accessToken, result.scopes)
                     return
                 }
 
@@ -238,8 +238,11 @@ class AuthViewModel(
     }
 
     /** 拿到 access_token 后复用 OAuth 登录管线（/user 校验 + 安全存储 + 状态发布）。 */
-    private suspend fun completeOAuthSignIn(accessToken: String) {
-        when (val result = signInWithOAuth(accessToken)) {
+    private suspend fun completeOAuthSignIn(
+        accessToken: String,
+        scopes: List<String> = emptyList(),
+    ) {
+        when (val result = signInWithOAuth(accessToken, scopes)) {
             is AuthResult.Success -> {
                 _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Idle)
                 _events.trySend(AuthEvent.LoginSuccess)

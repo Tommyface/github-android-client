@@ -9,11 +9,15 @@ import com.gy.githubclient.core.domain.network.AuthTokenProvider
 import com.gy.githubclient.feature.auth.data.AuthRepositoryImpl
 import com.gy.githubclient.feature.auth.data.AuthTokenProviderImpl
 import com.gy.githubclient.feature.auth.data.OAuthDeviceFlowRepositoryImpl
+import com.gy.githubclient.feature.auth.data.PermissionAuditRepositoryImpl
 import com.gy.githubclient.feature.auth.data.local.SecureTokenStore
 import com.gy.githubclient.feature.auth.data.remote.GitHubAuthApi
 import com.gy.githubclient.feature.auth.data.remote.GitHubOAuthApi
+import com.gy.githubclient.feature.auth.data.remote.GitHubPermissionApi
 import com.gy.githubclient.feature.auth.domain.repository.AuthRepository
 import com.gy.githubclient.feature.auth.domain.repository.OAuthDeviceFlowRepository
+import com.gy.githubclient.feature.auth.domain.repository.PermissionAuditRepository
+import com.gy.githubclient.feature.auth.domain.usecase.AuditPermissionsUseCase
 import com.gy.githubclient.feature.auth.domain.usecase.BindNotificationTokenUseCase
 import com.gy.githubclient.feature.auth.domain.usecase.GetCurrentSessionUseCase
 import com.gy.githubclient.feature.auth.domain.usecase.ObserveAuthStateUseCase
@@ -58,6 +62,8 @@ val authDataModule =
         }
 
         single { GitHubAuthApi(get<HttpClient>()) }
+        single { GitHubPermissionApi(get<HttpClient>()) }
+        single<PermissionAuditRepository> { PermissionAuditRepositoryImpl(authRepository = get(), api = get()) }
 
         single { GitHubOAuthApi(get<HttpClient>()) }
 
@@ -88,4 +94,5 @@ val authDataModule =
         factory { SignOutUseCase(get<AuthRepository>()) }
         factory { StartDeviceFlowUseCase(get<OAuthDeviceFlowRepository>()) }
         factory { PollDeviceTokenUseCase(get<OAuthDeviceFlowRepository>()) }
+        factory { AuditPermissionsUseCase(get<PermissionAuditRepository>()) }
     }

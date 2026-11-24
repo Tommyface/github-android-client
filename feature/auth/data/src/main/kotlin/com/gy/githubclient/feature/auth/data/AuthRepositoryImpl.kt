@@ -57,17 +57,21 @@ class AuthRepositoryImpl(
 
     override suspend fun signInWithPat(token: String): AuthResult = signIn(token, AuthMethod.PAT)
 
-    override suspend fun signInWithOAuth(accessToken: String): AuthResult =
-        signIn(accessToken, AuthMethod.OAUTH)
+    override suspend fun signInWithOAuth(
+        accessToken: String,
+        scopes: List<String>,
+    ): AuthResult = signIn(accessToken, AuthMethod.OAUTH, scopes)
 
     private suspend fun signIn(
         token: String,
         method: AuthMethod,
+        scopes: List<String> = emptyList(),
     ): AuthResult =
         when (val result = api.getCurrentUser(token)) {
             is RemoteUserResult.Success -> {
                 tokenStore.saveToken(TokenChannel.PRIMARY, token)
                 tokenStore.setAuthMethod(method)
+                if (method == AuthMethod.OAUTH) tokenStore.saveScopes(scopes)
                 userState.value = result.user.toDomain()
                 publish()
                 AuthResult.Success(buildSession())
@@ -125,6 +129,7 @@ class AuthRepositoryImpl(
             hasPrimaryToken = tokenStore.getToken(TokenChannel.PRIMARY) != null,
             hasNotificationToken = tokenStore.getToken(TokenChannel.NOTIFICATION) != null,
             method = tokenStore.getAuthMethod(),
+            scopes = tokenStore.getScopes(),
         )
 
     private fun publish() {

@@ -1,0 +1,163 @@
+/*
+ * Copyright (c) 2026 GitHub Android Client
+ * Licensed under the Apache License, Version 2.0
+ */
+
+package com.gy.githubclient.feature.auth.presentation
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.feature.auth.domain.model.AuthMethod
+import com.gy.githubclient.feature.auth.domain.model.Capability
+import com.gy.githubclient.feature.auth.domain.model.PermissionReport
+import org.koin.androidx.compose.koinViewModel
+
+/**
+ * 权限体检页：当前凭证能做什么 / 缺什么。
+ * GitHub 的权限由凭证本身决定，App 只负责如实展示与引导，不支持在线改权限。
+ */
+@Composable
+fun PermissionAuditScreen(
+    onBack: () -> Unit = {},
+    viewModel: PermissionAuditViewModel = koinViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("← 返回") }
+            Text("权限体检", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            TextButton(onClick = viewModel::refresh) { Text("重新体检") }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "GitHub 凭证的权限由创建/授权时决定；本页只展示当前凭证实际可用范围。修改权限请在 GitHub 网页端调整。",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+
+        when {
+            uiState.isLoading -> {
+                Column(
+                    Modifier.fillMaxWidth().padding(48.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) { CircularProgressIndicator() }
+            }
+
+            uiState.errorMessage != null -> {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("体检失败", style = MaterialTheme.typography.titleSmall)
+                        Spacer(Modifier.height(4.dp))
+                        Text(uiState.errorMessage.orEmpty(), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+
+            else -> {
+                val report = uiState.report ?: return@Column
+                ReportSummary(report)
+                Spacer(Modifier.height(12.dp))
+                report.capabilities.forEach { capability ->
+                    CapabilityCard(capability)
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReportSummary(report: PermissionReport) {
+    val methodLabel =
+        when (report.method) {
+            AuthMethod.OAUTH -> "OAuth 账号授权"
+            AuthMethod.PAT -> "Personal Access Token"
+            null -> "未知"
+        }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text("凭证：$methodLabel", style = MaterialTheme.typography.titleSmall)
+            report.login?.let {
+                Spacer(Modifier.height(2.dp))
+                Text("账号：$it", style = MaterialTheme.typography.bodySmall)
+            }
+            if (report.scopes.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text("授予的 scope", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(4.dp))
+                RowOrFlow(report.scopes)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "已确认可用 ${report.grantedCount}/${report.capabilities.size} 项功能面",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowOrFlow(scopes: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        scopes.chunked(4).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                row.forEach { scope -> AssistChip(onClick = {}, label = { Text(scope) }) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CapabilityCard(capability: Capability) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    if (capability.granted) {
+                        MaterialTheme.colorScheme.surface
+                    } else {
+                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+                    },
+            ),
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                (if (capability.granted) "✓ " else "✗ ") + capability.name,
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(capability.features, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "依据：${capability.basis}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}

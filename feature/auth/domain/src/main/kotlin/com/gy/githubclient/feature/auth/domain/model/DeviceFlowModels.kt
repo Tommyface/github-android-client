@@ -49,8 +49,14 @@ sealed interface DeviceFlowPollResult {
 
     data object Denied : DeviceFlowPollResult
 
+    /**
+     * 拿到 access_token（明文仅途经内存，随后交安全存储）。
+     * [scopes] 为 GitHub 返回的实际授权 scope 列表（空格分隔字符串拆分），
+     * 可能小于请求的 scope——权限体检以此为准。
+     */
     data class Authorized(
         val accessToken: String,
+        val scopes: List<String> = emptyList(),
     ) : DeviceFlowPollResult
 
     data class NetworkError(

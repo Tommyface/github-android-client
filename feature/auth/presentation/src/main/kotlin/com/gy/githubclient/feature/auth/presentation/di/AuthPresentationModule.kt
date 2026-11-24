@@ -6,6 +6,7 @@
 package com.gy.githubclient.feature.auth.presentation.di
 
 import com.gy.githubclient.feature.auth.presentation.AuthViewModel
+import com.gy.githubclient.feature.auth.presentation.PermissionAuditViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -24,4 +25,5 @@ val authPresentationModule =
                 restoreSession = get(),
             )
         }
+        viewModel { PermissionAuditViewModel(auditPermissions = get()) }
     }

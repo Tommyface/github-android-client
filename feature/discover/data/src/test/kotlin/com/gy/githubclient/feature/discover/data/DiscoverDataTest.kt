@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -72,6 +73,69 @@ class DiscoverDataTest {
                 .first()
                 .downloadUrl
                 .contains("releases/download"),
+        )
+    }
+
+    @Test
+    fun digestStripsSha256PrefixAndSurvivesWireRoundTrip() {
+        val withDigest =
+            releaseDto.copy(
+                assets =
+                    listOf(
+                        com.gy.githubclient.feature.discover.data.remote.ReleaseAssetDto(
+                            id = 7L,
+                            name = "sample.apk",
+                            size = 1024L,
+                            browserDownloadUrl = "https://github.com/square/retrofit/releases/download/v2.9.0/sample.apk",
+                            digest = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                        ),
+                    ),
+            )
+
+        val domain = withDigest.toDomain()
+        assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", domain.assets.first().sha256)
+
+        // ReleaseJson（缓存序列化）往返不丢失摘要。
+        val json = ReleaseJson.encode(domain)
+        assertEquals(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            ReleaseJson
+                .decode(json)
+                ?.assets
+                ?.first()
+                ?.sha256,
+        )
+    }
+
+    @Test
+    fun nonSha256DigestIsIgnored() {
+        val md5Only =
+            releaseDto.copy(
+                assets =
+                    listOf(
+                        com.gy.githubclient.feature.discover.data.remote.ReleaseAssetDto(
+                            id = 7L,
+                            name = "sample.apk",
+                            size = 1024L,
+                            browserDownloadUrl = "https://github.com/square/retrofit/releases/download/v2.9.0/sample.apk",
+                            digest = "md5:0123456789abcdef",
+                        ),
+                    ),
+            )
+
+        assertNull(
+            md5Only
+                .toDomain()
+                .assets
+                .first()
+                .sha256,
+        )
+        assertNull(
+            releaseDto
+                .toDomain()
+                .assets
+                .first()
+                .sha256,
         )
     }
 

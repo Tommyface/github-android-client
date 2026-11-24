@@ -33,12 +33,14 @@ data class AuthUser(
 /**
  * 会话快照：两类 token 是否就绪 + 已登录用户。
  * token 明文永不进入该模型，仅保存在安全存储中。
+ * [scopes] 为 OAuth 登录时 GitHub 实际授予的 scope（PAT 登录为空，权限改由探测获取）。
  */
 data class AuthSession(
     val user: AuthUser?,
     val hasPrimaryToken: Boolean,
     val hasNotificationToken: Boolean,
     val method: AuthMethod?,
+    val scopes: List<String> = emptyList(),
 ) {
     val isSignedIn: Boolean get() = hasPrimaryToken && user != null
 }

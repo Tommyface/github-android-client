@@ -35,6 +35,8 @@ data class DownloadRequest(
     val assetId: Long = 0L,
     val totalBytes: Long = -1L,
     val useMirror: Boolean = true,
+    /** GitHub 官方 sha256（小写十六进制，无算法前缀）；null 表示无官方摘要、跳过校验。 */
+    val expectedSha256: String? = null,
 )
 
 /** 下载任务（持久化 + UI 展示）。 */

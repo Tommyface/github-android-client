@@ -33,8 +33,14 @@ interface AuthRepository {
     /** 用 fine-grained PAT 登录主通道。 */
     suspend fun signInWithPat(token: String): AuthResult
 
-    /** 通过 OAuth 交换到的 access token 登录主通道。 */
-    suspend fun signInWithOAuth(accessToken: String): AuthResult
+    /**
+     * 通过 OAuth 交换到的 access token 登录主通道。
+     * [scopes] 为 Device Flow 响应中 GitHub 实际授予的 scope 列表，持久化供权限体检展示。
+     */
+    suspend fun signInWithOAuth(
+        accessToken: String,
+        scopes: List<String> = emptyList(),
+    ): AuthResult
 
     /**
      * 绑定 classic PAT 到通知通道。

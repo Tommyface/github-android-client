@@ -53,6 +53,7 @@ class AuthViewModelDeviceFlowTest {
         private val stubUser = AuthUser("gy", "Gy", null, "https://github.com/gy")
         val state = MutableStateFlow<AuthState>(AuthState.SignedOut)
         var oauthTokenReceived: String? = null
+        var lastScopesReceived: List<String> = emptyList()
         var methodRecorded: AuthMethod? = null
         var oauthResult: AuthResult =
             AuthResult.Success(
@@ -68,8 +69,12 @@ class AuthViewModelDeviceFlowTest {
 
         override suspend fun signInWithPat(token: String): AuthResult = oauthResult
 
-        override suspend fun signInWithOAuth(accessToken: String): AuthResult {
+        override suspend fun signInWithOAuth(
+            accessToken: String,
+            scopes: List<String>,
+        ): AuthResult {
             oauthTokenReceived = accessToken
+            lastScopesReceived = scopes
             return oauthResult
         }
 
@@ -141,7 +146,7 @@ class AuthViewModelDeviceFlowTest {
             val deviceRepo =
                 FakeDeviceFlowRepository(
                     successStart,
-                    listOf(DeviceFlowPollResult.Authorized("gho_token")),
+                    listOf(DeviceFlowPollResult.Authorized("gho_token", listOf("repo", "read:user"))),
                 )
             val viewModel = buildViewModel(authRepo, deviceRepo)
             val events = mutableListOf<AuthEvent>()
@@ -152,6 +157,7 @@ class AuthViewModelDeviceFlowTest {
 
             assertEquals("gho_token", authRepo.oauthTokenReceived)
             assertEquals(AuthMethod.OAUTH, authRepo.methodRecorded)
+            assertEquals(listOf("repo", "read:user"), authRepo.lastScopesReceived)
             assertTrue(events.contains(AuthEvent.LoginSuccess))
             assertEquals(DeviceFlowUiState.Idle, viewModel.uiState.value.deviceFlow)
         }

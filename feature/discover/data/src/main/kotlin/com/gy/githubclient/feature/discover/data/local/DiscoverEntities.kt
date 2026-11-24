@@ -89,6 +89,7 @@ internal data class ReleaseAssetWire(
     val downloadUrl: String,
     val contentType: String,
     val downloadCount: Long,
+    val sha256: String? = null,
 )
 
 private fun ReleaseInfo.toWire() =
@@ -100,7 +101,9 @@ private fun ReleaseInfo.toWire() =
         body,
         isPrerelease,
         isDraft,
-        assets.map { ReleaseAssetWire(it.id, it.name, it.size, it.downloadUrl, it.contentType, it.downloadCount) },
+        assets.map {
+            ReleaseAssetWire(it.id, it.name, it.size, it.downloadUrl, it.contentType, it.downloadCount, it.sha256)
+        },
     )
 
 private fun ReleaseInfoWire.toDomain() =
@@ -112,5 +115,5 @@ private fun ReleaseInfoWire.toDomain() =
         body,
         isPrerelease,
         isDraft,
-        assets.map { ReleaseAsset(it.id, it.name, it.size, it.downloadUrl, it.contentType, it.downloadCount) },
+        assets.map { ReleaseAsset(it.id, it.name, it.size, it.downloadUrl, it.contentType, it.downloadCount, it.sha256) },
     )

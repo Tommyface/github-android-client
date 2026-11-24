@@ -11,6 +11,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.gy.githubclient.core.domain.network.AssetIdentity
 import com.gy.githubclient.core.domain.network.Downloader
+import com.gy.githubclient.feature.download.data.download.Sha256Verifier
 import com.gy.githubclient.feature.download.data.local.DownloadDao
 import com.gy.githubclient.feature.download.domain.model.DownloadStatus
 import kotlinx.datetime.Clock
@@ -33,6 +34,7 @@ class DownloadWorker(
         val fileName = inputData.getString(KEY_FILE_NAME) ?: return Result.failure()
         val assetId = inputData.getLong(KEY_ASSET_ID, 0L)
         val totalBytes = inputData.getLong(KEY_TOTAL_BYTES, -1L)
+        val expectedSha256 = inputData.getString(KEY_SHA256)
 
         DownloadNotifications.ensureChannel(applicationContext)
         val notificationId = DownloadNotifications.idFor(taskId)
@@ -79,6 +81,25 @@ class DownloadWorker(
                 markStatus(taskId, DownloadStatus.FAILED, "下载完成但未找到文件")
                 return Result.failure()
             }
+
+            // 完整性校验：有官方 sha256 摘要时必须一致；镜像传输被篡改/截断的文件在此拦截。
+            if (expectedSha256 != null && !Sha256Verifier.verify(java.io.File(path), expectedSha256)) {
+                val actual = Sha256Verifier.digest(java.io.File(path))
+                java.io.File(path).delete()
+                markStatus(
+                    taskId,
+                    DownloadStatus.FAILED,
+                    "SHA-256 校验失败，文件已删除（预期 $expectedSha256，实际 $actual）",
+                )
+                setForeground(
+                    ForegroundInfo(
+                        notificationId,
+                        DownloadNotifications.build(applicationContext, title, "校验失败已删除", 100),
+                    ),
+                )
+                return Result.failure()
+            }
+
             dao.updateComplete(taskId, path, DownloadStatus.DONE.name, now())
             setForeground(
                 ForegroundInfo(
@@ -109,5 +130,6 @@ class DownloadWorker(
         const val KEY_FILE_NAME = "fileName"
         const val KEY_ASSET_ID = "assetId"
         const val KEY_TOTAL_BYTES = "totalBytes"
+        const val KEY_SHA256 = "expectedSha256"
     }
 }

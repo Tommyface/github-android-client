@@ -46,6 +46,7 @@ fun ProfileScreen(
     onOpenStarred: () -> Unit,
     onOpenDownloads: () -> Unit,
     onOpenMirrorSettings: () -> Unit,
+    onOpenPermissionAudit: () -> Unit = {},
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
@@ -73,6 +74,8 @@ fun ProfileScreen(
                 FullWidthButton(text = "下载管理", onClick = onOpenDownloads)
                 HorizontalDivider()
                 FullWidthButton(text = "镜像加速设置", onClick = onOpenMirrorSettings)
+                HorizontalDivider()
+                FullWidthButton(text = "🔐 权限体检", onClick = onOpenPermissionAudit)
             }
         }
 

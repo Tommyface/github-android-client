@@ -16,15 +16,19 @@ import com.gy.githubclient.core.data.mirror.BundledMirrors
 import com.gy.githubclient.core.domain.model.mirror.MirrorPreference
 import com.gy.githubclient.core.domain.model.mirror.TrafficKind
 import com.gy.githubclient.feature.download.data.download.MirrorUrlResolver
+import com.gy.githubclient.feature.download.data.download.Sha256Verifier
 import com.gy.githubclient.feature.download.data.local.toDomain
 import com.gy.githubclient.feature.download.data.local.toEntity
 import com.gy.githubclient.feature.download.domain.model.DownloadRequest
 import com.gy.githubclient.feature.download.domain.model.DownloadStatus
 import com.gy.githubclient.feature.download.domain.model.DownloadTask
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /** 下载数据层：镜像决策、断点续传纯逻辑、Entity 往返。 */
 class DownloadDataTest {
@@ -125,6 +129,47 @@ class DownloadDataTest {
         assertEquals(DownloadStatus.DOWNLOADING, restored.status)
         assertEquals(50, restored.percent)
     }
+
+    @Test
+    fun entityRoundTripPreservesExpectedSha256() {
+        val request =
+            DownloadRequest(assetUrl, "a.apk", assetId = 7L, totalBytes = 100L, expectedSha256 = "ab12cd34")
+        val restored = taskOf(request).toEntity().toDomain()
+
+        assertEquals("ab12cd34", restored.request.expectedSha256)
+    }
+
+    @Test
+    fun sha256VerifierKnowsStandardVector() {
+        val file = tempFile("abc")
+        // NIST 标准测试向量：sha256("abc")。
+        assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", Sha256Verifier.digest(file))
+    }
+
+    @Test
+    fun sha256VerifierMatchesIgnoringCaseAndSkipsBlank() {
+        val file = tempFile("abc")
+        assertTrue(
+            Sha256Verifier.verify(file, "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD"),
+        )
+        assertTrue(Sha256Verifier.verify(file, " "))
+        assertFalse(Sha256Verifier.verify(file, "deadbeef"))
+    }
+
+    private fun taskOf(request: DownloadRequest) =
+        DownloadTask(
+            id = "t1",
+            request = request,
+            status = DownloadStatus.QUEUED,
+            createdAt = "now",
+            updatedAt = "now",
+        )
+
+    private fun tempFile(content: String): File =
+        kotlin.io.path.createTempFile("sha_test", ".bin").toFile().apply {
+            writeText(content)
+            deleteOnExit()
+        }
 
     @Test
     fun rawUrlIsRewritableButDirectSkips() {

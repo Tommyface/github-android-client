@@ -52,7 +52,17 @@ class OAuthDeviceFlowRepositoryImpl(
 
     private fun mapTokenBody(dto: OAuthTokenResponseDto): DeviceFlowPollResult =
         when {
-            dto.accessToken != null -> DeviceFlowPollResult.Authorized(dto.accessToken)
+            dto.accessToken != null ->
+                DeviceFlowPollResult.Authorized(
+                    accessToken = dto.accessToken,
+                    // GitHub 以空格分隔返回实际授予的 scope，可能小于请求集合。
+                    scopes =
+                        dto.scope
+                            .orEmpty()
+                            .split(' ')
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() },
+                )
             dto.error == null ->
                 DeviceFlowPollResult.NetworkError("响应缺少 access_token 与 error 字段")
             else ->

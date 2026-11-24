@@ -33,6 +33,7 @@ data class DownloadTaskEntity(
     val createdAt: String,
     val updatedAt: String,
     val mirrorName: String?,
+    val expectedSha256: String? = null,
 )
 
 fun DownloadTask.toEntity(): DownloadTaskEntity =
@@ -47,6 +48,7 @@ fun DownloadTask.toEntity(): DownloadTaskEntity =
         assetId = request.assetId,
         totalBytes = request.totalBytes,
         useMirror = request.useMirror,
+        expectedSha256 = request.expectedSha256,
         status = status.name,
         bytesDownloaded = bytesDownloaded,
         totalBytesActual = totalBytes,
@@ -72,6 +74,7 @@ fun DownloadTaskEntity.toDomain(): DownloadTask =
                 assetId = assetId,
                 totalBytes = totalBytes,
                 useMirror = useMirror,
+                expectedSha256 = expectedSha256,
             ),
         status = DownloadStatus.fromWire(status),
         bytesDownloaded = bytesDownloaded,

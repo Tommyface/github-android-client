@@ -26,12 +26,15 @@ class SignInWithPatUseCase(
     }
 }
 
-/** 用 OAuth access token 登录主通道。 */
+/** 用 OAuth access token 登录主通道，[scopes] 为 GitHub 实际授予的 scope 列表。 */
 class SignInWithOAuthUseCase(
     private val repository: AuthRepository,
 ) {
-    suspend operator fun invoke(accessToken: String): AuthResult {
-        val result = repository.signInWithOAuth(accessToken.trim())
+    suspend operator fun invoke(
+        accessToken: String,
+        scopes: List<String> = emptyList(),
+    ): AuthResult {
+        val result = repository.signInWithOAuth(accessToken.trim(), scopes)
         if (result is AuthResult.Success) repository.setAuthMethod(AuthMethod.OAUTH)
         return result
     }

@@ -11,6 +11,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.gy.githubclient.feature.auth.presentation.PermissionAuditScreen
 import com.gy.githubclient.feature.discover.presentation.DiscoverScreen
 import com.gy.githubclient.feature.discover.presentation.ReleaseDetailScreen
 import com.gy.githubclient.feature.download.presentation.DownloadScreen
@@ -36,6 +37,8 @@ sealed class Route(
     data object Downloads : Route("downloads")
 
     data object MirrorSettings : Route("mirror_settings")
+
+    data object PermissionAudit : Route("permission_audit")
 
     data object Starred : Route("starred")
 
@@ -115,6 +118,7 @@ fun AppNavigation(navController: NavHostController) {
                 onOpenStarred = { navController.navigate(Route.Starred.path) },
                 onOpenDownloads = { navController.navigate(Route.Downloads.path) },
                 onOpenMirrorSettings = { navController.navigate(Route.MirrorSettings.path) },
+                onOpenPermissionAudit = { navController.navigate(Route.PermissionAudit.path) },
             )
         }
         composable(Route.Starred.path) {
@@ -132,6 +136,11 @@ fun AppNavigation(navController: NavHostController) {
         }
         composable(Route.MirrorSettings.path) {
             MirrorSettingsScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Route.PermissionAudit.path) {
+            PermissionAuditScreen(
                 onBack = { navController.popBackStack() },
             )
         }

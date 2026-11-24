@@ -40,6 +40,8 @@ data class ReleaseAsset(
     val downloadUrl: String,
     val contentType: String,
     val downloadCount: Long = 0L,
+    /** GitHub 官方 sha256 digest（无前缀），下载完成后完整性校验用；缺省表示无法校验。 */
+    val sha256: String? = null,
 )
 
 /** 一次 Release 发布的信息。 */

@@ -145,6 +145,7 @@ class DiscoverViewModel(
                 assetId = asset.id,
                 totalBytes = asset.size,
                 useMirror = link.isAccelerated,
+                expectedSha256 = asset.sha256,
             )
         viewModelScope.launch { enqueueDownload(request) }
     }

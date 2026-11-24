@@ -59,6 +59,19 @@ class SecureTokenStore(
         prefs.edit().putString(KEY_AUTH_METHOD, method.name).apply()
     }
 
+    /** OAuth 实际授予的 scope（空格分隔原文），PAT 登录不保存。 */
+    fun getScopes(): List<String> =
+        prefs
+            .getString(KEY_SCOPES, null)
+            ?.split(' ')
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            .orEmpty()
+
+    fun saveScopes(scopes: List<String>) {
+        prefs.edit().putString(KEY_SCOPES, scopes.joinToString(" ")).apply()
+    }
+
     private fun keyFor(channel: TokenChannel): String =
         when (channel) {
             TokenChannel.PRIMARY -> KEY_PRIMARY_TOKEN
@@ -70,5 +83,6 @@ class SecureTokenStore(
         const val KEY_PRIMARY_TOKEN = "primary_token"
         const val KEY_NOTIFICATION_TOKEN = "notification_token"
         const val KEY_AUTH_METHOD = "auth_method"
+        const val KEY_SCOPES = "oauth_scopes"
     }
 }

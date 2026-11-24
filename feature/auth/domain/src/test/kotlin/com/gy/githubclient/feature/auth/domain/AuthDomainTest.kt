@@ -99,8 +99,10 @@ private open class StubAuthRepository : com.gy.githubclient.feature.auth.domain.
     override suspend fun signInWithPat(token: String): AuthResult =
         AuthResult.Failure.Network("stub")
 
-    override suspend fun signInWithOAuth(accessToken: String): AuthResult =
-        AuthResult.Failure.Network("stub")
+    override suspend fun signInWithOAuth(
+        accessToken: String,
+        scopes: List<String>,
+    ): AuthResult = AuthResult.Failure.Network("stub")
 
     override suspend fun bindNotificationToken(token: String): AuthResult =
         AuthResult.Failure.Network("stub")

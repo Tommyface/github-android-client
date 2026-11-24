@@ -19,6 +19,8 @@ data class ReleaseAssetDto(
     @SerialName("browser_download_url") val browserDownloadUrl: String = "",
     @SerialName("content_type") val contentType: String = "",
     @SerialName("download_count") val downloadCount: Long = 0L,
+    /** GitHub 2024+ 返回，形如「sha256:abcd…」；旧仓库/代理响应可能缺省。 */
+    val digest: String? = null,
 )
 
 /** GitHub Release 响应字段（仅映射发现页所需子集）。 */
@@ -43,6 +45,8 @@ fun ReleaseAssetDto.toDomain(): ReleaseAsset =
         downloadUrl = browserDownloadUrl,
         contentType = contentType,
         downloadCount = downloadCount,
+        // 官方 digest 形如「sha256:…」，仅取算法为 sha256 的部分供下载校验。
+        sha256 = digest?.takeIf { it.startsWith("sha256:", ignoreCase = true) }?.substringAfter(':'),
     )
 
 fun ReleaseDto.toDomain(): ReleaseInfo =

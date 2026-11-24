@@ -6,12 +6,17 @@
 package com.gy.githubclient.feature.repo.data.remote
 
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.IssueComment
+import com.gy.githubclient.feature.repo.domain.model.IssueDetail
+import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.LicenseInfo
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoOwner
 import com.gy.githubclient.feature.repo.domain.model.RepoPermission
 import com.gy.githubclient.feature.repo.domain.model.RepoVisibility
 import com.gy.githubclient.feature.repo.domain.model.Repository
+import com.gy.githubclient.feature.repo.domain.model.StarHistory
+import com.gy.githubclient.feature.repo.domain.model.StarWeekEntry
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -139,6 +144,92 @@ fun ReadmeDto.toDomain(): Readme? {
         content = decoded,
     )
 }
+
+/** GET /repos/{o}/{r}/issues 列表项（v0.7.0 M11）。pull_request 字段存在即为 PR。 */
+@Serializable
+data class IssueItemDto(
+    val number: Int = 0,
+    val title: String = "",
+    val state: String = "open",
+    val user: OwnerDto? = null,
+    val comments: Int = 0,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("html_url") val htmlUrl: String = "",
+    @SerialName("pull_request") val pullRequest: kotlinx.serialization.json.JsonElement? = null,
+)
+
+fun IssueItemDto.toDomain(): IssueItem =
+    IssueItem(
+        number = number,
+        title = title,
+        state = state,
+        isPullRequest = pullRequest != null,
+        author = user?.login.orEmpty(),
+        commentCount = comments,
+        createdAt = createdAt,
+        htmlUrl = htmlUrl,
+    )
+
+/** GET /repos/{o}/{r}/issues/{n} 详情。 */
+@Serializable
+data class IssueDetailDto(
+    val number: Int = 0,
+    val title: String = "",
+    val state: String = "open",
+    val user: OwnerDto? = null,
+    val body: String? = null,
+    @SerialName("html_url") val htmlUrl: String = "",
+    @SerialName("pull_request") val pullRequest: kotlinx.serialization.json.JsonElement? = null,
+)
+
+fun IssueDetailDto.toDomain(comments: List<IssueComment>): IssueDetail =
+    IssueDetail(
+        number = number,
+        title = title,
+        state = state,
+        isPullRequest = pullRequest != null,
+        author = user?.login.orEmpty(),
+        body = body,
+        htmlUrl = htmlUrl,
+        comments = comments,
+    )
+
+/** GET /repos/{o}/{r}/issues/{n}/comments 单条评论。 */
+@Serializable
+data class IssueCommentDto(
+    val user: OwnerDto? = null,
+    val body: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+)
+
+fun IssueCommentDto.toDomain(): IssueComment =
+    IssueComment(
+        author = user?.login.orEmpty(),
+        body = body.orEmpty(),
+        createdAt = createdAt,
+    )
+
+/**
+ * stargazers/history 单周条目（v0.7.0 M10）。
+ * 官方语义：week=周起始 Unix 秒；total=该周增量（非累计）；days=周日起的每日增量；最新周在前。
+ */
+@Serializable
+data class StarHistoryWeekDto(
+    val week: Long = 0L,
+    val total: Int = 0,
+    val days: List<Int> = emptyList(),
+)
+
+fun List<StarHistoryWeekDto>.toStarHistory(): StarHistory =
+    StarHistory.fromWeekly(
+        map { entry ->
+            StarWeekEntry(
+                weekStartEpoch = entry.week,
+                weeklyStars = entry.total,
+                dailyStars = entry.days,
+            )
+        },
+    )
 
 private fun String?.toVisibility(fallbackPrivate: Boolean): RepoVisibility =
     when (this?.lowercase()) {

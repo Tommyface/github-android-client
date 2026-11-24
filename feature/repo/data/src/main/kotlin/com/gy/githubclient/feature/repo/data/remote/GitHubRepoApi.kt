@@ -10,9 +10,12 @@ import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.IssueComment
+import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
+import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
@@ -133,6 +136,70 @@ class GitHubRepoApi(
             },
         )
 
+    /**
+     * 星标历史（v0.7.0 M10）：GET /repos/{owner}/{repo}/stargazers/history。
+     * 无需身份、按周聚合、最新周在前；每页至多 30 周，取最近一页绘制趋势。
+     * 端点可能返回 404（极新仓库无历史），由仓库层翻译为空趋势而非错误。
+     */
+    suspend fun getStarHistory(
+        owner: String,
+        name: String,
+    ): NetworkResult<StarHistory> =
+        client.request(
+            path = "/repos/$owner/$name/stargazers/history?per_page=$STAR_HISTORY_WEEKS",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(StarHistoryWeekDto.serializer()), response.bodyAsText())
+                    .toStarHistory()
+            },
+        )
+
+    /**
+     * Issue / PR 只读列表（v0.7.0 M11）：GET /repos/{o}/{r}/issues?state=all。
+     * GitHub 该端点同时返回 Issue 与 PR，由 DTO 依 pull_request 字段区分。
+     */
+    suspend fun listIssues(
+        owner: String,
+        name: String,
+        state: String = "all",
+    ): NetworkResult<List<IssueItem>> =
+        client.request(
+            path = "/repos/$owner/$name/issues?state=$state&per_page=$ISSUES_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(IssueItemDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
+        )
+
+    /** Issue / PR 详情（v0.7.0 M11）：正文。 */
+    suspend fun getIssueDetail(
+        owner: String,
+        name: String,
+        number: Int,
+    ): NetworkResult<IssueDetailDto> =
+        client.request(
+            path = "/repos/$owner/$name/issues/$number",
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(IssueDetailDto.serializer(), response.bodyAsText())
+            },
+        )
+
+    /** Issue / PR 评论时间线（v0.7.0 M11）。 */
+    suspend fun listIssueComments(
+        owner: String,
+        name: String,
+        number: Int,
+    ): NetworkResult<List<IssueComment>> =
+        client.request(
+            path = "/repos/$owner/$name/issues/$number/comments?per_page=$ISSUES_PER_PAGE",
+            mapper = { response: HttpResponse ->
+                GitHubJson
+                    .decode(ListSerializer(IssueCommentDto.serializer()), response.bodyAsText())
+                    .map { it.toDomain() }
+            },
+        )
+
     private fun listPath(filter: RepoFilter): String {
         val type = filter.type.name.lowercase()
         val sort = filter.sort.name.lowercase()
@@ -143,5 +210,7 @@ class GitHubRepoApi(
 
     private companion object {
         const val BRANCHES_PER_PAGE = 100
+        const val STAR_HISTORY_WEEKS = 30
+        const val ISSUES_PER_PAGE = 30
     }
 }

@@ -14,9 +14,14 @@ import com.gy.githubclient.feature.repo.data.local.RepoDao
 import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
+import com.gy.githubclient.feature.repo.data.remote.IssueCommentDto
+import com.gy.githubclient.feature.repo.data.remote.IssueDetailDto
+import com.gy.githubclient.feature.repo.data.remote.IssueItemDto
 import com.gy.githubclient.feature.repo.data.remote.OwnerDto
 import com.gy.githubclient.feature.repo.data.remote.RepositoryDto
+import com.gy.githubclient.feature.repo.data.remote.StarHistoryWeekDto
 import com.gy.githubclient.feature.repo.data.remote.toDomain
+import com.gy.githubclient.feature.repo.data.remote.toStarHistory
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.RepoVisibility
 import io.ktor.client.HttpClient
@@ -167,6 +172,111 @@ class RepoDataTest {
                 engine.requestHistory
                     .first()
                     .url.encodedPath,
+            )
+        }
+
+    @Test
+    fun starHistoryDtoAccumulatesNewestFirstWeeklyDeltas() {
+        // 官方语义：最新周在前、total 为周增量。DTO→领域需反转并累加。
+        val history =
+            listOf(
+                StarHistoryWeekDto(week = 300L, total = 5, days = listOf(1, 2, 0, 0, 1, 1, 0)),
+                StarHistoryWeekDto(week = 200L, total = 2),
+                StarHistoryWeekDto(week = 100L, total = 3),
+            ).toStarHistory()
+        assertEquals(listOf(100L, 200L, 300L), history.points.map { it.weekStartEpoch })
+        assertEquals(listOf(3, 5, 10), history.points.map { it.cumulativeStars })
+    }
+
+    @Test
+    fun starHistoryApiHitsHistoryEndpoint() =
+        runTest {
+            val json =
+                """
+                [{"week":100,"total":3,"days":[0,0,0,1,1,1,0]}]
+                """.trimIndent()
+            val engine =
+                MockEngine {
+                    respond(json, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+            val api = buildApi(engine)
+
+            val result = api.getStarHistory("o", "a")
+
+            assertTrue(result is NetworkResult.Success)
+            assertEquals(3, (result as NetworkResult.Success).data.currentTotal)
+            assertEquals(
+                "/repos/o/a/stargazers/history",
+                engine.requestHistory
+                    .first()
+                    .url.encodedPath,
+            )
+        }
+
+    @Test
+    fun starHistory404TranslatesToEmptyInRepository() =
+        runTest {
+            val repo =
+                RepoRepositoryImpl(
+                    FakeRepoDao(),
+                    GitHubRepoApi(
+                        GitHubApiClient(
+                            buildTestClient(MockEngine { respond("", HttpStatusCode.NotFound) }),
+                            FakeTokenProvider("t"),
+                        ),
+                    ),
+                )
+            val result = repo.getStarHistory("o", "a")
+            assertTrue(result is NetworkResult.Success)
+            assertTrue((result as NetworkResult.Success).data.points.isEmpty())
+        }
+
+    @Test
+    fun issueDtoDistinguishesPrByPullRequestField() {
+        val issue = IssueItemDto(number = 1, title = "bug", user = OwnerDto(login = "alice"))
+        val pr =
+            IssueItemDto(
+                number = 2,
+                title = "feature",
+                user = OwnerDto(login = "bob"),
+                pullRequest = kotlinx.serialization.json.JsonObject(emptyMap()),
+            )
+        assertEquals(false, issue.toDomain().isPullRequest)
+        assertEquals(true, pr.toDomain().isPullRequest)
+        assertEquals("alice", issue.toDomain().author)
+        assertEquals(2, pr.toDomain().number)
+    }
+
+    @Test
+    fun issueDetailMergesCommentsTimeline() {
+        val dto = IssueDetailDto(number = 7, title = "t", body = "body", user = OwnerDto(login = "u"))
+        val comments = listOf(IssueCommentDto(user = OwnerDto(login = "c"), body = "hi"))
+        val detail = dto.toDomain(comments.map { it.toDomain() })
+        assertEquals(7, detail.number)
+        assertEquals("body", detail.body)
+        assertEquals(1, detail.comments.size)
+        assertEquals("c", detail.comments.first().author)
+    }
+
+    @Test
+    fun issueListApiHitsIssuesEndpoint() =
+        runTest {
+            val json =
+                """
+                [{"number":1,"title":"bug","state":"open","user":{"login":"alice"},"comments":2}]
+                """.trimIndent()
+            val engine =
+                MockEngine {
+                    respond(json, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+            val result = buildApi(engine).listIssues("o", "a")
+            assertTrue(result is NetworkResult.Success)
+            assertEquals(1, (result as NetworkResult.Success).data.size)
+            assertTrue(
+                engine.requestHistory
+                    .first()
+                    .url.encodedPath
+                    .endsWith("/issues"),
             )
         }
 

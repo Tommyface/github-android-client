@@ -5,6 +5,7 @@
 
 package com.gy.githubclient.feature.download.data.download
 
+import com.gy.githubclient.core.data.download.ContentRange
 import com.gy.githubclient.core.data.download.PartialOwnership
 import com.gy.githubclient.core.data.download.PartialRetry
 import com.gy.githubclient.core.data.download.PartialReuse
@@ -85,8 +86,9 @@ class OkHttpDownloader(
                         throw e
                     } catch (e: IOException) {
                         lastError = e
-                        // 镜像失败：清掉可能不兼容的 .part，切下一候选从头下。
-                        if (candidate != urls.last()) fileStore.deletePartAndMeta(fileName)
+                        // M12：切换镜像时保留 .part，让下一候选从已收字节偏移续传；
+                        // 若新源不兼容（返回 200 全量），performOnce 内 TRUNCATE_REWRITE 会从头覆盖。
+                        // 仅当服务端明确资源不再存在（404/410）才丢弃（见 performOnce 内决策）。
                     }
                 }
                 if (!succeeded) {
@@ -160,23 +162,30 @@ class OkHttpDownloader(
         calls.add(call)
         val response = call.executeSuspend()
         try {
-            val decision = RangeRequest.decide(response.code, effectivePartLength, null)
+            // M12：必须解析服务端 Content-Range。传 null 会让 206 恒判 RESTART，
+            // 断点续传形同虚设；只有起点与已收字节一致（APPEND）才可安全续写。
+            val contentRange = ContentRange.parse(response.header("Content-Range"))
+            val decision = RangeRequest.decide(response.code, effectivePartLength, contentRange)
             if (decision == RangeDecision.UNEXPECTED) {
                 throw IOException("Unexpected HTTP ${response.code}")
             }
 
-            val startOffset =
-                when (decision) {
-                    RangeDecision.APPEND,
-                    RangeDecision.RESTART,
-                    -> effectivePartLength
-
-                    RangeDecision.TRUNCATE_REWRITE -> 0L
-                    RangeDecision.UNEXPECTED -> 0L
-                }
             if (decision == RangeDecision.RESTART) {
+                // 起点不符 / 416：旧 .part 与新源字节流不对齐，丢弃后从头重写，
+                // 避免「删文件却仍按旧偏移追加」写出缺头损坏文件。
                 fileStore.deletePartAndMeta(fileName)
             }
+
+            val startOffset =
+                when (decision) {
+                    RangeDecision.APPEND -> effectivePartLength
+                    RangeDecision.TRUNCATE_REWRITE,
+                    RangeDecision.RESTART,
+                    RangeDecision.UNEXPECTED,
+                    -> 0L
+                }
+            // 仅 APPEND 续写；RESTART/TRUNCATE_REWRITE 一律从头覆盖。
+            val append = decision == RangeDecision.APPEND && startOffset > 0L
 
             val body = response.body ?: throw IOException("Empty response body")
             val contentLength = body.contentLength()
@@ -189,7 +198,6 @@ class OkHttpDownloader(
                     null
                 }
 
-            val append = decision == RangeDecision.APPEND || decision == RangeDecision.RESTART
             val out = FileOutputStream(fileStore.partFile(fileName), append)
             val buffer = ByteArray(BUFFER_SIZE)
             var written = startOffset

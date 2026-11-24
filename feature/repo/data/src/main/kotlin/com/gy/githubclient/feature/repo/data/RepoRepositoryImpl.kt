@@ -13,12 +13,16 @@ import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.IssueDetail
+import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
+import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.gy.githubclient.feature.repo.data.remote.toDomain as toDomainDto
 
 /**
  * 仓库仓库实现（Room 为单一数据源）：
@@ -133,6 +137,45 @@ class RepoRepositoryImpl(
                 } else {
                     NetworkResult.Failure(result.error)
                 }
+        }
+
+    override suspend fun getStarHistory(
+        owner: String,
+        name: String,
+    ): NetworkResult<StarHistory> =
+        when (val result = api.getStarHistory(owner, name)) {
+            is NetworkResult.Success -> result
+            // 无历史（404）是极新仓库的常见态，以空趋势表达而非错误。
+            is NetworkResult.Failure ->
+                if (result.error is ApiError.NotFound) {
+                    NetworkResult.Success(StarHistory(emptyList()))
+                } else {
+                    result
+                }
+        }
+
+    override suspend fun listIssues(
+        owner: String,
+        name: String,
+        state: String,
+    ): NetworkResult<List<IssueItem>> = api.listIssues(owner, name, state)
+
+    override suspend fun getIssueDetail(
+        owner: String,
+        name: String,
+        number: Int,
+    ): NetworkResult<IssueDetail> =
+        when (val detailResult = api.getIssueDetail(owner, name, number)) {
+            is NetworkResult.Failure -> NetworkResult.Failure(detailResult.error)
+            is NetworkResult.Success -> {
+                // 评论失败不阻塞正文展示：以空时间线降级。
+                val comments =
+                    when (val commentsResult = api.listIssueComments(owner, name, number)) {
+                        is NetworkResult.Success -> commentsResult.data
+                        is NetworkResult.Failure -> emptyList()
+                    }
+                NetworkResult.Success(detailResult.data.toDomainDto(comments))
+            }
         }
 
     override suspend fun clearCache() {

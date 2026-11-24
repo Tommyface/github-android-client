@@ -21,6 +21,9 @@ val repoPresentationModule =
                 getRepository = get(),
                 listBranches = get(),
                 getReadme = get(),
+                getStarHistory = get(),
+                listIssues = get(),
+                getIssueDetail = get(),
                 enqueueDownload = get(),
             )
         }

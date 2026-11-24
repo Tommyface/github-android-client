@@ -12,14 +12,20 @@ import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.download.domain.model.DownloadRequest
 import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCase
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.IssueDetail
+import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.RepoType
 import com.gy.githubclient.feature.repo.domain.model.Repository
+import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.GetIssueDetailUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetReadmeUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.GetStarHistoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ListIssuesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
@@ -79,6 +85,9 @@ class RepoViewModel(
     private val getRepository: GetRepositoryUseCase,
     private val listBranches: ListBranchesUseCase,
     private val getReadme: GetReadmeUseCase,
+    private val getStarHistory: GetStarHistoryUseCase,
+    private val listIssues: ListIssuesUseCase,
+    private val getIssueDetail: GetIssueDetailUseCase,
     private val enqueueDownload: EnqueueDownloadUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RepoListUiState())
@@ -121,6 +130,17 @@ class RepoViewModel(
     /** 详情页 README 状态（v0.6.0 M6）。 */
     private val _readme = MutableStateFlow<ReadmeUiState>(ReadmeUiState.Idle)
     val readme: StateFlow<ReadmeUiState> = _readme.asStateFlow()
+
+    /** 详情页星标趋势（v0.7.0 M10）：null=加载中/失败，空列表=无历史。 */
+    private val _starHistory = MutableStateFlow<StarHistory?>(null)
+    val starHistory: StateFlow<StarHistory?> = _starHistory.asStateFlow()
+
+    /** Issue / PR 状态（v0.7.0 M11）。 */
+    private val _issues = MutableStateFlow<List<IssueItem>>(emptyList())
+    val issues: StateFlow<List<IssueItem>> = _issues.asStateFlow()
+
+    private val _issueDetail = MutableStateFlow<IssueDetail?>(null)
+    val issueDetail: StateFlow<IssueDetail?> = _issueDetail.asStateFlow()
 
     init {
         refresh()
@@ -170,6 +190,8 @@ class RepoViewModel(
                     _events.trySend(RepoEvent.OpenDetail)
                     loadBranches(owner, name)
                     loadReadme(owner, name)
+                    loadStarHistory(owner, name)
+                    loadIssues(owner, name)
                 }
 
                 is NetworkResult.Failure -> _events.trySend(RepoEvent.ShowMessage(errorMessage(result.error)))
@@ -208,6 +230,62 @@ class RepoViewModel(
                         result.data?.let(ReadmeUiState::Loaded) ?: ReadmeUiState.NotAvailable
 
                     is NetworkResult.Failure -> ReadmeUiState.NotAvailable
+                }
+        }
+    }
+
+    /** 当前详情仓库坐标，供 Issue 详情按需加载。 */
+    private var currentOwner: String = ""
+    private var currentRepo: String = ""
+
+    /** 拉取 Issue / PR 列表（v0.7.0 M11），失败静默以空列表降级。 */
+    private fun loadIssues(
+        owner: String,
+        name: String,
+    ) {
+        currentOwner = owner
+        currentRepo = name
+        viewModelScope.launch {
+            _issueDetail.value = null
+            _issues.value =
+                when (val result = listIssues(owner, name)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> emptyList()
+                }
+        }
+    }
+
+    /** 展开某条 Issue / PR 的详情与评论时间线。 */
+    fun openIssue(number: Int) {
+        viewModelScope.launch {
+            _issueDetail.value =
+                when (val result = getIssueDetail(currentOwner, currentRepo, number)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> {
+                        _events.trySend(RepoEvent.ShowMessage("Issue 详情加载失败：${errorMessage(result.error)}"))
+                        null
+                    }
+                }
+        }
+    }
+
+    /** 收起 Issue 详情。 */
+    fun closeIssue() {
+        _issueDetail.value = null
+    }
+
+    /**
+     * 拉取星标趋势（v0.7.0 M10）：按周累计曲线。失败静默显示占位，不打扰详情主流程。
+     */
+    private fun loadStarHistory(
+        owner: String,
+        name: String,
+    ) {
+        viewModelScope.launch {
+            _starHistory.value =
+                when (val result = getStarHistory(owner, name)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> StarHistory(emptyList())
                 }
         }
     }

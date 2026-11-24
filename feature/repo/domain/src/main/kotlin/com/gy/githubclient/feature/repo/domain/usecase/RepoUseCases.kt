@@ -7,9 +7,12 @@ package com.gy.githubclient.feature.repo.domain.usecase
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.IssueDetail
+import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
+import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import kotlinx.coroutines.flow.Flow
 
@@ -90,6 +93,38 @@ class ForkRepositoryUseCase(
         owner: String,
         name: String,
     ): NetworkResult<Repository> = repository.fork(owner, name)
+}
+
+/** 获取星标趋势（按周累计曲线）。 */
+class GetStarHistoryUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<StarHistory> = repository.getStarHistory(owner, name)
+}
+
+/** Issue / PR 只读列表。 */
+class ListIssuesUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        state: String = "all",
+    ): NetworkResult<List<IssueItem>> = repository.listIssues(owner, name, state)
+}
+
+/** Issue / PR 详情（含评论时间线）。 */
+class GetIssueDetailUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        number: Int,
+    ): NetworkResult<IssueDetail> = repository.getIssueDetail(owner, name, number)
 }
 
 /** 清空缓存（登出时）。 */

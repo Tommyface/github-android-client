@@ -109,6 +109,23 @@ class DownloadDataTest {
     }
 
     @Test
+    fun contentRangeParsingDrivesRealResume() {
+        // M12 回归：206 必须解析 Content-Range 且与已收字节一致才 APPEND；
+        // 历史缺陷是调用方传 null → 恒判 RESTART → 断点续传失效且写出缺头文件。
+        val parsed = ContentRange.parse("bytes 50-99/150")
+        assertNotNull(parsed)
+        assertEquals(50L, parsed!!.start)
+        assertEquals(150L, parsed.total)
+        assertEquals(RangeDecision.APPEND, RangeRequest.decide(206, 50L, parsed))
+
+        // 起点不匹配 → RESTART（从头重写，不拼接错位字节）。
+        assertEquals(RangeDecision.RESTART, RangeRequest.decide(206, 40L, parsed))
+        // 解析失败 → null → 保守 RESTART。
+        assertNull(ContentRange.parse("garbage"))
+        assertEquals(RangeDecision.RESTART, RangeRequest.decide(206, 50L, null))
+    }
+
+    @Test
     fun entityRoundTripPreservesTask() {
         val request = DownloadRequest(assetUrl, "a.apk", assetId = 7L, totalBytes = 100L)
         val task =

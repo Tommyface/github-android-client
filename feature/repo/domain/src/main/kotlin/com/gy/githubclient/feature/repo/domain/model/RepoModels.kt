@@ -97,6 +97,86 @@ data class Readme(
     val content: String,
 )
 
+/** Issue / PR 只读列表项。PR 与 Issue 共用端点，以 isPullRequest 区分。 */
+data class IssueItem(
+    val number: Int,
+    val title: String,
+    val state: String,
+    val isPullRequest: Boolean,
+    val author: String,
+    val commentCount: Int,
+    val createdAt: String?,
+    val htmlUrl: String,
+)
+
+/** Issue 评论时间线条目。 */
+data class IssueComment(
+    val author: String,
+    val body: String,
+    val createdAt: String?,
+)
+
+/** Issue / PR 详情（正文 + 评论时间线）。 */
+data class IssueDetail(
+    val number: Int,
+    val title: String,
+    val state: String,
+    val isPullRequest: Boolean,
+    val author: String,
+    val body: String?,
+    val htmlUrl: String,
+    val comments: List<IssueComment>,
+)
+
+/** 星标历史单周原始增量（对应 stargazers/history 的一个条目）。 */
+data class StarWeekEntry(
+    /** 该周起始的 Unix 秒时间戳。 */
+    val weekStartEpoch: Long,
+    /** 该周新增星标数（GitHub 返回的是周增量，非累计）。 */
+    val weeklyStars: Int,
+    /** 周日开始的每日增量。 */
+    val dailyStars: List<Int> = emptyList(),
+)
+
+/** 星标趋势曲线上的一个点：累计到该周的星标总数。 */
+data class StarHistoryPoint(
+    val weekStartEpoch: Long,
+    val weeklyStars: Int,
+    val cumulativeStars: Int,
+)
+
+/** 星标趋势：points 按时间升序（旧→新）。 */
+data class StarHistory(
+    val points: List<StarHistoryPoint>,
+) {
+    /** 曲线末端累计值（即区间内当前总星标数）。 */
+    val currentTotal: Int get() = points.lastOrNull()?.cumulativeStars ?: 0
+
+    /** 单周最大增量，供图表纵轴参考。 */
+    val peakWeekly: Int get() = points.maxOfOrNull { it.weeklyStars } ?: 0
+
+    companion object {
+        /**
+         * GitHub stargazers/history 以「最新周在前」返回，且 total 为周增量。
+         * 这里反转为时间升序后逐周累加，得到可绘制的累计曲线。
+         * 负增量（异常数据）按 0 处理，避免累计值倒退。
+         */
+        fun fromWeekly(entries: List<StarWeekEntry>): StarHistory {
+            var running = 0
+            val points =
+                entries.asReversed().map { entry ->
+                    running += entry.weeklyStars.coerceAtLeast(0)
+                    StarHistoryPoint(
+                        weekStartEpoch = entry.weekStartEpoch,
+                        weeklyStars = entry.weeklyStars,
+                        cumulativeStars = running,
+                    )
+                }
+            return StarHistory(points)
+        }
+    }
+}
+
 /** 仓库列表查询条件。 [page] 从 1 开始。 */
 @Suppress("LongParameterList")
 data class RepoFilter(

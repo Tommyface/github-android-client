@@ -7,9 +7,12 @@ package com.gy.githubclient.feature.repo.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.IssueDetail
+import com.gy.githubclient.feature.repo.domain.model.IssueItem
 import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
+import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -72,6 +75,26 @@ interface RepoRepository {
         owner: String,
         name: String,
     ): NetworkResult<Readme?>
+
+    /** 获取星标趋势（v0.7.0 M10）：按周累计曲线；无历史返回空 StarHistory。 */
+    suspend fun getStarHistory(
+        owner: String,
+        name: String,
+    ): NetworkResult<StarHistory>
+
+    /** Issue / PR 只读列表（v0.7.0 M11）。 */
+    suspend fun listIssues(
+        owner: String,
+        name: String,
+        state: String = "all",
+    ): NetworkResult<List<IssueItem>>
+
+    /** Issue / PR 详情（含评论时间线，v0.7.0 M11）。 */
+    suspend fun getIssueDetail(
+        owner: String,
+        name: String,
+        number: Int,
+    ): NetworkResult<IssueDetail>
 
     /** 清空本地仓库缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

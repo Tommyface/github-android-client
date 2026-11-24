@@ -10,6 +10,8 @@ import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
+import com.gy.githubclient.feature.repo.domain.model.StarHistory
+import com.gy.githubclient.feature.repo.domain.model.StarWeekEntry
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
@@ -22,6 +24,38 @@ import org.junit.Test
 
 /** 仓库领域层纯逻辑测试，不依赖 Android。 */
 class RepoDomainTest {
+    @Test
+    fun starHistoryReversesNewestFirstAndAccumulatesWeeklyDeltas() {
+        // GitHub 返回「最新周在前」：week=300(+5), week=200(+2), week=100(+3)
+        // 累计曲线应为时间升序：3 → 5 → 10。
+        val history =
+            StarHistory.fromWeekly(
+                listOf(
+                    StarWeekEntry(300L, 5),
+                    StarWeekEntry(200L, 2),
+                    StarWeekEntry(100L, 3),
+                ),
+            )
+        assertEquals(listOf(100L, 200L, 300L), history.points.map { it.weekStartEpoch })
+        assertEquals(listOf(3, 5, 10), history.points.map { it.cumulativeStars })
+        assertEquals(10, history.currentTotal)
+        assertEquals(5, history.peakWeekly)
+    }
+
+    @Test
+    fun starHistoryTreatsNegativeDeltaAsZeroAndHandlesEmpty() {
+        val history =
+            StarHistory.fromWeekly(
+                listOf(
+                    StarWeekEntry(200L, -4),
+                    StarWeekEntry(100L, 3),
+                ),
+            )
+        // 负增量按 0，累计不倒退。
+        assertEquals(listOf(3, 3), history.points.map { it.cumulativeStars })
+        assertEquals(0, StarHistory.fromWeekly(emptyList()).currentTotal)
+    }
+
     @Test
     fun nextPageIncrementsPageOnly() {
         val filter = RepoFilter(page = 1)
@@ -110,6 +144,28 @@ private class StubRepoRepository(
         owner: String,
         name: String,
     ): NetworkResult<Repository> = NetworkResult.Failure(ApiError.NotFound)
+
+    override suspend fun getStarHistory(
+        owner: String,
+        name: String,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.StarHistory> =
+        NetworkResult.Success(
+            com.gy.githubclient.feature.repo.domain.model
+                .StarHistory(emptyList()),
+        )
+
+    override suspend fun listIssues(
+        owner: String,
+        name: String,
+        state: String,
+    ): NetworkResult<List<com.gy.githubclient.feature.repo.domain.model.IssueItem>> = NetworkResult.Success(emptyList())
+
+    override suspend fun getIssueDetail(
+        owner: String,
+        name: String,
+        number: Int,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.IssueDetail> =
+        NetworkResult.Failure(ApiError.NotFound)
 
     override suspend fun clearCache() = Unit
 }

@@ -9,6 +9,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.feature.download.domain.model.DownloadRequest
+import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCase
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.RepoType
@@ -53,6 +55,7 @@ sealed interface RepoEvent {
  * - [repositories] 由 filter 驱动观察 Room 缓存，切换筛选条件自动换流。
  * - 刷新/加 star 走网络，失败以事件提示，缓存数据始终保持可见。
  */
+@Suppress("LongParameterList") // 用例逐一显式注入（Koin 构造式 DI），超出阈值属预期
 class RepoViewModel(
     private val observeRepositories: ObserveRepositoriesUseCase,
     private val refreshRepositories: RefreshRepositoriesUseCase,
@@ -60,6 +63,7 @@ class RepoViewModel(
     private val forkRepository: ForkRepositoryUseCase,
     private val getRepository: GetRepositoryUseCase,
     private val listBranches: ListBranchesUseCase,
+    private val enqueueDownload: EnqueueDownloadUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RepoListUiState())
     val uiState: StateFlow<RepoListUiState> = _uiState.asStateFlow()
@@ -183,6 +187,33 @@ class RepoViewModel(
                 is NetworkResult.Failure ->
                     _events.trySend(RepoEvent.ShowMessage("Fork 失败：${errorMessage(result.error)}"))
             }
+        }
+    }
+
+    /**
+     * 快捷下载仓库 ZIP（默认分支）：
+     * /archive/refs/heads/{branch}.zip 走既有下载引擎（断点续传/镜像/前台通知全部复用）。
+     * archive 无官方 digest，expectedSha256 置空跳过完整性校验。
+     */
+    fun downloadZip(repo: Repository) {
+        viewModelScope.launch {
+            val branch = repo.defaultBranch.ifBlank { "main" }
+            val fileName = "${repo.name}-$branch.zip"
+            val request =
+                DownloadRequest(
+                    url = "https://github.com/${repo.owner.login}/${repo.name}/archive/refs/heads/$branch.zip",
+                    fileName = fileName,
+                    suggestedFileName = fileName,
+                    repoOwner = repo.owner.login,
+                    repoName = repo.name,
+                    releaseTag = branch,
+                    assetId = 0L,
+                    totalBytes = -1L,
+                    useMirror = true,
+                )
+            runCatching { enqueueDownload(request) }
+                .onSuccess { _events.trySend(RepoEvent.ShowMessage("已加入下载队列：$fileName")) }
+                .onFailure { _events.trySend(RepoEvent.ShowMessage("下载失败：${it.message ?: "未知错误"}")) }
         }
     }
 

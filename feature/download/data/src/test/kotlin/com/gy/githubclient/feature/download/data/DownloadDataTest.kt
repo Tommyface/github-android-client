@@ -175,4 +175,31 @@ class DownloadDataTest {
     fun rawUrlIsRewritableButDirectSkips() {
         assertNull(MirrorUrlResolver.resolve(rawUrl, MirrorPreference.Direct, BundledMirrors.ALL))
     }
+
+    private val archiveUrl = "https://github.com/square/retrofit/archive/refs/heads/main.zip"
+
+    @Test
+    fun archiveUrlRewritesThroughFullProxyMirror() {
+        // 全量代理镜像（{url} 模板）支持整链替换 archive 请求。
+        val ghfast = BundledMirrors.ALL.first { it.id == "ghfast_top" }
+        val rewritten =
+            MirrorUrlResolver.resolve(archiveUrl, MirrorPreference.Selected(id = ghfast.id), BundledMirrors.ALL)
+
+        assertEquals("https://ghfast.top/$archiveUrl", rewritten)
+    }
+
+    @Test
+    fun archiveUrlFallsBackToDirectOnRawOnlyMirror() {
+        // raw-only 镜像（jsdelivr 分解模板）不支持 archive → 回落直连，避免拼出 404。
+        val jsdelivr = BundledMirrors.ALL.first { it.id == "fastly_jsdelivr" }
+        val rewritten =
+            MirrorUrlResolver.resolve(archiveUrl, MirrorPreference.Selected(id = jsdelivr.id), BundledMirrors.ALL)
+
+        assertNull(rewritten)
+    }
+
+    @Test
+    fun directPreferenceNeverRewritesArchive() {
+        assertNull(MirrorUrlResolver.resolve(archiveUrl, MirrorPreference.Direct, BundledMirrors.ALL))
+    }
 }

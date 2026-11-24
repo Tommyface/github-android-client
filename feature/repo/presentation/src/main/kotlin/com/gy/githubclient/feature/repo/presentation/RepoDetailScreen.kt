@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -78,6 +79,10 @@ fun RepoDetailScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(if (current.isFork) "这是一个 Fork" else "Fork 到我的账号")
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = { viewModel.downloadZip(current) }, modifier = Modifier.fillMaxWidth()) {
+            Text("⬇ 下载 ZIP（${current.defaultBranch}）")
         }
         Spacer(Modifier.height(16.dp))
 

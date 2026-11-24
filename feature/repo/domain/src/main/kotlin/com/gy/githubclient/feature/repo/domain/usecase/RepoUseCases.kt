@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.repo.domain.usecase
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
@@ -48,6 +49,16 @@ class ListBranchesUseCase(
         owner: String,
         name: String,
     ): NetworkResult<List<Branch>> = repository.listBranches(owner, name)
+}
+
+/** 获取仓库 README（无 README 返回 null）。 */
+class GetReadmeUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<Readme?> = repository.getReadme(owner, name)
 }
 
 /** star / unstar。 */

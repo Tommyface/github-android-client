@@ -17,18 +17,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import org.koin.androidx.compose.koinViewModel
 
-/** 仓库详情页：信息概览 + 分支列表 + Star 操作。 */
+/** 仓库详情页：信息概览 + README（v0.6.0 M6）+ Star/Fork/ZIP 操作 + 分支列表。 */
 @Composable
 fun RepoDetailScreen(
     owner: String,
@@ -38,67 +45,265 @@ fun RepoDetailScreen(
 ) {
     val repo by viewModel.detail.collectAsStateWithLifecycle()
     val branches by viewModel.branches.collectAsStateWithLifecycle()
+    val readmeState by viewModel.readme.collectAsStateWithLifecycle()
 
     LaunchedEffect(owner, name) {
         viewModel.openDetail(owner, name)
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = onBack) { Text("返回") }
-        Spacer(Modifier.height(12.dp))
+    // 单一 LazyColumn：任意高度内容（README/分支）均完整渲染，不发生 Column 嵌套截断（v0.5.1 教训）。
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            Button(onClick = onBack) { Text("返回") }
+        }
 
         if (repo == null) {
-            Text("加载中…", style = MaterialTheme.typography.bodyMedium)
-            return@Column
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 32.dp),
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            return@LazyColumn
         }
 
-        val current = repo ?: return@Column
-        Text(current.fullName, style = MaterialTheme.typography.headlineSmall)
-        current.description?.let {
-            Spacer(Modifier.height(8.dp))
-            Text(it, style = MaterialTheme.typography.bodyMedium)
-        }
-        Spacer(Modifier.height(12.dp))
+        val current = repo ?: return@LazyColumn
 
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("★ ${current.stargazersCount}", style = MaterialTheme.typography.labelLarge)
-            Text("⑂ ${current.forksCount}", style = MaterialTheme.typography.labelLarge)
-            Text("Issues ${current.openIssuesCount}", style = MaterialTheme.typography.labelLarge)
+        item {
+            Column {
+                Text(current.fullName, style = MaterialTheme.typography.headlineSmall)
+                current.description?.let {
+                    Spacer(Modifier.height(4.dp))
+                    Text(it, style = MaterialTheme.typography.bodyMedium)
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("★ ${current.stargazersCount}", style = MaterialTheme.typography.labelLarge)
+                    Text("⑂ ${current.forksCount}", style = MaterialTheme.typography.labelLarge)
+                    Text("Issues ${current.openIssuesCount}", style = MaterialTheme.typography.labelLarge)
+                }
+                Spacer(Modifier.height(4.dp))
+                Text("默认分支：${current.defaultBranch}", style = MaterialTheme.typography.bodySmall)
+                current.language?.let { Text("语言：$it", style = MaterialTheme.typography.bodySmall) }
+            }
         }
-        Spacer(Modifier.height(8.dp))
-        Text("默认分支：${current.defaultBranch}", style = MaterialTheme.typography.bodySmall)
-        current.language?.let { Text("语言：$it", style = MaterialTheme.typography.bodySmall) }
-        Spacer(Modifier.height(12.dp))
 
-        Button(onClick = { viewModel.toggleStar(current) }, modifier = Modifier.fillMaxWidth()) {
-            Text(if (current.isStarred) "取消 Star" else "Star 这个仓库")
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { viewModel.toggleStar(current) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (current.isStarred) "取消 Star" else "Star 这个仓库")
+                }
+                Button(onClick = { viewModel.fork(current) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (current.isFork) "这是一个 Fork" else "Fork 到我的账号")
+                }
+                OutlinedButton(onClick = { viewModel.downloadZip(current) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("⬇ 下载 ZIP（${current.defaultBranch}）")
+                }
+            }
         }
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = { viewModel.fork(current) },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(if (current.isFork) "这是一个 Fork" else "Fork 到我的账号")
-        }
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { viewModel.downloadZip(current) }, modifier = Modifier.fillMaxWidth()) {
-            Text("⬇ 下载 ZIP（${current.defaultBranch}）")
-        }
-        Spacer(Modifier.height(16.dp))
 
-        Text("分支（${branches.size}）", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(branches, key = { it.name }) { branch ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(12.dp)) {
-                        Text(branch.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                        if (branch.isProtected) {
-                            Text("受保护", style = MaterialTheme.typography.labelSmall)
-                        }
+        item {
+            Text("README", style = MaterialTheme.typography.titleMedium)
+        }
+
+        when (readmeState) {
+            ReadmeUiState.Loading, ReadmeUiState.Idle -> {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            ReadmeUiState.NotAvailable -> {
+                item {
+                    Text(
+                        "该仓库未提供 README",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            is ReadmeUiState.Loaded -> {
+                val loaded = (readmeState as ReadmeUiState.Loaded).readme
+                items(
+                    parseMarkdownBlocks(loaded.content),
+                    key = { it.renderKey() },
+                    contentType = { it::class.simpleName },
+                ) { block ->
+                    MarkdownBlockView(
+                        block = block,
+                        owner = owner,
+                        repo = name,
+                        defaultBranch = current.defaultBranch,
+                    )
+                }
+            }
+        }
+
+        item {
+            Text("分支（${branches.size}）", style = MaterialTheme.typography.titleMedium)
+        }
+        items(branches, key = { "branch_${it.name}" }) { branch ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(12.dp)) {
+                    Text(branch.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    if (branch.isProtected) {
+                        Text("受保护", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
         }
     }
 }
+
+/** 块序列 key：同一 README 块列表稳定去重，避免 LazyColumn key 冲突。 */
+private fun MdBlock.renderKey(): String =
+    when (this) {
+        is MdBlock.Heading -> "h$level-$text"
+        is MdBlock.Paragraph -> "p-$text"
+        is MdBlock.ListItem -> "li-$text"
+        is MdBlock.CodeBlock -> "code-$code"
+        is MdBlock.Image -> "img-$url"
+        MdBlock.Rule -> "rule"
+    }
+
+/** 单块渲染：按块类型分派（README 卡片区域内，不再嵌套滚动）。 */
+@Composable
+private fun MarkdownBlockView(
+    block: MdBlock,
+    owner: String,
+    repo: String,
+    defaultBranch: String,
+) {
+    when (block) {
+        is MdBlock.Heading ->
+            Text(
+                block.text,
+                style =
+                    when (block.level) {
+                        1 -> MaterialTheme.typography.headlineSmall
+                        2 -> MaterialTheme.typography.titleLarge
+                        3 -> MaterialTheme.typography.titleMedium
+                        else -> MaterialTheme.typography.titleSmall
+                    },
+            )
+
+        is MdBlock.Paragraph ->
+            Text(
+                remember(block.text) { renderInline(block.text) },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+        is MdBlock.ListItem ->
+            Row(Modifier.padding(start = 8.dp)) {
+                Text("• ", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    remember(block.text) { renderInline(block.text) },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+
+        is MdBlock.CodeBlock ->
+            Card(Modifier.fillMaxWidth()) {
+                Text(
+                    block.code,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    modifier = Modifier.padding(12.dp),
+                )
+            }
+
+        is MdBlock.Image -> {
+            val url =
+                remember(block.url, owner, repo, defaultBranch) {
+                    rewriteReadmeImageUrl(block.url, owner, repo, defaultBranch)
+                }
+            Card(Modifier.fillMaxWidth()) {
+                AsyncImage(
+                    model = url,
+                    contentDescription = block.alt,
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                )
+            }
+        }
+
+        MdBlock.Rule ->
+            androidx.compose.material3.HorizontalDivider()
+    }
+}
+
+/**
+ * 行内格式渲染（v0.6.0 M6）：`code` 等宽、**粗体**、[链接](url) 可点开。
+ * 纯函数，可单测（返回 AnnotatedString 断言文本即可）。
+ */
+internal fun renderInline(text: String): AnnotatedString =
+    buildAnnotatedString {
+        var index = 0
+        while (index < text.length) {
+            val codeStart = text.indexOf('`', index)
+            val linkMatch = LINK_REGEX.matchAt(text, index)
+            when {
+                linkMatch != null -> {
+                    val (label, url) = linkMatch.destructured
+                    append(label)
+                    append(" ($url)")
+                    index = linkMatch.range.last + 1
+                }
+
+                codeStart >= 0 -> {
+                    val codeEnd = text.indexOf('`', codeStart + 1)
+                    if (codeEnd > codeStart) {
+                        append(text, index, codeStart)
+                        pushStyle(SPAN_CODE)
+                        append(text.substring(codeStart + 1, codeEnd))
+                        pop()
+                        index = codeEnd + 1
+                    } else {
+                        append(text, index, text.length)
+                        index = text.length
+                    }
+                }
+
+                else -> {
+                    val boldStart = text.indexOf("**", index)
+                    if (boldStart >= 0) {
+                        val boldEnd = text.indexOf("**", boldStart + 2)
+                        if (boldEnd > boldStart) {
+                            append(text, index, boldStart)
+                            pushStyle(SPAN_BOLD)
+                            append(text.substring(boldStart + 2, boldEnd))
+                            pop()
+                            index = boldEnd + 2
+                        } else {
+                            append(text, index, text.length)
+                            index = text.length
+                        }
+                    } else {
+                        append(text, index, text.length)
+                        index = text.length
+                    }
+                }
+            }
+        }
+    }
+
+private val LINK_REGEX = Regex("\\[([^\\]]+)]\\((https?://[^)\\s]+)\\)")
+
+private val SPAN_BOLD = SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+
+private val SPAN_CODE =
+    SpanStyle(
+        fontFamily = FontFamily.Monospace,
+        background =
+            androidx.compose.ui.graphics
+                .Color(0x14000000),
+    )

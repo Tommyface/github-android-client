@@ -12,10 +12,12 @@ import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.download.domain.model.DownloadRequest
 import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCase
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.RepoType
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.GetReadmeUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
@@ -50,6 +52,19 @@ sealed interface RepoEvent {
     data object OpenDetail : RepoEvent
 }
 
+/** README 加载状态。 */
+sealed class ReadmeUiState {
+    data object Idle : ReadmeUiState()
+
+    data object Loading : ReadmeUiState()
+
+    data object NotAvailable : ReadmeUiState()
+
+    data class Loaded(
+        val readme: Readme,
+    ) : ReadmeUiState()
+}
+
 /**
  * 仓库列表 ViewModel：
  * - [repositories] 由 filter 驱动观察 Room 缓存，切换筛选条件自动换流。
@@ -63,6 +78,7 @@ class RepoViewModel(
     private val forkRepository: ForkRepositoryUseCase,
     private val getRepository: GetRepositoryUseCase,
     private val listBranches: ListBranchesUseCase,
+    private val getReadme: GetReadmeUseCase,
     private val enqueueDownload: EnqueueDownloadUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RepoListUiState())
@@ -101,6 +117,10 @@ class RepoViewModel(
 
     private val _branches = MutableStateFlow<List<Branch>>(emptyList())
     val branches: StateFlow<List<Branch>> = _branches.asStateFlow()
+
+    /** 详情页 README 状态（v0.6.0 M6）。 */
+    private val _readme = MutableStateFlow<ReadmeUiState>(ReadmeUiState.Idle)
+    val readme: StateFlow<ReadmeUiState> = _readme.asStateFlow()
 
     init {
         refresh()
@@ -149,6 +169,7 @@ class RepoViewModel(
                     _detail.value = result.data
                     _events.trySend(RepoEvent.OpenDetail)
                     loadBranches(owner, name)
+                    loadReadme(owner, name)
                 }
 
                 is NetworkResult.Failure -> _events.trySend(RepoEvent.ShowMessage(errorMessage(result.error)))
@@ -172,6 +193,22 @@ class RepoViewModel(
 
                 is NetworkResult.Failure -> _events.trySend(RepoEvent.ShowMessage(errorMessage(result.error)))
             }
+        }
+    }
+
+    /**
+     * 拉取 README（v0.6.0 M6）：失败静默显示占位文案，不打扰详情主流程。
+     */
+    private fun loadReadme(owner: String, name: String) {
+        viewModelScope.launch {
+            _readme.value = ReadmeUiState.Loading
+            _readme.value =
+                when (val result = getReadme(owner, name)) {
+                    is NetworkResult.Success ->
+                        result.data?.let(ReadmeUiState::Loaded) ?: ReadmeUiState.NotAvailable
+
+                    is NetworkResult.Failure -> ReadmeUiState.NotAvailable
+                }
         }
     }
 

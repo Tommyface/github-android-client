@@ -19,14 +19,19 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 
-/** GET /releases/latest 响应（精简字段）。 */
+private const val SHA256_HEX_LENGTH = 64
+
+/** GET /releases/latest 与 /releases 响应（精简字段）。 */
 @Serializable
 data class ReleaseLatestDto(
     @SerialName("tag_name") val tagName: String = "",
     @SerialName("html_url") val htmlUrl: String = "",
     @SerialName("name") val releaseName: String? = null,
     @SerialName("body") val body: String? = null,
+    @SerialName("prerelease") val prerelease: Boolean = false,
+    @SerialName("published_at") val publishedAt: String? = null,
     @SerialName("assets") val assets: List<ReleaseAssetDto> = emptyList(),
 )
 
@@ -36,6 +41,8 @@ data class ReleaseAssetDto(
     val name: String = "",
     @SerialName("browser_download_url") val downloadUrl: String = "",
     val size: Long = 0,
+    /** GitHub 官方完整性摘要（v0.5.3 起自动生成，形如 `sha256:…`）。 */
+    @SerialName("digest") val digest: String? = null,
 )
 
 /**
@@ -82,12 +89,16 @@ class UpdateChecker(
         val tagName: String,
         val downloadUrl: String?,
         val htmlUrl: String,
+        /** 目标 APK 的 GitHub 官方 sha256（小写十六进制）；null 表示摘要缺失、跳过校验。 */
+        val sha256: String?,
+        /** 目标 APK 字节数（-1 未知）。 */
+        val assetSize: Long,
     )
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     @Suppress("TooGenericExceptionCaught")
-    suspend fun check(): UpdateInfo? =
+    suspend fun check(includePrerelease: Boolean = false): UpdateInfo? =
         try {
             val client =
                 HttpClient(OkHttp) {
@@ -97,14 +108,17 @@ class UpdateChecker(
                         requestTimeoutMillis = 30_000
                     }
                 }
-            client.use { http -> checkWith(http) }
+            client.use { http -> checkWith(http, includePrerelease) }
         } catch (t: Exception) {
             null // 更新检查失败不影响任何主流程
         }
 
-    private suspend fun checkWith(http: HttpClient): UpdateInfo? {
+    private suspend fun checkWith(
+        http: HttpClient,
+        includePrerelease: Boolean,
+    ): UpdateInfo? {
         val response: HttpResponse =
-            http.get("https://api.github.com/repos/$repoOwner/$repoName/releases/latest") {
+            http.get(releasesPath(includePrerelease)) {
                 headers {
                     append(HttpHeaders.Accept, "application/vnd.github+json")
                     append(API_VERSION_HEADER, API_VERSION)
@@ -114,25 +128,42 @@ class UpdateChecker(
         return when {
             response.status.value == 304 -> null // 无更新：ETag 命中，零配额消耗
 
-            response.status == HttpStatusCode.OK -> mapOkResponse(response)
+            response.status == HttpStatusCode.OK -> mapOkResponse(response, includePrerelease)
 
             else -> null // 4xx/5xx 静默跳过，后台任务不报错
         }
     }
 
-    private suspend fun mapOkResponse(response: HttpResponse): UpdateInfo? {
+    /** 预发布开关开时改用列表端点（/releases/latest 永不含 prerelease）。 */
+    private fun releasesPath(includePrerelease: Boolean) =
+        if (includePrerelease) {
+            "https://api.github.com/repos/$repoOwner/$repoName/releases?per_page=$PRERELEASE_SCAN_PAGE"
+        } else {
+            "https://api.github.com/repos/$repoOwner/$repoName/releases/latest"
+        }
+
+    private suspend fun mapOkResponse(
+        response: HttpResponse,
+        includePrerelease: Boolean,
+    ): UpdateInfo? {
         response.headers[HttpHeaders.ETag]?.let { etag ->
             prefs.edit().putString(KEY_ETAG, etag).apply()
         }
-        val dto = GitHubJson.decode(ReleaseLatestDto.serializer(), response.bodyAsText())
-        if (!isRemoteNewer(dto)) return null
+        val text = response.bodyAsText()
+        val dto: ReleaseLatestDto? =
+            if (includePrerelease) {
+                pickNewestRelease(GitHubJson.decode(ListSerializer(ReleaseLatestDto.serializer()), text))
+            } else {
+                GitHubJson.decode(ReleaseLatestDto.serializer(), text)
+            }
+        if (dto == null || !isRemoteNewer(dto)) return null
+        val asset = dto.assets.firstOrNull { it.isApkOrZip() }
         return UpdateInfo(
             tagName = dto.tagName,
-            downloadUrl =
-                dto.assets
-                    .firstOrNull { it.name.endsWith(".apk") || it.name.endsWith(".zip") }
-                    ?.downloadUrl,
+            downloadUrl = asset?.downloadUrl,
             htmlUrl = dto.htmlUrl,
+            sha256 = asset?.officialSha256(),
+            assetSize = asset?.size ?: -1L,
         )
     }
 
@@ -157,10 +188,42 @@ class UpdateChecker(
         const val API_VERSION_HEADER = "X-GitHub-Api-Version"
         const val API_VERSION = "2026-03-10"
 
+        /** 预发布扫描窗口：列表端点取最近 N 个 Release 参与挑选。 */
+        const val PRERELEASE_SCAN_PAGE = 15
+
         /** 本 App 自身的发布仓库：更新检查的目标。 */
         const val REPO_OWNER = "Tommyface"
         const val REPO_NAME = "github-android-client"
     }
+}
+
+/** 该资产是否为可安装目标（APK 优先，zip 兜底）。 */
+internal fun ReleaseAssetDto.isApkOrZip(): Boolean = name.endsWith(".apk") || name.endsWith(".zip")
+
+/** 解析 GitHub 官方 digest（形如 `sha256:xxx`）为小写十六进制；非 sha256 算法或缺失返回 null。 */
+internal fun ReleaseAssetDto.officialSha256(): String? =
+    digest
+        ?.takeIf { it.startsWith("sha256:", ignoreCase = true) }
+        ?.substringAfter(':')
+        ?.trim()
+        ?.lowercase()
+        ?.takeIf { it.length == SHA256_HEX_LENGTH }
+
+/**
+ * 从 Release 列表（含预发布）中挑出「应当升级」的目标版本（纯函数，可单测）：
+ * 1. 可解析出 `versionCode: N` 的 Release 中取 N 最大者；
+ * 2. 全部无标记时按 published_at 降序取最新。
+ */
+internal fun pickNewestRelease(releases: List<ReleaseLatestDto>): ReleaseLatestDto? {
+    if (releases.isEmpty()) return null
+    val withCode = releases.mapNotNull { release -> versionCodeFromReleaseBody(release.body)?.let { release to it } }
+    return withCode
+        .maxByOrNull { it.second }
+        ?.first
+        ?: releases
+            .filter { it.publishedAt != null }
+            .maxByOrNull { it.publishedAt ?: "" }
+        ?: releases.first()
 }
 
 /**

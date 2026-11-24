@@ -20,6 +20,7 @@ val repoPresentationModule =
                 forkRepository = get(),
                 getRepository = get(),
                 listBranches = get(),
+                getReadme = get(),
                 enqueueDownload = get(),
             )
         }

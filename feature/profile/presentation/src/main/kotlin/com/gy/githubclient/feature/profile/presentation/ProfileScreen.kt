@@ -39,14 +39,17 @@ import com.gy.githubclient.feature.profile.domain.model.UserProfile
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * 「我的」页：展示当前用户画像与统计，提供星标仓库、下载管理、镜像设置入口，并可退出登录。
+ * 「我的」页：展示当前用户画像与统计，提供星标仓库、通知、下载、镜像设置入口，并可退出登录。
  */
+@Suppress("LongParameterList") // 导航回调逐一显式注入，属 Compose 页面常规形态
 @Composable
 fun ProfileScreen(
     onOpenStarred: () -> Unit,
     onOpenDownloads: () -> Unit,
     onOpenMirrorSettings: () -> Unit,
     onOpenPermissionAudit: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
+    onOpenUpdateCheck: () -> Unit = {},
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
@@ -71,11 +74,15 @@ fun ProfileScreen(
             Column(Modifier.padding(12.dp)) {
                 FullWidthButton(text = "⭐ 星标仓库", onClick = onOpenStarred)
                 HorizontalDivider()
+                FullWidthButton(text = "🔔 通知中心", onClick = onOpenNotifications)
+                HorizontalDivider()
                 FullWidthButton(text = "下载管理", onClick = onOpenDownloads)
                 HorizontalDivider()
                 FullWidthButton(text = "镜像加速设置", onClick = onOpenMirrorSettings)
                 HorizontalDivider()
                 FullWidthButton(text = "🔐 权限体检", onClick = onOpenPermissionAudit)
+                HorizontalDivider()
+                FullWidthButton(text = "⬆️ 检查更新", onClick = onOpenUpdateCheck)
             }
         }
 

@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.download.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gy.githubclient.core.domain.model.mirror.MirrorConfig
 import com.gy.githubclient.core.domain.model.mirror.MirrorPreference
 import com.gy.githubclient.feature.download.domain.usecase.MeasureMirrorLatenciesUseCase
 import com.gy.githubclient.feature.download.domain.usecase.MirrorSettingsView
@@ -62,3 +63,20 @@ class MirrorSettingsViewModel(
 
     fun onSetCustom(template: String) = viewModelScope.launch { setPreference(MirrorPreference.Custom(template)) }
 }
+
+/**
+ * 按测速延迟升序排列镜像（v0.6.0 M9，纯函数可单测）：
+ * 已测速者在前（快→慢），未测速/测速失败者保持原相对顺序排后。
+ */
+internal fun sortMirrorsByLatency(
+    mirrors: List<MirrorConfig>,
+    latencies: Map<String, Int>,
+): List<MirrorConfig> =
+    mirrors
+        .withIndex()
+        .sortedWith(
+            compareBy(
+                { (_, m) -> latencies[m.id] ?: Int.MAX_VALUE },
+                { (i, _) -> i },
+            ),
+        ).map { it.value }

@@ -10,6 +10,7 @@ import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import io.ktor.client.statement.HttpResponse
@@ -114,6 +115,21 @@ class GitHubRepoApi(
             path = "/repos/$owner/$name/forks",
             mapper = { response: HttpResponse ->
                 GitHubJson.decode(RepositoryDto.serializer(), response.bodyAsText()).toDomain()
+            },
+        )
+
+    /**
+     * 获取仓库 README（v0.6.0 M6）：GitHub 返回 base64 编码内容，此处解码为原文。
+     * 非 base64 编码或解码失败返回 null（由仓库层以 Success(null) 表达）。
+     */
+    suspend fun getReadme(
+        owner: String,
+        name: String,
+    ): NetworkResult<Readme?> =
+        client.request(
+            path = "/repos/$owner/$name/readme",
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(ReadmeDto.serializer(), response.bodyAsText()).toDomain()
             },
         )
 

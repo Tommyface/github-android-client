@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.repo.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import kotlinx.coroutines.flow.Flow
@@ -62,6 +63,15 @@ interface RepoRepository {
         owner: String,
         name: String,
     ): NetworkResult<Repository>
+
+    /**
+     * 获取仓库 README（v0.6.0 M6）。
+     * 仓库无 README 时返回 Success(null)（404 不视为错误）；解码失败同理。
+     */
+    suspend fun getReadme(
+        owner: String,
+        name: String,
+    ): NetworkResult<Readme?>
 
     /** 清空本地仓库缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

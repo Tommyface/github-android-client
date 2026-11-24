@@ -13,6 +13,7 @@ import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
@@ -118,6 +119,21 @@ class RepoRepositoryImpl(
         owner: String,
         name: String,
     ): NetworkResult<Repository> = api.fork(owner, name)
+
+    override suspend fun getReadme(
+        owner: String,
+        name: String,
+    ): NetworkResult<Readme?> =
+        when (val result = api.getReadme(owner, name)) {
+            is NetworkResult.Success -> NetworkResult.Success(result.data)
+            is NetworkResult.Failure ->
+                // 无 README 是常态（404）而非错误；解码失败同样以 null 表达。
+                if (result.error is ApiError.NotFound) {
+                    NetworkResult.Success(null)
+                } else {
+                    NetworkResult.Failure(result.error)
+                }
+        }
 
     override suspend fun clearCache() {
         dao.clearAll()

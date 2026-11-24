@@ -89,6 +89,14 @@ data class Branch(
     val isProtected: Boolean,
 )
 
+/** 仓库 README（v0.6.0 M6）：原始 Markdown 文本，渲染由 presentation 层负责。 */
+data class Readme(
+    /** 文件名（README.md / README_zh-CN.md 等）。 */
+    val fileName: String,
+    /** 已解码的 Markdown 原文。 */
+    val content: String,
+)
+
 /** 仓库列表查询条件。 [page] 从 1 开始。 */
 @Suppress("LongParameterList")
 data class RepoFilter(

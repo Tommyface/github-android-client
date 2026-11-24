@@ -27,6 +27,7 @@ import com.gy.githubclient.feature.auth.domain.model.AuthState
 import com.gy.githubclient.feature.auth.presentation.AuthViewModel
 import com.gy.githubclient.feature.auth.presentation.LoginScreen
 import com.gy.githubclient.navigation.AppNavigation
+import com.gy.githubclient.navigation.Route
 import com.gy.githubclient.ui.AppScaffold
 import org.koin.androidx.compose.koinViewModel
 
@@ -49,7 +50,16 @@ class MainActivity : ComponentActivity() {
                         is AuthState.SignedIn -> {
                             val navController = rememberNavController()
                             AppScaffold(navController = navController) {
-                                AppNavigation(navController = navController)
+                                AppNavigation(
+                                    navController = navController,
+                                    // 自更新通知点击直达「检查更新」页（应用内下载闭环）。
+                                    startDestination =
+                                        if (intent.getBooleanExtra(EXTRA_OPEN_UPDATE_CHECK, false)) {
+                                            Route.UpdateCheck.path
+                                        } else {
+                                            Route.Home.path
+                                        },
+                                )
                             }
                         }
                     }
@@ -64,6 +74,10 @@ class MainActivity : ComponentActivity() {
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
             .launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    private companion object {
+        const val EXTRA_OPEN_UPDATE_CHECK = "open_update_check"
     }
 }
 

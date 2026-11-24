@@ -10,6 +10,7 @@ import com.gy.githubclient.feature.profile.data.local.ProfileDao
 import com.gy.githubclient.feature.profile.data.local.toDomain
 import com.gy.githubclient.feature.profile.data.local.toEntity
 import com.gy.githubclient.feature.profile.data.remote.GitHubUserApi
+import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
 import com.gy.githubclient.feature.profile.domain.model.UserProfile
 import com.gy.githubclient.feature.profile.domain.repository.ProfileRepository
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +32,11 @@ class ProfileRepositoryImpl(
 
             is NetworkResult.Failure -> result
         }
+
+    override suspend fun listNotifications(all: Boolean): NetworkResult<List<GitHubNotification>> =
+        api.listNotifications(all)
+
+    override suspend fun markThreadRead(threadId: Long): NetworkResult<Unit> = api.markThreadRead(threadId)
 
     override suspend fun clearCache() = dao.clear()
 }

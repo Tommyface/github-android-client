@@ -6,6 +6,7 @@
 package com.gy.githubclient.feature.profile.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
 import com.gy.githubclient.feature.profile.domain.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 
@@ -21,6 +22,15 @@ interface ProfileRepository {
 
     /** 刷新用户画像并回填缓存，成功返回最新画像。 */
     suspend fun refreshProfile(): NetworkResult<UserProfile>
+
+    /**
+     * 拉取未读通知列表（v0.6.0 M7）。
+     * [all] = false 只取未读；412/403（权限体检中已探明无 Notifications 读权限）如实上抛。
+     */
+    suspend fun listNotifications(all: Boolean = false): NetworkResult<List<GitHubNotification>>
+
+    /** 标记单条通知线程已读；成功与否以 [NetworkResult] 表达。 */
+    suspend fun markThreadRead(threadId: Long): NetworkResult<Unit>
 
     /** 清空本地缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()

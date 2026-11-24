@@ -42,6 +42,10 @@ sealed class Route(
 
     data object Starred : Route("starred")
 
+    data object UpdateCheck : Route("update_check")
+
+    data object Notifications : Route("notifications")
+
     data object RepoDetail : Route("repo_detail/{owner}/{name}") {
         const val ARG_OWNER = "owner"
         const val ARG_NAME = "name"
@@ -64,8 +68,11 @@ sealed class Route(
 }
 
 @Composable
-fun AppNavigation(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = Route.Home.path) {
+fun AppNavigation(
+    navController: NavHostController,
+    startDestination: String = Route.Home.path,
+) {
+    NavHost(navController = navController, startDestination = startDestination) {
         composable(Route.Home.path) {
             RepoListScreen(
                 onOpenDetail = { owner, name ->
@@ -119,6 +126,8 @@ fun AppNavigation(navController: NavHostController) {
                 onOpenDownloads = { navController.navigate(Route.Downloads.path) },
                 onOpenMirrorSettings = { navController.navigate(Route.MirrorSettings.path) },
                 onOpenPermissionAudit = { navController.navigate(Route.PermissionAudit.path) },
+                onOpenNotifications = { navController.navigate(Route.Notifications.path) },
+                onOpenUpdateCheck = { navController.navigate(Route.UpdateCheck.path) },
             )
         }
         composable(Route.Starred.path) {
@@ -141,6 +150,17 @@ fun AppNavigation(navController: NavHostController) {
         }
         composable(Route.PermissionAudit.path) {
             PermissionAuditScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Route.UpdateCheck.path) {
+            com.gy.githubclient.update.UpdateCheckScreen(
+                onBack = { navController.popBackStack() },
+                onOpenDownloads = { navController.navigate(Route.Downloads.path) },
+            )
+        }
+        composable(Route.Notifications.path) {
+            com.gy.githubclient.feature.profile.presentation.NotificationsScreen(
                 onBack = { navController.popBackStack() },
             )
         }

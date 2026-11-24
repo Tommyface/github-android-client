@@ -14,8 +14,10 @@ import com.gy.githubclient.feature.profile.data.local.ProfileEntity
 import com.gy.githubclient.feature.profile.data.local.toDomain
 import com.gy.githubclient.feature.profile.data.local.toEntity
 import com.gy.githubclient.feature.profile.data.remote.GitHubUserApi
+import com.gy.githubclient.feature.profile.data.remote.NotificationDto
 import com.gy.githubclient.feature.profile.data.remote.UserDto
 import com.gy.githubclient.feature.profile.data.remote.toDomain
+import com.gy.githubclient.feature.profile.data.remote.toThreadId
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -144,5 +146,42 @@ class ProfileDataTest {
         }
 
         override suspend fun clear() = Unit
+    }
+}
+
+/** v0.6.0 M7 回归：通知 DTO 解析（id 十进制字符串 → threadId、主题字段映射）。 */
+class NotificationDtoTest {
+    @Test
+    fun notificationDtoMapsToDomain() {
+        val dto =
+            NotificationDto(
+                id = "1234567890",
+                unread = true,
+                reason = "comment",
+                subject =
+                    NotificationDto.SubjectDto(
+                        title = "修复收藏 403",
+                        type = "PullRequest",
+                        url = "https://api.github.com/repos/o/r/pulls/7",
+                    ),
+                repository =
+                    NotificationDto.RepoDto(
+                        fullName = "Tommyface/github-android-client",
+                        htmlUrl = "https://github.com/Tommyface/github-android-client",
+                    ),
+                updatedAt = "2026-11-24T10:00:00Z",
+            )
+        val domain = dto.toDomain()
+        assertEquals(1234567890L, domain.id)
+        assertEquals(1234567890L, domain.threadId)
+        assertEquals("comment", domain.reason)
+        assertEquals("修复收藏 403", domain.subject.title)
+        assertEquals("PullRequest", domain.subject.type)
+        assertEquals("Tommyface/github-android-client", domain.repoFullName)
+    }
+
+    @Test
+    fun invalidIdFallsBackToZero() {
+        assertEquals(0L, NotificationDto(id = "not-a-number").toThreadId())
     }
 }

@@ -44,6 +44,9 @@ fun MirrorSettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val view = uiState.view
     var customTemplate by remember { mutableStateOf("") }
+    // 测速后按延迟升序展示；最快者在 UI 上打标记（v0.6.0 M9）。
+    val sortedMirrors = remember(view.mirrors, view.latencies) { sortMirrorsByLatency(view.mirrors, view.latencies) }
+    val fastestId = sortedMirrors.firstOrNull { view.latencies.containsKey(it.id) }?.id
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -73,15 +76,19 @@ fun MirrorSettingsScreen(
                     subtitle = "不经过任何第三方",
                     selected = view.preference is MirrorPreference.Direct,
                     latency = null,
+                    isFastest = false,
+                    hasMeasured = view.latencies.isNotEmpty(),
                     onSelect = viewModel::onSelectDirect,
                 )
             }
-            items(view.mirrors, key = { it.id }) { mirror ->
+            items(sortedMirrors, key = { it.id }) { mirror ->
                 MirrorOption(
                     name = mirror.name,
                     subtitle = if (mirror.type == MirrorType.OFFICIAL) "官方" else "社区镜像",
                     selected = (view.preference as? MirrorPreference.Selected)?.id == mirror.id,
                     latency = view.latencies[mirror.id],
+                    isFastest = mirror.id == fastestId,
+                    hasMeasured = view.latencies.isNotEmpty(),
                     onSelect = { viewModel.onSelectMirror(mirror.id) },
                 )
             }
@@ -115,23 +122,32 @@ fun MirrorSettingsScreen(
     }
 }
 
+@Suppress("LongParameterList") // 镜像选项卡片字段语义各不相同，逐一显式传参优于聚合对象
 @Composable
 private fun MirrorOption(
     name: String,
     subtitle: String,
     selected: Boolean,
     latency: Int?,
+    isFastest: Boolean,
+    hasMeasured: Boolean,
     onSelect: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth(), onClick = onSelect) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             RadioButton(selected = selected, onClick = onSelect)
             Column(Modifier.weight(1f)) {
-                Text(name, style = MaterialTheme.typography.titleSmall)
+                Text(if (isFastest) "🏆 $name" else name, style = MaterialTheme.typography.titleSmall)
                 Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            latency?.let {
-                Text("$it ms", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            when {
+                latency != null ->
+                    Text("$latency ms", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+
+                // 测速过但缺席 = 探测失败（超时/不可达），与「尚未测速」区分展示。
+                hasMeasured -> Text("超时", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+
+                else -> Text("未测速", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

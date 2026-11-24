@@ -20,12 +20,18 @@ import com.gy.githubclient.feature.search.data.di.searchDataModule
 import com.gy.githubclient.feature.search.presentation.di.searchPresentationModule
 import com.gy.githubclient.feature.starred.data.di.starredDataModule
 import com.gy.githubclient.feature.starred.presentation.di.starredPresentationModule
+import com.gy.githubclient.update.UpdateCheckViewModel
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 /** core 层共享依赖占位，后续阶段在此注册 Room/WorkManager。 */
 val coreModule =
     module {
         // TODO(P4): Room 缓存、WorkManager 后台任务在此注册
+        viewModel {
+            UpdateCheckViewModel(androidContext(), get())
+        }
     }
 
 /** 应用级 DI 汇总：聚合 core 与各 feature 模块。 */

@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.repo.data.remote
 
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.LicenseInfo
+import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoOwner
 import com.gy.githubclient.feature.repo.domain.model.RepoPermission
 import com.gy.githubclient.feature.repo.domain.model.RepoVisibility
@@ -114,6 +115,30 @@ fun BranchDto.toDomain(): Branch =
         sha = sha,
         isProtected = protected,
     )
+
+/** GET /repos/{owner}/{repo}/readme 响应（v0.6.0 M6）。 */
+@Serializable
+data class ReadmeDto(
+    val name: String = "",
+    val path: String = "",
+    /** base64 编码的 README 内容（GitHub 统一以 base64 返回）。 */
+    val content: String = "",
+    val encoding: String = "base64",
+    val size: Long = 0,
+)
+
+fun ReadmeDto.toDomain(): Readme? {
+    if (encoding != "base64") return null
+    // android.util.Base64 而非 java.util.Base64：后者需 API 26 / desugaring（minSdk 24）；DEFAULT 模式自动忽略换行。
+    val decoded =
+        runCatching {
+            String(android.util.Base64.decode(content, android.util.Base64.DEFAULT), Charsets.UTF_8)
+        }.getOrNull() ?: return null
+    return Readme(
+        fileName = name.ifBlank { path.substringAfterLast('/') },
+        content = decoded,
+    )
+}
 
 private fun String?.toVisibility(fallbackPrivate: Boolean): RepoVisibility =
     when (this?.lowercase()) {

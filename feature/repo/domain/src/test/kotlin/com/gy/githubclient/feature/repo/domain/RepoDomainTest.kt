@@ -75,6 +75,11 @@ private class StubRepoRepository(
         append: Boolean,
     ): NetworkResult<Int> = refreshResult
 
+    override suspend fun getReadme(
+        owner: String,
+        name: String,
+    ): NetworkResult<com.gy.githubclient.feature.repo.domain.model.Readme?> = NetworkResult.Success(null)
+
     override suspend fun getRepository(
         owner: String,
         name: String,

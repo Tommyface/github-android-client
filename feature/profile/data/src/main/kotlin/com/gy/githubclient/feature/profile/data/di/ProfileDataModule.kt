@@ -13,6 +13,8 @@ import com.gy.githubclient.feature.profile.data.local.ProfileDatabase
 import com.gy.githubclient.feature.profile.data.remote.GitHubUserApi
 import com.gy.githubclient.feature.profile.domain.repository.ProfileRepository
 import com.gy.githubclient.feature.profile.domain.usecase.ClearProfileCacheUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.ListNotificationsUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.MarkNotificationReadUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ObserveProfileUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.RefreshProfileUseCase
 import org.koin.android.ext.koin.androidContext
@@ -45,4 +47,6 @@ val profileDataModule =
         factory { ObserveProfileUseCase(get<ProfileRepository>()) }
         factory { RefreshProfileUseCase(get<ProfileRepository>()) }
         factory { ClearProfileCacheUseCase(get<ProfileRepository>()) }
+        factory { ListNotificationsUseCase(get<ProfileRepository>()) }
+        factory { MarkNotificationReadUseCase(get<ProfileRepository>()) }
     }

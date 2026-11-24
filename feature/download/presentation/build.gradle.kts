@@ -4,6 +4,8 @@ plugins {
 }
 
 dependencies {
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.datetime)
     implementation(projects.core.domain)
     implementation(projects.core.presentation)
     implementation(projects.feature.download.domain)

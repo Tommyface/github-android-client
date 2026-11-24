@@ -17,6 +17,7 @@ val repoPresentationModule =
                 observeRepositories = get(),
                 refreshRepositories = get(),
                 setStarred = get(),
+                forkRepository = get(),
                 getRepository = get(),
                 listBranches = get(),
             )

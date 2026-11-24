@@ -88,6 +88,35 @@ class GitHubRepoApi(
             mapper = { _: HttpResponse -> Unit },
         )
 
+    /**
+     * 查询当前用户是否已星标该仓库。
+     * GitHub 返回 204 = 已星标；404 = 未星标（由仓库层翻译为 false，不算错误）。
+     */
+    suspend fun starStatus(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean> =
+        client.request(
+            path = "/user/starred/$owner/$name",
+            mapper = { _: HttpResponse -> true },
+        )
+
+    /**
+     * Fork 到当前用户账号（user token 身份，无 App 双向安装限制）。
+     * GitHub 返回 202 + fork 后的仓库对象，复制为异步进行。
+     */
+    suspend fun fork(
+        owner: String,
+        name: String,
+    ): NetworkResult<Repository> =
+        client.request(
+            method = HttpMethod.Post,
+            path = "/repos/$owner/$name/forks",
+            mapper = { response: HttpResponse ->
+                GitHubJson.decode(RepositoryDto.serializer(), response.bodyAsText()).toDomain()
+            },
+        )
+
     private fun listPath(filter: RepoFilter): String {
         val type = filter.type.name.lowercase()
         val sort = filter.sort.name.lowercase()

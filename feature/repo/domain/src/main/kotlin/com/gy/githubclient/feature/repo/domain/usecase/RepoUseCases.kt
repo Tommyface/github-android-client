@@ -61,6 +61,26 @@ class SetStarredUseCase(
     ): NetworkResult<Unit> = repository.setStarred(owner, name, starred)
 }
 
+/** 查询是否已星标（404 视为未星标）。 */
+class IsStarredUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean> = repository.isStarred(owner, name)
+}
+
+/** Fork 到当前用户账号（202 异步）。 */
+class ForkRepositoryUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<Repository> = repository.fork(owner, name)
+}
+
 /** 清空缓存（登出时）。 */
 class ClearRepoCacheUseCase(
     private val repository: RepoRepository,

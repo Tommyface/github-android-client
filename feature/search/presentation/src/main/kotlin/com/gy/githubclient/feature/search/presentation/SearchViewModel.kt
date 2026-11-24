@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
 import com.gy.githubclient.feature.search.domain.model.CodeHit
 import com.gy.githubclient.feature.search.domain.model.CommitHit
 import com.gy.githubclient.feature.search.domain.model.IssueHit
@@ -39,6 +40,8 @@ data class SearchUiState(
     val isLoadingMore: Boolean = false,
     val hasNextPage: Boolean = false,
     val hasSearched: Boolean = false,
+    /** 本会话内已加星的仓库（fullName），用于结果卡片状态显示；GitHub PUT star 幂等，重发无害。 */
+    val starredFullNames: Set<String> = emptySet(),
 )
 
 sealed interface SearchEvent {
@@ -56,6 +59,7 @@ sealed interface SearchEvent {
 @OptIn(FlowPreview::class)
 class SearchViewModel(
     private val search: SearchUseCase,
+    private val setStarred: SetStarredUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -111,6 +115,30 @@ class SearchViewModel(
                     _uiState.value = _uiState.value.copy(isLoadingMore = false)
                     _events.trySend(SearchEvent.ShowMessage(errorMessage(result.error)))
                 }
+            }
+        }
+    }
+
+    /**
+     * 收藏搜索结果中的仓库（用户主动单次动作，PUT star 幂等）。
+     * 仅在「用户主动点击」时调用；不提供任何批量/定时路径以符合 GitHub AUP。
+     */
+    fun starRepository(hit: RepoHit) {
+        val state = _uiState.value
+        if (hit.fullName in state.starredFullNames) {
+            _events.trySend(SearchEvent.ShowMessage("${hit.fullName} 已在本次会话中收藏"))
+            return
+        }
+        viewModelScope.launch {
+            when (val result = setStarred(hit.ownerLogin, hit.fullName.substringAfter("/"), starred = true)) {
+                is NetworkResult.Success -> {
+                    _uiState.value =
+                        _uiState.value.copy(starredFullNames = _uiState.value.starredFullNames + hit.fullName)
+                    _events.trySend(SearchEvent.ShowMessage("已收藏 ${hit.fullName}"))
+                }
+
+                is NetworkResult.Failure ->
+                    _events.trySend(SearchEvent.ShowMessage(errorMessage(result.error)))
             }
         }
     }

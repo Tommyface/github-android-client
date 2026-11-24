@@ -7,6 +7,7 @@ dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.presentation)
     implementation(projects.feature.search.domain)
+    implementation(projects.feature.repo.domain)
     implementation(libs.bundles.compose.ui)
     implementation(libs.koin.androidx.compose)
     implementation(libs.bundles.koin.common)

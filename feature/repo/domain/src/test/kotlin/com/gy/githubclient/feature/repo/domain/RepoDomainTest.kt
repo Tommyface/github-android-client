@@ -96,5 +96,15 @@ private class StubRepoRepository(
         return NetworkResult.Success(Unit)
     }
 
+    override suspend fun isStarred(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean> = NetworkResult.Success(false)
+
+    override suspend fun fork(
+        owner: String,
+        name: String,
+    ): NetworkResult<Repository> = NetworkResult.Failure(ApiError.NotFound)
+
     override suspend fun clearCache() = Unit
 }

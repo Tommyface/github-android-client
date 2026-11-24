@@ -118,6 +118,58 @@ class RepoDataTest {
             assertEquals(0, dao.upsertCalls)
         }
 
+    @Test
+    fun starStatusReturnsTrueOn204() =
+        runTest {
+            val api = buildApi(MockEngine { respond("", HttpStatusCode.NoContent) })
+            val result = api.starStatus("o", "a")
+            assertTrue(result is NetworkResult.Success)
+            assertEquals(true, (result as NetworkResult.Success).data)
+        }
+
+    @Test
+    fun starStatus404TranslatesToFalseInRepository() =
+        runTest {
+            val dao = FakeRepoDao()
+            val repo =
+                RepoRepositoryImpl(
+                    dao,
+                    GitHubRepoApi(
+                        GitHubApiClient(
+                            buildTestClient(MockEngine { respond("", HttpStatusCode.NotFound) }),
+                            FakeTokenProvider("t"),
+                        ),
+                    ),
+                )
+            val result = repo.isStarred("o", "a")
+            assertTrue(result is NetworkResult.Success)
+            assertEquals(false, (result as NetworkResult.Success).data)
+        }
+
+    @Test
+    fun forkParses202RepositoryResponse() =
+        runTest {
+            val json =
+                """
+                {"id":99,"name":"a","full_name":"me/a","owner":{"login":"me"},"private":false,"fork":true}
+                """.trimIndent()
+            val engine = MockEngine { respond(json, HttpStatusCode.Accepted, headersOf(HttpHeaders.ContentType, "application/json")) }
+            val api = buildApi(engine)
+
+            val result = api.fork("o", "a")
+
+            assertTrue(result is NetworkResult.Success)
+            val forked = (result as NetworkResult.Success).data
+            assertEquals("me/a", forked.fullName)
+            assertTrue(forked.isFork)
+            assertEquals(
+                "/repos/o/a/forks",
+                engine.requestHistory
+                    .first()
+                    .url.encodedPath,
+            )
+        }
+
     private fun buildApi(engine: MockEngine): GitHubRepoApi =
         GitHubRepoApi(
             GitHubApiClient(

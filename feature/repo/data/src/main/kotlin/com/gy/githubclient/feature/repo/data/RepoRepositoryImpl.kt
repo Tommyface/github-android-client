@@ -5,6 +5,7 @@
 
 package com.gy.githubclient.feature.repo.data
 
+import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.repo.data.local.RepoDao
@@ -62,7 +63,20 @@ class RepoRepositoryImpl(
     override suspend fun getRepository(
         owner: String,
         name: String,
-    ): NetworkResult<Repository> = api.getRepository(owner, name)
+    ): NetworkResult<Repository> =
+        when (val result = api.getRepository(owner, name)) {
+            is NetworkResult.Success -> {
+                // 详情响应不含当前用户的 star 状态，需单独查询置位（失败不阻塞详情展示）。
+                val starred =
+                    when (val starredResult = isStarred(owner, name)) {
+                        is NetworkResult.Success -> starredResult.data
+                        is NetworkResult.Failure -> false
+                    }
+                NetworkResult.Success(result.data.copy(isStarred = starred))
+            }
+
+            is NetworkResult.Failure -> NetworkResult.Failure(result.error)
+        }
 
     override suspend fun listBranches(
         owner: String,
@@ -84,6 +98,26 @@ class RepoRepositoryImpl(
 
             is NetworkResult.Failure -> NetworkResult.Failure(result.error)
         }
+
+    override suspend fun isStarred(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean> =
+        when (val result = api.starStatus(owner, name)) {
+            is NetworkResult.Success -> NetworkResult.Success(true)
+            is NetworkResult.Failure ->
+                // 404 = 未星标，属正常态而非错误；其余错误如实上抛。
+                if (result.error is ApiError.NotFound) {
+                    NetworkResult.Success(false)
+                } else {
+                    NetworkResult.Failure(result.error)
+                }
+        }
+
+    override suspend fun fork(
+        owner: String,
+        name: String,
+    ): NetworkResult<Repository> = api.fork(owner, name)
 
     override suspend fun clearCache() {
         dao.clearAll()

@@ -13,7 +13,9 @@ import com.gy.githubclient.feature.repo.data.local.RepoDatabase
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import com.gy.githubclient.feature.repo.domain.usecase.ClearRepoCacheUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.IsStarredUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
@@ -50,5 +52,7 @@ val repoDataModule =
         factory { GetRepositoryUseCase(get<RepoRepository>()) }
         factory { ListBranchesUseCase(get<RepoRepository>()) }
         factory { SetStarredUseCase(get<RepoRepository>()) }
+        factory { IsStarredUseCase(get<RepoRepository>()) }
+        factory { ForkRepositoryUseCase(get<RepoRepository>()) }
         factory { ClearRepoCacheUseCase(get<RepoRepository>()) }
     }

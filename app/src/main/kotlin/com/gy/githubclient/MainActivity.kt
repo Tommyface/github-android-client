@@ -5,9 +5,13 @@
 
 package com.gy.githubclient
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +33,7 @@ import org.koin.androidx.compose.koinViewModel
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestNotificationPermissionIfNeeded()
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -51,6 +56,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /** 自更新通知依赖 POST_NOTIFICATIONS；Android 13+ 首启弹一次系统授权框，拒绝不影响功能。 */
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+            .launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }
 

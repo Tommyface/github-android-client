@@ -72,6 +72,13 @@ fun RepoDetailScreen(
         Button(onClick = { viewModel.toggleStar(current) }, modifier = Modifier.fillMaxWidth()) {
             Text(if (current.isStarred) "取消 Star" else "Star 这个仓库")
         }
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = { viewModel.fork(current) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (current.isFork) "这是一个 Fork" else "Fork 到我的账号")
+        }
         Spacer(Modifier.height(16.dp))
 
         Text("分支（${branches.size}）", style = MaterialTheme.typography.titleMedium)

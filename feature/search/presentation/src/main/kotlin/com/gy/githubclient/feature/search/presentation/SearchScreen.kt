@@ -24,18 +24,32 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.feature.search.domain.model.RepoHit
 import com.gy.githubclient.feature.search.domain.model.SearchType
 import org.koin.androidx.compose.koinViewModel
 
-/** 全局搜索页：类别切换 + 关键字防抖搜索 + 分页结果。 */
+/** 全局搜索页：类别切换 + 关键字防抖搜索 + 分页结果 + 仓库结果一键收藏。 */
 @Composable
 fun SearchScreen(viewModel: SearchViewModel = koinViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var message by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is SearchEvent.ShowMessage -> message = event.message
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("全局搜索", style = MaterialTheme.typography.headlineMedium)
@@ -60,6 +74,15 @@ fun SearchScreen(viewModel: SearchViewModel = koinViewModel()) {
             }
         }
         Spacer(Modifier.height(12.dp))
+
+        if (message != null) {
+            Text(
+                text = message.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.height(8.dp))
+        }
 
         when {
             uiState.term.isBlank() -> {
@@ -89,7 +112,15 @@ fun SearchScreen(viewModel: SearchViewModel = koinViewModel()) {
                 Spacer(Modifier.height(6.dp))
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(uiState.hits, key = { "${uiState.type.name}_${it.id}" }) { hit ->
-                        HitCard(title = hit.title, subtitle = hit.subtitle())
+                        val repoHit = hit as? RepoHit
+                        val starred = repoHit != null && repoHit.fullName in uiState.starredFullNames
+                        HitCard(
+                            title = hit.title,
+                            subtitle = hit.subtitle(),
+                            starred = starred,
+                            showStar = repoHit != null,
+                            onStar = { repoHit?.let(viewModel::starRepository) },
+                        )
                     }
                     item {
                         when {
@@ -117,6 +148,9 @@ fun SearchScreen(viewModel: SearchViewModel = koinViewModel()) {
 private fun HitCard(
     title: String,
     subtitle: String,
+    starred: Boolean,
+    showStar: Boolean,
+    onStar: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
@@ -128,6 +162,17 @@ private fun HitCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
             )
+            if (showStar) {
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onStar, enabled = !starred) {
+                        Text(if (starred) "已收藏" else "★ 收藏")
+                    }
+                }
+            }
         }
     }
 }

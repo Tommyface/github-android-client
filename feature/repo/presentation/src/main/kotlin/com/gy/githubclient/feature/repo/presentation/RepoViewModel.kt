@@ -13,6 +13,7 @@ import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.RepoType
 import com.gy.githubclient.feature.repo.domain.model.Repository
+import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
@@ -56,6 +57,7 @@ class RepoViewModel(
     private val observeRepositories: ObserveRepositoriesUseCase,
     private val refreshRepositories: RefreshRepositoriesUseCase,
     private val setStarred: SetStarredUseCase,
+    private val forkRepository: ForkRepositoryUseCase,
     private val getRepository: GetRepositoryUseCase,
     private val listBranches: ListBranchesUseCase,
 ) : ViewModel() {
@@ -154,12 +156,32 @@ class RepoViewModel(
         viewModelScope.launch {
             val next = !repo.isStarred
             when (val result = setStarred(repo.owner.login, repo.name, next)) {
-                is NetworkResult.Success ->
+                is NetworkResult.Success -> {
+                    // 同步详情页状态，避免按钮文案停留在旧值。
+                    if (_detail.value?.fullName == repo.fullName) {
+                        _detail.value = _detail.value?.copy(isStarred = next)
+                    }
                     _events.trySend(
                         RepoEvent.ShowMessage(if (next) "已 Star ${repo.fullName}" else "已取消 Star ${repo.fullName}"),
                     )
+                }
 
                 is NetworkResult.Failure -> _events.trySend(RepoEvent.ShowMessage(errorMessage(result.error)))
+            }
+        }
+    }
+
+    /** Fork 到当前用户账号（GitHub 202 异步处理，稍后在仓库列表可见）。 */
+    fun fork(repo: Repository) {
+        viewModelScope.launch {
+            when (val result = forkRepository(repo.owner.login, repo.name)) {
+                is NetworkResult.Success ->
+                    _events.trySend(
+                        RepoEvent.ShowMessage("已发起 Fork → ${result.data.fullName}，稍后可在你的仓库列表查看"),
+                    )
+
+                is NetworkResult.Failure ->
+                    _events.trySend(RepoEvent.ShowMessage("Fork 失败：${errorMessage(result.error)}"))
             }
         }
     }

@@ -51,6 +51,18 @@ interface RepoRepository {
         starred: Boolean,
     ): NetworkResult<Unit>
 
+    /** 查询当前用户是否已星标该仓库（404 视为未星标，返回 false 而非错误）。 */
+    suspend fun isStarred(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean>
+
+    /** Fork 仓库到当前用户账号（202 异步；返回 fork 后的仓库对象）。 */
+    suspend fun fork(
+        owner: String,
+        name: String,
+    ): NetworkResult<Repository>
+
     /** 清空本地仓库缓存（登出时调用，防止串号）。 */
     suspend fun clearCache()
 }

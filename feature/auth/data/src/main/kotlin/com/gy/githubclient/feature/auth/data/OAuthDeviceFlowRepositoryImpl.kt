@@ -110,7 +110,7 @@ class OAuthDeviceFlowRepositoryImpl(
         const val TRANSPORT_ERROR_CODE = -1
 
         /** 覆盖客户端全部功能面：仓库读写、用户信息、邮箱、Actions 工作流、通知。 */
-        const val DEFAULT_SCOPE = "repo read:user user:email workflow notifications"
+        const val DEFAULT_SCOPE = "repo read:user user:email workflow notifications gist read:org user:follow"
 
         const val ERROR_PENDING = "authorization_pending"
         const val ERROR_SLOW_DOWN = "slow_down"

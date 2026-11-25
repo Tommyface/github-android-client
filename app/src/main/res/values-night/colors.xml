@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      v0.19.0 Frost：窗口底色（深色）。
+      与 FrostDarkColors.pageGradientStart = #11161D 保持一致，
+      避免深色主题冷启动时先闪一帧白底。
+    -->
+    <color name="frost_window_background">#11161D</color>
+</resources>

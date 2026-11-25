@@ -9,6 +9,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
+import com.gy.githubclient.core.mutation.userMessage
 import com.gy.githubclient.feature.download.domain.model.DownloadRequest
 import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCase
 import com.gy.githubclient.feature.repo.domain.model.Branch
@@ -25,6 +27,8 @@ import com.gy.githubclient.feature.repo.domain.model.RepoLabel
 import com.gy.githubclient.feature.repo.domain.model.RepoType
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
+import com.gy.githubclient.feature.repo.domain.translation.TranslateTextUseCase
+import com.gy.githubclient.feature.repo.domain.translation.TranslationEligibility
 import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetCheckOverviewUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetIssueDetailUseCase
@@ -32,6 +36,7 @@ import com.gy.githubclient.feature.repo.domain.usecase.GetLanguagesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetReadmeUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetStarHistoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.IsWatchedUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListContributorsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListForksUseCase
@@ -41,7 +46,9 @@ import com.gy.githubclient.feature.repo.domain.usecase.ListMilestonesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.SetWatchedUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -84,6 +91,23 @@ sealed class ReadmeUiState {
 }
 
 /**
+ * README 翻译状态（v0.16.0）：
+ * - [Idle] 显示原文；[Loading] 正在逐段翻译；[Ready] 显示译文（[failed] 段失败时保留原文兜底）。
+ */
+sealed interface ReadmeTranslationUiState {
+    data object Idle : ReadmeTranslationUiState
+
+    data class Loading(
+        val done: Int,
+        val total: Int,
+    ) : ReadmeTranslationUiState
+
+    data class Ready(
+        val failed: Int,
+    ) : ReadmeTranslationUiState
+}
+
+/**
  * 仓库列表 ViewModel：
  * - [repositories] 由 filter 驱动观察 Room 缓存，切换筛选条件自动换流。
  * - 刷新/加 star 走网络，失败以事件提示，缓存数据始终保持可见。
@@ -93,6 +117,8 @@ class RepoViewModel(
     private val observeRepositories: ObserveRepositoriesUseCase,
     private val refreshRepositories: RefreshRepositoriesUseCase,
     private val setStarred: SetStarredUseCase,
+    private val setIsWatched: SetWatchedUseCase,
+    private val getIsWatched: IsWatchedUseCase,
     private val forkRepository: ForkRepositoryUseCase,
     private val getRepository: GetRepositoryUseCase,
     private val listBranches: ListBranchesUseCase,
@@ -107,6 +133,7 @@ class RepoViewModel(
     private val listMilestones: ListMilestonesUseCase,
     private val listForks: ListForksUseCase,
     private val enqueueDownload: EnqueueDownloadUseCase,
+    private val translateText: TranslateTextUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RepoListUiState())
     val uiState: StateFlow<RepoListUiState> = _uiState.asStateFlow()
@@ -160,9 +187,24 @@ class RepoViewModel(
     private val _readme = MutableStateFlow<ReadmeUiState>(ReadmeUiState.Idle)
     val readme: StateFlow<ReadmeUiState> = _readme.asStateFlow()
 
+    /** README 翻译状态（v0.16.0）：Idle=原文，Loading=逐段翻译，Ready=译文。 */
+    private val _readmeTranslation = MutableStateFlow<ReadmeTranslationUiState>(ReadmeTranslationUiState.Idle)
+    val readmeTranslation: StateFlow<ReadmeTranslationUiState> = _readmeTranslation.asStateFlow()
+
+    /** 已译块：key=原文，value=译文；按块缓存，切换原文/译文无额外请求。 */
+    private val _translatedBlocks = MutableStateFlow<Map<String, String>>(emptyMap())
+    val translatedBlocks: StateFlow<Map<String, String>> = _translatedBlocks.asStateFlow()
+
+    private var translationJob: Job? = null
+    private var translationFailedCount = 0
+
     /** 详情页星标趋势（v0.7.0 M10）：null=加载中/失败，空列表=无历史。 */
     private val _starHistory = MutableStateFlow<StarHistory?>(null)
     val starHistory: StateFlow<StarHistory?> = _starHistory.asStateFlow()
+
+    /** 当前用户是否 watch 该仓库；null=加载中/未知。 */
+    private val _isWatched = MutableStateFlow<Boolean?>(null)
+    val isWatched: StateFlow<Boolean?> = _isWatched.asStateFlow()
 
     /** Issue / PR 状态（v0.7.0 M11）。 */
     private val _issues = MutableStateFlow<List<IssueItem>>(emptyList())
@@ -238,8 +280,10 @@ class RepoViewModel(
                     _detail.value = result.data
                     // 默认分支作为初始选中 ref（A1）；空分支名兜底 main。
                     _selectedRef.value = result.data.defaultBranch.ifBlank { "main" }
+                    resetReadmeTranslation()
                     _events.trySend(RepoEvent.OpenDetail)
                     loadBranches(owner, name)
+                    loadWatched(owner, name)
                     loadReadme(owner, name)
                     loadStarHistory(owner, name)
                     loadIssues(owner, name)
@@ -260,7 +304,7 @@ class RepoViewModel(
         viewModelScope.launch {
             val next = !repo.isStarred
             when (val result = setStarred(repo.owner.login, repo.name, next)) {
-                is NetworkResult.Success -> {
+                is MutationResult.Success -> {
                     // 同步详情页状态，避免按钮文案停留在旧值。
                     if (_detail.value?.fullName == repo.fullName) {
                         _detail.value = _detail.value?.copy(isStarred = next)
@@ -270,8 +314,40 @@ class RepoViewModel(
                     )
                 }
 
-                is NetworkResult.Failure -> _events.trySend(RepoEvent.ShowMessage(errorMessage(result.error)))
+                is MutationResult.Failure -> _events.trySend(RepoEvent.ShowMessage(result.error.userMessage()))
             }
+        }
+    }
+
+    /** watch / unwatch：写成功后才更新按钮，失败保留原状态。 */
+    fun toggleWatch(repo: Repository) {
+        val current = _isWatched.value ?: return
+        viewModelScope.launch {
+            val next = !current
+            when (val result = setIsWatched(repo.owner.login, repo.name, next)) {
+                is MutationResult.Success -> {
+                    _isWatched.value = next
+                    _events.trySend(
+                        RepoEvent.ShowMessage(if (next) "已 watch ${repo.fullName}" else "已取消 watch ${repo.fullName}"),
+                    )
+                }
+
+                is MutationResult.Failure -> _events.trySend(RepoEvent.ShowMessage(result.error.userMessage()))
+            }
+        }
+    }
+
+    /** 订阅状态失败静默：不影响详情主流程，按钮保持不可用。 */
+    private fun loadWatched(
+        owner: String,
+        name: String,
+    ) {
+        viewModelScope.launch {
+            _isWatched.value =
+                when (val result = getIsWatched(owner, name)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> null
+                }
         }
     }
 
@@ -298,6 +374,91 @@ class RepoViewModel(
                     is NetworkResult.Failure -> ReadmeUiState.NotAvailable
                 }
         }
+    }
+
+    /**
+     * 切换 README 原文/译文（v0.16.0）：
+     * - 第一次点击触发逐段翻译；已有译文时只做本地开关，零网络请求；
+     * - 翻译中重复点击不打断当前任务。
+     */
+    fun toggleReadmeTranslation() {
+        when (val state = _readmeTranslation.value) {
+            is ReadmeTranslationUiState.Loading -> return
+            is ReadmeTranslationUiState.Ready -> _readmeTranslation.value = ReadmeTranslationUiState.Idle
+            ReadmeTranslationUiState.Idle -> {
+                if (_translatedBlocks.value.isNotEmpty()) {
+                    _readmeTranslation.value = ReadmeTranslationUiState.Ready(translationFailedCount)
+                } else {
+                    translateReadme()
+                }
+            }
+        }
+    }
+
+    /**
+     * 逐段翻译 README 正文（v0.16.0）：
+     * 只翻标题/段落/列表项，代码块与图片原样保留；单段失败不阻塞后续，最终汇总失败段数。
+     */
+    private fun translateReadme() {
+        val loaded =
+            _readme.value as? ReadmeUiState.Loaded
+                ?: run {
+                    _events.trySend(RepoEvent.ShowMessage("README 尚未加载完成"))
+                    return
+                }
+        val alreadyTranslated = _translatedBlocks.value
+        val pending =
+            collectTranslatableTexts(loaded.readme.content)
+                .filterNot(alreadyTranslated::containsKey)
+        if (pending.isEmpty() && alreadyTranslated.isEmpty()) {
+            _events.trySend(RepoEvent.ShowMessage("README 没有可翻译的正文内容"))
+            return
+        }
+
+        translationFailedCount = 0
+        translationJob =
+            viewModelScope.launch {
+                val translated = alreadyTranslated.toMutableMap()
+                var done = alreadyTranslated.size
+                val total = done + pending.size
+                _readmeTranslation.value = ReadmeTranslationUiState.Loading(done, total)
+                for (text in pending) {
+                    when (val result = translateText(text)) {
+                        is NetworkResult.Success -> translated[text] = result.data
+                        is NetworkResult.Failure -> translationFailedCount++
+                    }
+                    done++
+                    _translatedBlocks.value = translated.toMap()
+                    _readmeTranslation.value = ReadmeTranslationUiState.Loading(done, total)
+                }
+                _readmeTranslation.value = ReadmeTranslationUiState.Ready(translationFailedCount)
+                if (translationFailedCount > 0) {
+                    _events.trySend(
+                        RepoEvent.ShowMessage("有 $translationFailedCount 段翻译失败，其余段落已翻译"),
+                    )
+                }
+            }
+    }
+
+    /** 从 README 块中挑出值得翻译的文本（去重，保持出现顺序）。 */
+    private fun collectTranslatableTexts(markdown: String): List<String> =
+        parseMarkdownBlocks(markdown)
+            .mapNotNull { block ->
+                when (block) {
+                    is MdBlock.Heading -> block.text.takeIf { TranslationEligibility.shouldTranslate(it, isHeading = true) }
+                    is MdBlock.Paragraph -> block.text.takeIf { TranslationEligibility.shouldTranslate(it) }
+                    is MdBlock.ListItem -> block.text.takeIf { TranslationEligibility.shouldTranslate(it) }
+                    is MdBlock.CodeBlock, is MdBlock.Image, MdBlock.Rule -> null
+                }
+            }.distinct()
+
+    /** 切换仓库时清空翻译状态，避免上一个仓库的译文串到新页面。 */
+    private fun resetReadmeTranslation() {
+        translationJob?.cancel()
+        translationJob = null
+        translationFailedCount = 0
+        _translatedBlocks.value = emptyMap()
+        _readmeTranslation.value = ReadmeTranslationUiState.Idle
     }
 
     /** 当前详情仓库坐标，供 Issue 详情按需加载。 */

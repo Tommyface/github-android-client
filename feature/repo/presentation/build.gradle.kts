@@ -8,6 +8,8 @@ dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.presentation)
     implementation(projects.feature.repo.domain)
+    implementation(projects.core.permission)
+    implementation(projects.core.mutation)
     implementation(projects.feature.download.domain)
     implementation(libs.bundles.compose.ui)
     implementation(libs.coil.compose)

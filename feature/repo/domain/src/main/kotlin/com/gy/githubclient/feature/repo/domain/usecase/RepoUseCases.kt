@@ -6,6 +6,7 @@
 package com.gy.githubclient.feature.repo.domain.usecase
 
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.Contributor
@@ -79,7 +80,28 @@ class SetStarredUseCase(
         owner: String,
         name: String,
         starred: Boolean,
-    ): NetworkResult<Unit> = repository.setStarred(owner, name, starred)
+    ): MutationResult<Unit> = repository.setStarred(owner, name, starred)
+}
+
+/** 查询是否 watch 了仓库（404 视为未订阅）。 */
+class IsWatchedUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean> = repository.isWatched(owner, name)
+}
+
+/** watch / unwatch 仓库（订阅通知）。 */
+class SetWatchedUseCase(
+    private val repository: RepoRepository,
+) {
+    suspend operator fun invoke(
+        owner: String,
+        name: String,
+        watched: Boolean,
+    ): MutationResult<Unit> = repository.setWatched(owner, name, watched)
 }
 
 /** 查询是否已星标（404 视为未星标）。 */

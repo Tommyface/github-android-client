@@ -1,10 +1,13 @@
 plugins {
     id("gy.android.lib")
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
     implementation(projects.core.domain)
+    implementation(projects.core.mutation)
+    implementation(projects.core.audit)
     implementation(libs.bundles.ktor.common)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.bundles.koin.common)

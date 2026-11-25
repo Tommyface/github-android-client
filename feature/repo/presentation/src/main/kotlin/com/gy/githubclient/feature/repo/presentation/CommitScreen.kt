@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.core.presentation.theme.LocalCodeFontSize
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.DiffLineKind
 import com.gy.githubclient.feature.repo.domain.model.parseDiffPatch
@@ -179,7 +180,12 @@ private fun CommitDetailView(detail: CommitDetail) {
                                 }
                             Text(
                                 line.text,
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, color = color),
+                                style =
+                                    MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        color = color,
+                                        fontSize = LocalCodeFontSize.current,
+                                    ),
                             )
                         }
                     }

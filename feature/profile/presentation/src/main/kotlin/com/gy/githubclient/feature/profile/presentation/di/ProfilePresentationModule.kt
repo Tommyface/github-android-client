@@ -28,6 +28,8 @@ val profilePresentationModule =
             NotificationsViewModel(
                 listNotifications = get(),
                 markRead = get(),
+                markAllReadUseCase = get(),
+                setThreadSubscription = get(),
             )
         }
         viewModel {

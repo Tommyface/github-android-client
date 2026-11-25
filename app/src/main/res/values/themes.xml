@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.GithubAndroidClient" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+      v0.19.0 Frost：Activity 主题。
+      要求：
+      1. 状态栏 / 导航栏透明且不做系统遮罩，玻璃色从 y=0 起铺满（edge-to-edge 由 MainActivity 开启）；
+      2. windowBackground 与 Frost 页面渐变起点同色，避免 Compose 首帧前闪白/闪黑
+         （深色值见 values-night/colors.xml，同名资源自动切换）；
+      3. 窗口装饰由 Compose 全权绘制，因此关闭 ActionBar。
+    -->
+    <style name="Theme.GithubAndroidClient" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/frost_window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
 </resources>

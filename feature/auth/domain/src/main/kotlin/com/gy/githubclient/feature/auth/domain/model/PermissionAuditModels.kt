@@ -5,6 +5,9 @@
 
 package com.gy.githubclient.feature.auth.domain.model
 
+import com.gy.githubclient.core.permission.ScopeCatalog
+import com.gy.githubclient.core.permission.ScopeStatus
+
 /** 单项能力体检结果：本 App 的一个功能面对当前凭证是否可用。 */
 data class Capability(
     /** 功能面名称，如「仓库读写」。 */
@@ -42,6 +45,15 @@ data class PermissionReport(
     val capabilities: List<Capability>,
     /** 核心限流余量（查询失败时为 null，不影响主报告）。 */
     val rateLimit: RateLimitInfo? = null,
+    /** 按功能的 scope 自省结果（写能力门控与授权引导的数据源）。 */
+    val scopeStatuses: List<ScopeStatus> = emptyList(),
 ) {
     val grantedCount: Int get() = capabilities.count { it.granted }
+
+    /** 当前凭证缺少的 scope（fine-grained PAT 无 scope 元数据时返回空，不误报）。 */
+    val missingScopes: List<String>
+        get() = if (scopes.isEmpty()) emptyList() else ScopeCatalog.missingScopes(scopes)
+
+    /** 是否具备全部推荐 scope（写操作无忧）。 */
+    val hasAllRecommendedScopes: Boolean get() = missingScopes.isEmpty()
 }

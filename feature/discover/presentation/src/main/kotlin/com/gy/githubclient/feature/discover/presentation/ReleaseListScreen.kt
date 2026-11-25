@@ -8,6 +8,7 @@ package com.gy.githubclient.feature.discover.presentation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +30,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.FrostDimens
+import com.gy.githubclient.core.presentation.theme.FrostTopBar
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
+import com.gy.githubclient.core.presentation.theme.LocalFrostContentInsets
 import com.gy.githubclient.feature.discover.domain.model.MirrorDownloadLink
 import com.gy.githubclient.feature.discover.domain.model.ReleaseAsset
 import com.gy.githubclient.feature.discover.domain.model.ReleaseInfo
@@ -40,6 +45,9 @@ import org.koin.androidx.compose.koinViewModel
  * 任意仓库的多版本 Release / Tag 列表页（v0.8.0 M15）。
  * 入口：仓库详情页「📦 Releases」按钮。资产下载复用发现页同一条链
  * （镜像加速 + SHA-256 + 断点续传 + APK 签名校验）。
+ *
+ * v0.19.0 Frost：单层 LazyColumn 承载筛选与列表，标题交给顶部通栏，
+ * 内容可以滚到通栏下方。
  */
 @Composable
 fun ReleaseListScreen(
@@ -54,67 +62,80 @@ fun ReleaseListScreen(
         viewModel.load(owner, name)
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("← 返回") }
-            Text("$owner/$name", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = { viewModel.refresh() }) { Text("刷新") }
-        }
+    val frost = LocalFrostColors.current
+    val insets = LocalFrostContentInsets.current
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = uiState.tab == ReleaseTab.RELEASES,
-                onClick = { viewModel.selectTab(ReleaseTab.RELEASES) },
-                label = { Text("Releases (${uiState.releases.size})") },
-            )
-            FilterChip(
-                selected = uiState.tab == ReleaseTab.TAGS,
-                onClick = { viewModel.selectTab(ReleaseTab.TAGS) },
-                label = { Text("Tags (${uiState.tags.size})") },
-            )
-        }
-
-        if (uiState.tab == ReleaseTab.RELEASES) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FilterChip(
-                    selected = uiState.includePrerelease,
-                    onClick = { viewModel.setIncludePrerelease(!uiState.includePrerelease) },
-                    label = { Text("含预发布") },
-                )
-            }
-        }
-
-        uiState.error?.let { error ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { viewModel.dismissError() }) { Text("关闭") }
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding =
+                PaddingValues(
+                    start = FrostDimens.PagePadding,
+                    end = FrostDimens.PagePadding,
+                    top = insets.top,
+                    bottom = insets.bottom + 32.dp,
+                ),
+            verticalArrangement = Arrangement.spacedBy(FrostDimens.CardGap),
+        ) {
+            item(key = "release-tabs") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = uiState.tab == ReleaseTab.RELEASES,
+                            onClick = { viewModel.selectTab(ReleaseTab.RELEASES) },
+                            label = { Text("Releases (${uiState.releases.size})") },
+                        )
+                        FilterChip(
+                            selected = uiState.tab == ReleaseTab.TAGS,
+                            onClick = { viewModel.selectTab(ReleaseTab.TAGS) },
+                            label = { Text("Tags (${uiState.tags.size})") },
+                        )
+                        if (uiState.tab == ReleaseTab.RELEASES) {
+                            FilterChip(
+                                selected = uiState.includePrerelease,
+                                onClick = { viewModel.setIncludePrerelease(!uiState.includePrerelease) },
+                                label = { Text("含预发布") },
+                            )
+                        }
+                    }
                 }
             }
-        }
 
-        if (uiState.isLoading) {
-            Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            uiState.error?.let { error ->
+                item(key = "release-error") {
+                    FrostCard {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                error,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = frost.danger,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = { viewModel.dismissError() }) { Text("关闭") }
+                        }
+                    }
+                }
             }
-        }
 
-        when (uiState.tab) {
-            ReleaseTab.RELEASES ->
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
+            if (uiState.isLoading) {
+                item(key = "release-loading") {
+                    Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            when (uiState.tab) {
+                ReleaseTab.RELEASES -> {
                     if (!uiState.isLoading && uiState.releases.isEmpty() && uiState.error == null) {
-                        item {
+                        item(key = "release-empty") {
                             Text(
                                 "该仓库暂无可展示的 Release（草稿与预发布已按当前设置过滤）。",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = frost.textSecondary,
                             )
                         }
                     }
@@ -127,23 +148,30 @@ fun ReleaseListScreen(
                     }
                 }
 
-            ReleaseTab.TAGS ->
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
+                ReleaseTab.TAGS -> {
                     if (!uiState.isLoading && uiState.tags.isEmpty()) {
-                        item {
+                        item(key = "tag-empty") {
                             Text(
                                 "该仓库暂无 Tag。",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = frost.textSecondary,
                             )
                         }
                     }
                     items(uiState.tags, key = { "tag_${it.name}" }) { tag -> TagCard(tag) }
                 }
+            }
         }
+
+        FrostTopBar(
+            title = "$owner/$name",
+            subtitle = "Releases · Tags",
+            onBack = onBack,
+            largeTitle = false,
+            actions = {
+                TextButton(onClick = { viewModel.refresh() }) { Text("刷新") }
+            },
+        )
     }
 }
 
@@ -153,32 +181,31 @@ private fun ReleaseCard(
     resolveLink: (String) -> MirrorDownloadLink,
     onDownload: (ReleaseAsset) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text("版本 ${release.tagName}", style = MaterialTheme.typography.titleSmall)
-            if (release.isPrerelease) {
-                Text("预发布", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-            }
-            release.publishedAt?.let {
-                Text(
-                    "发布于 ${formatPublishedAt(it)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (release.assets.isEmpty()) {
-                SpacerHeight()
-                Text(
-                    "该版本无附件资产",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                SpacerHeight()
-                Text("资产（${release.assets.size}）", style = MaterialTheme.typography.labelMedium)
-                release.assets.forEach { asset ->
-                    AssetRow(asset = asset, link = resolveLink(asset.downloadUrl), onDownload = { onDownload(asset) })
-                }
+    val frost = LocalFrostColors.current
+    FrostCard {
+        Text("版本 ${release.tagName}", style = MaterialTheme.typography.titleSmall)
+        if (release.isPrerelease) {
+            Text("预发布", style = MaterialTheme.typography.labelSmall, color = frost.warning)
+        }
+        release.publishedAt?.let {
+            Text(
+                "发布于 ${formatPublishedAt(it)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = frost.textTertiary,
+            )
+        }
+        if (release.assets.isEmpty()) {
+            SpacerHeight()
+            Text(
+                "该版本无附件资产",
+                style = MaterialTheme.typography.bodySmall,
+                color = frost.textSecondary,
+            )
+        } else {
+            SpacerHeight()
+            Text("资产（${release.assets.size}）", style = MaterialTheme.typography.labelMedium, color = frost.textSecondary)
+            release.assets.forEach { asset ->
+                AssetRow(asset = asset, link = resolveLink(asset.downloadUrl), onDownload = { onDownload(asset) })
             }
         }
     }
@@ -190,18 +217,19 @@ private fun AssetRow(
     link: MirrorDownloadLink,
     onDownload: () -> Unit,
 ) {
+    val frost = LocalFrostColors.current
     Row(
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(asset.name, style = MaterialTheme.typography.bodySmall)
+            Text(asset.name, style = MaterialTheme.typography.bodySmall, color = frost.textPrimary)
             Text(
                 formatAssetSize(asset.size) +
                     if (link.isAccelerated) " · 可加速（${link.mirrorName}）" else " · 直连",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = frost.textTertiary,
             )
         }
         Button(onClick = onDownload) { Text("下载") }
@@ -210,15 +238,14 @@ private fun AssetRow(
 
 @Composable
 private fun TagCard(tag: TagInfo) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text(tag.name, style = MaterialTheme.typography.titleSmall)
-            Text(
-                "commit ${tag.commitSha.take(8)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+    val frost = LocalFrostColors.current
+    FrostCard {
+        Text(tag.name, style = MaterialTheme.typography.titleSmall)
+        Text(
+            "commit ${tag.commitSha.take(8)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = frost.textTertiary,
+        )
     }
 }
 

@@ -7,6 +7,7 @@ package com.gy.githubclient.core.data.di
 
 import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.domain.network.AuthTokenProvider
+import com.gy.githubclient.core.mutation.AuditSink
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -43,6 +44,7 @@ val coreNetworkModule =
             GitHubApiClient(
                 httpClient = get(named(API_HTTP_CLIENT)),
                 tokenProvider = get<AuthTokenProvider>(),
+                auditSink = get<AuditSink>(),
             )
         }
     }

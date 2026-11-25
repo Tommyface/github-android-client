@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,14 +23,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +47,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.gy.githubclient.core.permission.displayLabel
+import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.FrostDimens
+import com.gy.githubclient.core.presentation.theme.FrostTopBar
+import com.gy.githubclient.core.presentation.theme.LocalCodeFontSize
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
+import com.gy.githubclient.core.presentation.theme.LocalFrostContentInsets
 import com.gy.githubclient.feature.repo.domain.model.CheckConclusion
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.Contributor
@@ -60,11 +67,12 @@ import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
 import com.gy.githubclient.feature.repo.domain.model.StarHistoryPoint
 import com.gy.githubclient.feature.repo.domain.model.milestoneProgressPercent
+import com.gy.githubclient.feature.repo.domain.model.myRole
 import org.koin.androidx.compose.koinViewModel
 
 /** 仓库详情页：信息概览 + README（v0.6.0 M6）+ Star/Fork/ZIP 操作 + 分支列表。 */
 @Composable
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "CyclomaticComplexMethod")
 fun RepoDetailScreen(
     owner: String,
     name: String,
@@ -81,6 +89,7 @@ fun RepoDetailScreen(
     val checkOverview by viewModel.checkOverview.collectAsStateWithLifecycle()
     val readmeState by viewModel.readme.collectAsStateWithLifecycle()
     val starHistory by viewModel.starHistory.collectAsStateWithLifecycle()
+    val watched by viewModel.isWatched.collectAsStateWithLifecycle()
     val issues by viewModel.issues.collectAsStateWithLifecycle()
     val issueDetail by viewModel.issueDetail.collectAsStateWithLifecycle()
     val languages by viewModel.languages.collectAsStateWithLifecycle()
@@ -88,191 +97,287 @@ fun RepoDetailScreen(
     val labels by viewModel.labels.collectAsStateWithLifecycle()
     val milestones by viewModel.milestones.collectAsStateWithLifecycle()
     val forks by viewModel.forks.collectAsStateWithLifecycle()
+    val translationState by viewModel.readmeTranslation.collectAsStateWithLifecycle()
+    val translatedBlocks by viewModel.translatedBlocks.collectAsStateWithLifecycle()
 
     LaunchedEffect(owner, name) {
         viewModel.openDetail(owner, name)
     }
 
     // 单一 LazyColumn：任意高度内容（README/分支）均完整渲染，不发生 Column 嵌套截断（v0.5.1 教训）。
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item {
-            Button(onClick = onBack) { Text("返回") }
-        }
+    // v0.19.0 Frost：列表铺满整屏，顶部占位由 LocalFrostContentInsets 下发，
+    // 内容可以滚到通栏玻璃下方；通栏由本页自己绘制（返回键在通栏左侧）。
+    val frost = LocalFrostColors.current
+    val insets = LocalFrostContentInsets.current
+    val current = repo
 
-        if (repo == null) {
-            item {
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 32.dp),
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            return@LazyColumn
-        }
-
-        val current = repo ?: return@LazyColumn
-
-        item {
-            Column {
-                Text(current.fullName, style = MaterialTheme.typography.headlineSmall)
-                current.description?.let {
-                    Spacer(Modifier.height(4.dp))
-                    Text(it, style = MaterialTheme.typography.bodyMedium)
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("★ ${current.stargazersCount}", style = MaterialTheme.typography.labelLarge)
-                    Text("⑂ ${current.forksCount}", style = MaterialTheme.typography.labelLarge)
-                    Text("Issues ${current.openIssuesCount}", style = MaterialTheme.typography.labelLarge)
-                }
-                Spacer(Modifier.height(4.dp))
-                Text("默认分支：${current.defaultBranch}", style = MaterialTheme.typography.bodySmall)
-                current.language?.let { Text("语言：$it", style = MaterialTheme.typography.bodySmall) }
-            }
-        }
-
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { viewModel.toggleStar(current) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (current.isStarred) "取消 Star" else "Star 这个仓库")
-                }
-                Button(onClick = { viewModel.fork(current) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (current.isFork) "这是一个 Fork" else "Fork 到我的账号")
-                }
-                OutlinedButton(onClick = { viewModel.downloadZip(current) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("⬇ 下载 ZIP（$selectedRef）")
-                }
-                OutlinedButton(onClick = onOpenReleases, modifier = Modifier.fillMaxWidth()) {
-                    Text("📦 Releases / Tags")
-                }
-                OutlinedButton(onClick = { onOpenFiles(selectedRef) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("📂 浏览文件（$selectedRef）")
-                }
-                OutlinedButton(onClick = onOpenCommits, modifier = Modifier.fillMaxWidth()) {
-                    Text("🕘 提交历史 / Diff")
-                }
-                OutlinedButton(onClick = onOpenActions, modifier = Modifier.fillMaxWidth()) {
-                    Text("⚙ Actions 运行记录")
-                }
-            }
-        }
-
-        item {
-            StarTrendCard(starHistory = starHistory)
-        }
-
-        item {
-            CheckCard(overview = checkOverview, ref = selectedRef)
-        }
-
-        item {
-            RepoInfoCard(repo = current)
-        }
-
-        item {
-            LanguageCard(languages = languages)
-        }
-
-        item {
-            ContributorCard(contributors = contributors)
-        }
-
-        item {
-            LabelCard(labels = labels)
-        }
-
-        item {
-            MilestoneCard(milestones = milestones)
-        }
-
-        item {
-            ForkCard(forks = forks)
-        }
-
-        item {
-            IssueSection(
-                issues = issues,
-                detail = issueDetail,
-                onOpenIssue = { viewModel.openIssue(it) },
-                onCloseIssue = { viewModel.closeIssue() },
-            )
-        }
-
-        item {
-            Text("README", style = MaterialTheme.typography.titleMedium)
-        }
-
-        when (readmeState) {
-            ReadmeUiState.Loading, ReadmeUiState.Idle -> {
-                item {
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding =
+                PaddingValues(
+                    start = FrostDimens.PagePadding,
+                    end = FrostDimens.PagePadding,
+                    top = insets.top,
+                    bottom = insets.bottom + 32.dp,
+                ),
+            verticalArrangement = Arrangement.spacedBy(FrostDimens.CardGap),
+        ) {
+            if (current == null) {
+                item(key = "detail-loading") {
                     Row(
-                        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                        Modifier.fillMaxWidth().padding(top = 32.dp),
                         horizontalArrangement = Arrangement.Center,
                     ) {
                         CircularProgressIndicator()
                     }
                 }
+                return@LazyColumn
             }
 
-            ReadmeUiState.NotAvailable -> {
-                item {
-                    Text(
-                        "该仓库未提供 README",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            item(key = "detail-overview") {
+                RepoOverviewCard(repo = current)
             }
 
-            is ReadmeUiState.Loaded -> {
-                val loaded = (readmeState as ReadmeUiState.Loaded).readme
-                items(
-                    parseMarkdownBlocks(loaded.content),
-                    key = { it.renderKey() },
-                    contentType = { it::class.simpleName },
-                ) { block ->
-                    MarkdownBlockView(
-                        block = block,
-                        owner = owner,
-                        repo = name,
-                        defaultBranch = current.defaultBranch,
-                    )
-                }
-            }
-        }
-
-        item {
-            Text("分支（${branches.size}）· 点击切换当前分支", style = MaterialTheme.typography.titleMedium)
-        }
-        items(branches, key = { "branch_${it.name}" }) { branch ->
-            val isSelected = branch.name == selectedRef
-            Card(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.selectBranch(branch.name) },
-                colors =
-                    if (isSelected) {
-                        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                    } else {
-                        CardDefaults.cardColors()
-                    },
-            ) {
-                Row(Modifier.padding(12.dp)) {
-                    Text(
-                        if (isSelected) "✓ ${branch.name}" else branch.name,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (branch.isProtected) {
-                        Text("受保护", style = MaterialTheme.typography.labelSmall)
+            item(key = "detail-actions") {
+                FrostCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("操作", style = MaterialTheme.typography.titleMedium)
+                        Button(onClick = { viewModel.toggleStar(current) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (current.isStarred) "取消 Star" else "Star 这个仓库")
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.toggleWatch(current) },
+                            enabled = watched != null,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                when (watched) {
+                                    true -> "取消 Watch（不再接收该仓库通知）"
+                                    false -> "Watch 这个仓库（接收全部通知）"
+                                    null -> "正在读取订阅状态…"
+                                },
+                            )
+                        }
+                        Button(onClick = { viewModel.fork(current) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (current.isFork) "这是一个 Fork" else "Fork 到我的账号")
+                        }
+                        OutlinedButton(onClick = { viewModel.downloadZip(current) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("⬇ 下载 ZIP（$selectedRef）")
+                        }
+                        OutlinedButton(onClick = onOpenReleases, modifier = Modifier.fillMaxWidth()) {
+                            Text("📦 Releases / Tags")
+                        }
+                        OutlinedButton(onClick = { onOpenFiles(selectedRef) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("📂 浏览文件（$selectedRef）")
+                        }
+                        OutlinedButton(onClick = onOpenCommits, modifier = Modifier.fillMaxWidth()) {
+                            Text("🕘 提交历史 / Diff")
+                        }
+                        OutlinedButton(onClick = onOpenActions, modifier = Modifier.fillMaxWidth()) {
+                            Text("⚙ Actions 运行记录")
+                        }
                     }
                 }
             }
+
+            item {
+                StarTrendCard(starHistory = starHistory)
+            }
+
+            item {
+                CheckCard(overview = checkOverview, ref = selectedRef)
+            }
+
+            item {
+                RepoInfoCard(repo = current)
+            }
+
+            item {
+                LanguageCard(languages = languages)
+            }
+
+            item {
+                ContributorCard(contributors = contributors)
+            }
+
+            item {
+                LabelCard(labels = labels)
+            }
+
+            item {
+                MilestoneCard(milestones = milestones)
+            }
+
+            item {
+                ForkCard(forks = forks)
+            }
+
+            item {
+                IssueSection(
+                    issues = issues,
+                    detail = issueDetail,
+                    onOpenIssue = { viewModel.openIssue(it) },
+                    onCloseIssue = { viewModel.closeIssue() },
+                )
+            }
+
+            item {
+                ReadmeTranslationHeader(
+                    state = translationState,
+                    onToggle = viewModel::toggleReadmeTranslation,
+                )
+            }
+
+            when (readmeState) {
+                ReadmeUiState.Loading, ReadmeUiState.Idle -> {
+                    item {
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                }
+
+                ReadmeUiState.NotAvailable -> {
+                    item {
+                        Text(
+                            "该仓库未提供 README",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                is ReadmeUiState.Loaded -> {
+                    val loaded = (readmeState as ReadmeUiState.Loaded).readme
+                    val showTranslation = translationState is ReadmeTranslationUiState.Ready
+                    items(
+                        parseMarkdownBlocks(loaded.content),
+                        key = { it.renderKey() },
+                        contentType = { it::class.simpleName },
+                    ) { block ->
+                        MarkdownBlockView(
+                            block = block,
+                            owner = owner,
+                            repo = name,
+                            defaultBranch = current.defaultBranch,
+                            translatedText =
+                                if (showTranslation) {
+                                    block.translatableText()?.let(translatedBlocks::get)
+                                } else {
+                                    null
+                                },
+                        )
+                    }
+                }
+            }
+
+            item(key = "detail-branch-title") {
+                Text("分支（${branches.size}）· 点击切换当前分支", style = MaterialTheme.typography.titleMedium)
+            }
+            items(branches, key = { "branch_${it.name}" }) { branch ->
+                val isSelected = branch.name == selectedRef
+                FrostCard(
+                    onClick = { viewModel.selectBranch(branch.name) },
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (isSelected) "✓ ${branch.name}" else branch.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isSelected) frost.primaryInk else frost.textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (branch.isProtected) {
+                            Text(
+                                "受保护",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = frost.textTertiary,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        FrostTopBar(
+            title = current?.fullName ?: "$owner/$name",
+            subtitle = current?.description?.takeIf { it.isNotBlank() },
+            onBack = onBack,
+            largeTitle = false,
+        )
+    }
+}
+
+/**
+ * 仓库概览卡（v0.19.0 Frost）：原页头的标题/描述/统计迁入玻璃卡片，
+ * 标题栏本身交给顶部通栏，避免双标题。
+ */
+@Composable
+private fun RepoOverviewCard(repo: Repository) {
+    val frost = LocalFrostColors.current
+    FrostCard {
+        Text(repo.fullName, style = MaterialTheme.typography.titleLarge)
+        repo.description?.takeIf { it.isNotBlank() }?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = frost.textSecondary)
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("★ ${repo.stargazersCount}", style = MaterialTheme.typography.labelLarge, color = frost.primaryInk)
+            Text("⑂ ${repo.forksCount}", style = MaterialTheme.typography.labelLarge, color = frost.primaryInk)
+            Text("◉ ${repo.openIssuesCount}", style = MaterialTheme.typography.labelLarge, color = frost.textSecondary)
+        }
+        Spacer(Modifier.height(8.dp))
+        InfoLine(label = "默认分支", value = repo.defaultBranch)
+        InfoLine(label = "语言", value = repo.language ?: "未标注")
+        InfoLine(label = "你的角色", value = repo.myRole.displayLabel)
+    }
+}
+
+/**
+ * README 翻译区头（v0.16.0）：开关、进度与第三方服务提示。
+ * 抽成独立 Composable，避免仓库详情页的圈复杂度继续膨胀。
+ */
+@Composable
+private fun ReadmeTranslationHeader(
+    state: ReadmeTranslationUiState,
+    onToggle: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("README", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            ReadmeTranslationAction(state = state, onToggle = onToggle)
+        }
+        (state as? ReadmeTranslationUiState.Loading)?.let { loading ->
+            LinearProgressIndicator(
+                progress = { if (loading.total == 0) 0f else loading.done.toFloat() / loading.total },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (state !is ReadmeTranslationUiState.Idle) {
+            Text(
+                "译文由第三方免费翻译服务生成，仅发送 README 文本；代码块与图片保持原样。",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReadmeTranslationAction(
+    state: ReadmeTranslationUiState,
+    onToggle: () -> Unit,
+) {
+    if (state is ReadmeTranslationUiState.Loading) {
+        Text("翻译中 ${state.done}/${state.total}", style = MaterialTheme.typography.labelSmall)
+    } else {
+        TextButton(onClick = onToggle) {
+            Text(if (state is ReadmeTranslationUiState.Ready) "显示原文" else "翻译为中文")
         }
     }
 }
@@ -288,7 +393,7 @@ internal fun IssueSection(
     onOpenIssue: (Int) -> Unit,
     onCloseIssue: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard(contentPadding = PaddingValues(0.dp)) {
         Column(Modifier.padding(12.dp)) {
             Text("Issues / PR（${issues.size}）", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -367,8 +472,9 @@ private fun IssueDetailView(
             Spacer(Modifier.height(8.dp))
             Text("评论（${detail.comments.size}）", style = MaterialTheme.typography.labelLarge)
             detail.comments.forEach { comment ->
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                FrostCard(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    contentPadding = PaddingValues(0.dp),
                 ) {
                     Column(Modifier.padding(8.dp)) {
                         Text("${comment.author} · ${comment.createdAt.orEmpty()}", style = MaterialTheme.typography.labelSmall)
@@ -395,7 +501,7 @@ private const val ISSUE_BODY_PREVIEW_CHARS = 2000
  */
 @Composable
 internal fun StarTrendCard(starHistory: StarHistory?) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard(contentPadding = PaddingValues(0.dp)) {
         Column(Modifier.padding(12.dp)) {
             Text("星标趋势（近 ${STAR_TREND_WEEKS} 周）", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -432,7 +538,7 @@ internal fun CheckCard(
     overview: CheckOverview?,
     ref: String,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard(contentPadding = PaddingValues(0.dp)) {
         Column(Modifier.padding(12.dp)) {
             Text("CI 检查状态（$ref）", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -470,7 +576,7 @@ internal fun CheckCard(
  */
 @Composable
 private fun RepoInfoCard(repo: Repository) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard(contentPadding = PaddingValues(0.dp)) {
         Column(Modifier.padding(12.dp)) {
             Text("仓库信息（只读）", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -527,7 +633,7 @@ private fun InfoLine(
 /** 语言构成卡（v0.16.0 P2-b，只读）：按字节占比排序，逐条显示语言与百分比。 */
 @Composable
 private fun LanguageCard(languages: List<LanguageShare>) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard(contentPadding = PaddingValues(0.dp)) {
         Column(Modifier.padding(12.dp)) {
             Text("语言构成", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -574,7 +680,7 @@ private fun languageBarColor(index: Int): androidx.compose.ui.graphics.Color {
 /** 贡献者卡（v0.16.0 P2-c，只读）：头像 + login + 贡献数。 */
 @Composable
 private fun ContributorCard(contributors: List<Contributor>) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard(contentPadding = PaddingValues(0.dp)) {
         Column(Modifier.padding(12.dp)) {
             Text("贡献者（${contributors.size}）", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -619,7 +725,7 @@ private fun ContributorCard(contributors: List<Contributor>) {
 /** 仓库标签卡（v0.17.0 P3-a，只读）：颜色 chip + 标签名，无标签时明示。 */
 @Composable
 private fun LabelCard(labels: List<RepoLabel>) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard(contentPadding = PaddingValues(0.dp)) {
         Column(Modifier.padding(12.dp)) {
             Text("标签（${labels.size}）", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -659,7 +765,7 @@ private fun LabelCard(labels: List<RepoLabel>) {
 /** 里程碑卡（v0.17.0 P3-b，只读）：状态 + 完成度进度条 + closed/open issue 计数。 */
 @Composable
 private fun MilestoneCard(milestones: List<Milestone>) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard(contentPadding = PaddingValues(0.dp)) {
         Column(Modifier.padding(12.dp)) {
             Text("里程碑（${milestones.size}）", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -698,7 +804,7 @@ private fun MilestoneCard(milestones: List<Milestone>) {
 /** Fork 列表卡（v0.17.0 P3-c，只读）：派生仓库全名 + owner + star 数，最多显示 10 位。 */
 @Composable
 private fun ForkCard(forks: List<ForkItem>) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard(contentPadding = PaddingValues(0.dp)) {
         Column(Modifier.padding(12.dp)) {
             Text("Fork（${forks.size}）", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -834,18 +940,28 @@ private fun MdBlock.renderKey(): String =
         MdBlock.Rule -> "rule"
     }
 
-/** 单块渲染：按块类型分派（README 卡片区域内，不再嵌套滚动）。 */
+/** 可翻译块对应的原文（代码块/图片/分隔线返回 null，与 ViewModel 的筛选口径一致）。 */
+private fun MdBlock.translatableText(): String? =
+    when (this) {
+        is MdBlock.Heading -> text
+        is MdBlock.Paragraph -> text
+        is MdBlock.ListItem -> text
+        is MdBlock.CodeBlock, is MdBlock.Image, MdBlock.Rule -> null
+    }
+
+/** 单块渲染：按块类型分派（README 卡片区域内，不再嵌套滚动）。[translatedText] 非空时优先显示译文。 */
 @Composable
 private fun MarkdownBlockView(
     block: MdBlock,
     owner: String,
     repo: String,
     defaultBranch: String,
+    translatedText: String? = null,
 ) {
     when (block) {
         is MdBlock.Heading ->
             Text(
-                block.text,
+                translatedText ?: block.text,
                 style =
                     when (block.level) {
                         1 -> MaterialTheme.typography.headlineSmall
@@ -855,26 +971,34 @@ private fun MarkdownBlockView(
                     },
             )
 
-        is MdBlock.Paragraph ->
+        is MdBlock.Paragraph -> {
+            val display = translatedText ?: block.text
             Text(
-                remember(block.text) { renderInline(block.text) },
+                remember(display) { renderInline(display) },
                 style = MaterialTheme.typography.bodyMedium,
             )
+        }
 
-        is MdBlock.ListItem ->
+        is MdBlock.ListItem -> {
+            val display = translatedText ?: block.text
             Row(Modifier.padding(start = 8.dp)) {
                 Text("• ", style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    remember(block.text) { renderInline(block.text) },
+                    remember(display) { renderInline(display) },
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
+        }
 
         is MdBlock.CodeBlock ->
-            Card(Modifier.fillMaxWidth()) {
+            FrostCard(contentPadding = PaddingValues(0.dp)) {
                 Text(
                     block.code,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = LocalCodeFontSize.current,
+                        ),
                     modifier = Modifier.padding(12.dp),
                 )
             }
@@ -884,7 +1008,7 @@ private fun MarkdownBlockView(
                 remember(block.url, owner, repo, defaultBranch) {
                     rewriteReadmeImageUrl(block.url, owner, repo, defaultBranch)
                 }
-            Card(Modifier.fillMaxWidth()) {
+            FrostCard(contentPadding = PaddingValues(0.dp)) {
                 AsyncImage(
                     model = url,
                     contentDescription = block.alt,

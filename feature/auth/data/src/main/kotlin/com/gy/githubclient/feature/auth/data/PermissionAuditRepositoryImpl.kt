@@ -5,6 +5,7 @@
 
 package com.gy.githubclient.feature.auth.data
 
+import com.gy.githubclient.core.permission.ScopeCatalog
 import com.gy.githubclient.feature.auth.data.remote.GitHubPermissionApi
 import com.gy.githubclient.feature.auth.data.remote.ProbeResult
 import com.gy.githubclient.feature.auth.domain.model.AuthMethod
@@ -59,6 +60,7 @@ class PermissionAuditRepositoryImpl(
             scopes = scopes,
             capabilities = capabilities,
             rateLimit = api.rateLimit(token),
+            scopeStatuses = if (scopes.isEmpty()) emptyList() else ScopeCatalog.assess(scopes),
         )
     }
 

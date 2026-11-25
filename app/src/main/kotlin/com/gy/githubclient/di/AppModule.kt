@@ -5,6 +5,7 @@
 
 package com.gy.githubclient.di
 
+import com.gy.githubclient.core.audit.di.auditModule
 import com.gy.githubclient.core.data.di.coreNetworkModule
 import com.gy.githubclient.feature.auth.data.di.authDataModule
 import com.gy.githubclient.feature.auth.presentation.di.authPresentationModule
@@ -22,6 +23,7 @@ import com.gy.githubclient.feature.search.data.di.searchDataModule
 import com.gy.githubclient.feature.search.presentation.di.searchPresentationModule
 import com.gy.githubclient.feature.starred.data.di.starredDataModule
 import com.gy.githubclient.feature.starred.presentation.di.starredPresentationModule
+import com.gy.githubclient.settings.AppSettingsStore
 import com.gy.githubclient.update.UpdateCheckViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -31,6 +33,7 @@ import org.koin.dsl.module
 val coreModule =
     module {
         // TODO(P4): Room 缓存、WorkManager 后台任务在此注册
+        single { AppSettingsStore(androidContext()) }
         viewModel {
             UpdateCheckViewModel(androidContext(), get())
         }
@@ -41,6 +44,7 @@ val appModules =
     listOf(
         coreModule,
         coreNetworkModule,
+        auditModule,
         authDataModule,
         authPresentationModule,
         repoDataModule,

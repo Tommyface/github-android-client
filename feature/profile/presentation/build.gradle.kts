@@ -8,6 +8,7 @@ dependencies {
     implementation(projects.core.presentation)
     implementation(projects.feature.auth.domain)
     implementation(projects.feature.profile.domain)
+    implementation(projects.core.mutation)
     implementation(libs.bundles.compose.ui)
     implementation(libs.koin.androidx.compose)
     implementation(libs.bundles.koin.common)

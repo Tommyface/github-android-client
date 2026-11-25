@@ -11,8 +11,11 @@
     <application
         android:name=".GithubClientApp"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
         android:icon="@android:drawable/stat_sys_download"
         android:label="GitHub Client"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.GithubAndroidClient"
         tools:targetApi="35">
@@ -42,6 +45,18 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="githubclient" android:host="repo" />
                 <data android:scheme="githubclient" android:host="release" />
+            </intent-filter>
+            <!-- v0.16.0：接收 GitHub 网页链接（用户可选择用本应用打开）与纯文本分享。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="github.com" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
     </application>

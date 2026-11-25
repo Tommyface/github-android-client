@@ -20,6 +20,8 @@ val repoPresentationModule =
                 observeRepositories = get(),
                 refreshRepositories = get(),
                 setStarred = get(),
+                setIsWatched = get(),
+                getIsWatched = get(),
                 forkRepository = get(),
                 getRepository = get(),
                 listBranches = get(),
@@ -34,6 +36,7 @@ val repoPresentationModule =
                 listMilestones = get(),
                 listForks = get(),
                 enqueueDownload = get(),
+                translateText = get(),
             )
         }
         viewModel { FileBrowserViewModel(get(), get(), get(), get()) }

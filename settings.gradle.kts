@@ -29,6 +29,9 @@ include(":app")
 include(":core:domain")
 include(":core:data")
 include(":core:presentation")
+include(":core:permission")
+include(":core:mutation")
+include(":core:audit")
 
 val features = listOf(
     "auth", "repo", "discover", "release", "download", "share", "search", "starred", "profile", "library"

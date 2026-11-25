@@ -8,6 +8,7 @@ package com.gy.githubclient.feature.repo.data
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.data.local.RepoDao
 import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
@@ -99,17 +100,37 @@ class RepoRepositoryImpl(
         owner: String,
         name: String,
         starred: Boolean,
-    ): NetworkResult<Unit> =
+    ): MutationResult<Unit> =
         when (val result = api.setStarred(owner, name, starred)) {
-            is NetworkResult.Success -> {
+            is MutationResult.Success -> {
                 dao.findByFullName(fullName = "$owner/$name")?.let { entity ->
                     dao.updateStarred(id = entity.id, starred = starred)
                 }
-                NetworkResult.Success(Unit)
+                result
             }
 
-            is NetworkResult.Failure -> NetworkResult.Failure(result.error)
+            is MutationResult.Failure -> result
         }
+
+    override suspend fun isWatched(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean> =
+        when (val result = api.watchStatus(owner, name)) {
+            is NetworkResult.Success -> NetworkResult.Success(true)
+            is NetworkResult.Failure ->
+                if (result.error is ApiError.NotFound) {
+                    NetworkResult.Success(false)
+                } else {
+                    NetworkResult.Failure(result.error)
+                }
+        }
+
+    override suspend fun setWatched(
+        owner: String,
+        name: String,
+        watched: Boolean,
+    ): MutationResult<Unit> = api.setWatched(owner, name, watched)
 
     override suspend fun isStarred(
         owner: String,

@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.data)
+    implementation(projects.core.mutation)
     implementation(projects.feature.repo.domain)
     implementation(libs.bundles.ktor.common)
     implementation(libs.ktor.client.okhttp)

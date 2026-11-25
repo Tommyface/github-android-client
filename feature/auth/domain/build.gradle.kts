@@ -3,6 +3,7 @@ plugins {
 }
 
 dependencies {
+    implementation(projects.core.permission)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.datetime)
     testImplementation(libs.junit)

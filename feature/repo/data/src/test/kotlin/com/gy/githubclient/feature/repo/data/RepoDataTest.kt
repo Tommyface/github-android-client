@@ -10,6 +10,7 @@ import com.gy.githubclient.core.domain.network.ApiChannel
 import com.gy.githubclient.core.domain.network.AuthTokenProvider
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.data.local.RepoDao
 import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
@@ -373,6 +374,62 @@ class RepoDataTest {
             val result = buildApi(engine).getFileContent("o", "r", "a.txt", "main")
             assertTrue(result is NetworkResult.Success)
             assertEquals("OK", (result as NetworkResult.Success).data.content)
+        }
+
+    @Test
+    fun setStarredUsesMutationChannel() =
+        runTest {
+            var method = io.ktor.http.HttpMethod.Get
+            var path = ""
+            val engine =
+                MockEngine { request ->
+                    method = request.method
+                    path = request.url.encodedPath
+                    respond("", HttpStatusCode.NoContent)
+                }
+            val result = buildApi(engine).setStarred("o", "r", starred = true)
+
+            assertTrue(result is MutationResult.Success)
+            assertEquals(io.ktor.http.HttpMethod.Put, method)
+            assertEquals("/user/starred/o/r", path)
+        }
+
+    @Test
+    fun watchStatusUsesSubscriptionEndpoint() =
+        runTest {
+            var path = ""
+            val engine =
+                MockEngine { request ->
+                    path = request.url.encodedPath
+                    respond("", HttpStatusCode.NoContent)
+                }
+            val result = buildApi(engine).watchStatus("o", "r")
+
+            assertTrue(result is NetworkResult.Success)
+            assertEquals(true, (result as NetworkResult.Success).data)
+            assertEquals("/repos/o/r/subscription", path)
+        }
+
+    @Test
+    fun setWatchedSendsSubscribedBodyThenDelete() =
+        runTest {
+            val bodies = mutableListOf<String>()
+            val methods = mutableListOf<io.ktor.http.HttpMethod>()
+            val engine =
+                MockEngine { request ->
+                    methods += request.method
+                    val content = request.body as? io.ktor.http.content.TextContent
+                    bodies += content?.text.orEmpty()
+                    respond("", HttpStatusCode.NoContent)
+                }
+            val api = buildApi(engine)
+
+            assertTrue(api.setWatched("o", "r", watched = true) is MutationResult.Success)
+            assertTrue(api.setWatched("o", "r", watched = false) is MutationResult.Success)
+
+            assertEquals(listOf(io.ktor.http.HttpMethod.Put, io.ktor.http.HttpMethod.Delete), methods)
+            assertEquals("""{"subscribed":true}""", bodies.first())
+            assertEquals("", bodies.last())
         }
 
     private fun buildApi(engine: MockEngine): GitHubRepoApi =

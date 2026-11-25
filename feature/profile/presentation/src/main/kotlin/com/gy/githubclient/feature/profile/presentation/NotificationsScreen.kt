@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,7 +35,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
 import org.koin.androidx.compose.koinViewModel
 
-/** 通知中心页（v0.6.0 M7）：未读列表 + 点击标记已读并跳转主题。 */
+/**
+ * 通知中心页（v0.6.0 M7；批量能力对齐 githup）：
+ * 未读列表 + 单条已读 + 多选批量已读 + 一键全部已读。
+ * subject.url 是 REST 地址，统一转成网页地址再打开。
+ */
 @Composable
 fun NotificationsScreen(
     onBack: () -> Unit = {},
@@ -46,12 +52,38 @@ fun NotificationsScreen(
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("← 返回") }
             Text(
-                "通知中心（未读 ${state.unreadCount}）",
+                text =
+                    if (state.selectionMode) {
+                        "已选 ${state.selectedIds.size} 条"
+                    } else {
+                        "通知中心（未读 ${state.unreadCount}）"
+                    },
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f),
             )
+            if (state.selectionMode) {
+                TextButton(onClick = viewModel::toggleSelectionMode) { Text("取消") }
+            } else {
+                if (state.items.isNotEmpty()) {
+                    TextButton(onClick = viewModel::toggleSelectionMode) { Text("批量") }
+                    TextButton(onClick = viewModel::markAllRead, enabled = state.unreadCount > 0) {
+                        Text("全部已读")
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
+
+        if (state.selectionMode) {
+            Button(
+                onClick = viewModel::markSelectedRead,
+                enabled = state.selectedIds.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("标记所选已读（${state.selectedIds.size}）")
+            }
+            Spacer(Modifier.height(8.dp))
+        }
 
         when {
             state.isLoading && state.items.isEmpty() -> {
@@ -86,12 +118,21 @@ fun NotificationsScreen(
                     items(state.items, key = { it.id }) { notification ->
                         NotificationCard(
                             notification = notification,
-                            locallyRead = notification.id in state.locallyReadIds,
+                            selection =
+                                NotificationCardSelection(
+                                    locallyRead = notification.id in state.locallyReadIds,
+                                    selectionMode = state.selectionMode,
+                                    selected = notification.id in state.selectedIds,
+                                    ignored = notification.id in state.ignoredIds,
+                                ),
                             onOpen = {
                                 val subjectUrl = viewModel.onOpen(notification)
-                                // subject.url 是 API 地址；浏览器打开转 html 形式不可得，直接外抛 API url 由 GitHub 重定向。
-                                runCatching { uriHandler.openUri(subjectUrl ?: return@NotificationCard) }
+                                if (subjectUrl != null) {
+                                    runCatching { uriHandler.openUri(subjectUrl) }
+                                }
                             },
+                            onToggleSelected = { viewModel.toggleSelected(notification.id) },
+                            onToggleIgnore = { viewModel.toggleIgnore(notification) },
                         )
                     }
                 }
@@ -100,14 +141,29 @@ fun NotificationsScreen(
     }
 }
 
+private data class NotificationCardSelection(
+    val locallyRead: Boolean,
+    val selectionMode: Boolean,
+    val selected: Boolean,
+    val ignored: Boolean,
+)
+
 @Composable
 private fun NotificationCard(
     notification: GitHubNotification,
-    locallyRead: Boolean,
+    selection: NotificationCardSelection,
     onOpen: () -> Unit,
+    onToggleSelected: () -> Unit,
+    onToggleIgnore: () -> Unit,
 ) {
+    val locallyRead = selection.locallyRead
+    val selectionMode = selection.selectionMode
+    val selected = selection.selected
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = if (selectionMode) onToggleSelected else onOpen),
         colors =
             CardDefaults.cardColors(
                 containerColor =
@@ -120,6 +176,10 @@ private fun NotificationCard(
     ) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (selectionMode) {
+                    Checkbox(checked = selected, onCheckedChange = { onToggleSelected() })
+                    Spacer(Modifier.size(4.dp))
+                }
                 if (notification.unread && !locallyRead) {
                     androidx.compose.material3.Surface(
                         modifier = Modifier.size(8.dp),
@@ -143,6 +203,14 @@ private fun NotificationCard(
             notification.updatedAt?.let {
                 Spacer(Modifier.height(4.dp))
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onToggleIgnore, enabled = !selectionMode) {
+                    Text(if (selection.ignored) "恢复通知" else "忽略此线程")
+                }
             }
         }
     }

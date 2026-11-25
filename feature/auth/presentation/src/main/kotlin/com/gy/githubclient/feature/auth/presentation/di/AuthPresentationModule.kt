@@ -25,5 +25,5 @@ val authPresentationModule =
                 restoreSession = get(),
             )
         }
-        viewModel { PermissionAuditViewModel(auditPermissions = get()) }
+        viewModel { PermissionAuditViewModel(auditPermissions = get(), auditLogRepository = get()) }
     }

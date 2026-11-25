@@ -9,6 +9,8 @@ import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
+import com.gy.githubclient.core.mutation.MutationSpec
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.CommitSummary
@@ -87,15 +89,40 @@ class GitHubRepoApi(
             },
         )
 
-    /** star / unstar：204 无响应体，仅表达成功与否。 */
+    /** star / unstar：204 无响应体；走写操作信封以获得细粒度错误与审计。 */
     suspend fun setStarred(
         owner: String,
         name: String,
         starred: Boolean,
-    ): NetworkResult<Unit> =
-        client.request(
+    ): MutationResult<Unit> =
+        client.mutate(
+            spec = MutationSpec(action = if (starred) "star" else "unstar", target = "$owner/$name"),
             method = if (starred) HttpMethod.Put else HttpMethod.Delete,
             path = "/user/starred/$owner/$name",
+            mapper = { _: HttpResponse -> Unit },
+        )
+
+    /** 查询当前用户是否 watch 了仓库：204 = 已订阅，404 = 未订阅。 */
+    suspend fun watchStatus(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean> =
+        client.request(
+            path = "/repos/$owner/$name/subscription",
+            mapper = { _: HttpResponse -> true },
+        )
+
+    /** watch（订阅通知）= PUT subscription；unwatch = DELETE。 */
+    suspend fun setWatched(
+        owner: String,
+        name: String,
+        watched: Boolean,
+    ): MutationResult<Unit> =
+        client.mutate(
+            spec = MutationSpec(action = if (watched) "watch" else "unwatch", target = "$owner/$name"),
+            method = if (watched) HttpMethod.Put else HttpMethod.Delete,
+            path = "/repos/$owner/$name/subscription",
+            body = if (watched) SUBSCRIBED_TRUE else null,
             mapper = { _: HttpResponse -> Unit },
         )
 
@@ -449,6 +476,7 @@ class GitHubRepoApi(
     private companion object {
         const val BRANCHES_PER_PAGE = 100
         const val STAR_HISTORY_WEEKS = 30
+        const val SUBSCRIBED_TRUE = """{"subscribed":true}"""
         const val ISSUES_PER_PAGE = 30
         const val CHECKS_PER_PAGE = 30
         const val FILE_COMMITS_PER_PAGE = 30

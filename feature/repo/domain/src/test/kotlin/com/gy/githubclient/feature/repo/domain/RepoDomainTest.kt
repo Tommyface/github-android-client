@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.repo.domain
 
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
@@ -96,7 +97,7 @@ class RepoDomainTest {
             val repo = StubRepoRepository()
             val result = SetStarredUseCase(repo)("octocat", "hello", true)
 
-            assertTrue(result is NetworkResult.Success)
+            assertTrue(result is MutationResult.Success)
             assertEquals("octocat", repo.lastOwner)
             assertEquals("hello", repo.lastName)
             assertEquals(true, repo.lastStarred)
@@ -142,12 +143,23 @@ private class StubRepoRepository(
         owner: String,
         name: String,
         starred: Boolean,
-    ): NetworkResult<Unit> {
+    ): MutationResult<Unit> {
         lastOwner = owner
         lastName = name
         lastStarred = starred
-        return NetworkResult.Success(Unit)
+        return MutationResult.Success(Unit)
     }
+
+    override suspend fun isWatched(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean> = NetworkResult.Success(false)
+
+    override suspend fun setWatched(
+        owner: String,
+        name: String,
+        watched: Boolean,
+    ): MutationResult<Unit> = MutationResult.Success(Unit)
 
     override suspend fun isStarred(
         owner: String,

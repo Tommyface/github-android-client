@@ -6,6 +6,7 @@
 package com.gy.githubclient.feature.repo.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
@@ -57,12 +58,25 @@ interface RepoRepository {
         name: String,
     ): NetworkResult<List<Branch>>
 
-    /** star / unstar；成功与否以 [NetworkResult] 表达。 */
+    /** star / unstar；走写操作信封，返回细粒度错误。 */
     suspend fun setStarred(
         owner: String,
         name: String,
         starred: Boolean,
-    ): NetworkResult<Unit>
+    ): MutationResult<Unit>
+
+    /** 查询当前用户是否 watch（订阅）了该仓库；404 视为未订阅。 */
+    suspend fun isWatched(
+        owner: String,
+        name: String,
+    ): NetworkResult<Boolean>
+
+    /** watch / unwatch 仓库；写入成功才更新本地状态。 */
+    suspend fun setWatched(
+        owner: String,
+        name: String,
+        watched: Boolean,
+    ): MutationResult<Unit>
 
     /** 查询当前用户是否已星标该仓库（404 视为未星标，返回 false 而非错误）。 */
     suspend fun isStarred(

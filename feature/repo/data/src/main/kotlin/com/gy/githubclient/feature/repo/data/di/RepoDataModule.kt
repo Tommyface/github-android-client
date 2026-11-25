@@ -6,12 +6,19 @@
 package com.gy.githubclient.feature.repo.data.di
 
 import androidx.room.Room
+import com.gy.githubclient.core.data.di.API_HTTP_CLIENT
 import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.feature.repo.data.RepoRepositoryImpl
 import com.gy.githubclient.feature.repo.data.local.RepoDao
 import com.gy.githubclient.feature.repo.data.local.RepoDatabase
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
+import com.gy.githubclient.feature.repo.data.translation.ReadmeTranslationApi
+import com.gy.githubclient.feature.repo.data.translation.TranslationCacheStore
+import com.gy.githubclient.feature.repo.data.translation.TranslationRepositoryImpl
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
+import com.gy.githubclient.feature.repo.domain.translation.ClearTranslationCacheUseCase
+import com.gy.githubclient.feature.repo.domain.translation.TranslateTextUseCase
+import com.gy.githubclient.feature.repo.domain.translation.TranslationRepository
 import com.gy.githubclient.feature.repo.domain.usecase.ClearRepoCacheUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetCheckOverviewUseCase
@@ -24,6 +31,7 @@ import com.gy.githubclient.feature.repo.domain.usecase.GetRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetStarHistoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetTreeUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.IsStarredUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.IsWatchedUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListBranchesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListCommitsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ListContentsUseCase
@@ -37,7 +45,9 @@ import com.gy.githubclient.feature.repo.domain.usecase.ListWorkflowRunsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.SetWatchedUseCase
 import org.koin.android.ext.koin.androidContext
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 /** repo data 层 DI：Room 缓存 + 远程 API + 仓库 + 用例。 */
@@ -87,6 +97,21 @@ val repoDataModule =
         factory { ListForksUseCase(get<RepoRepository>()) }
         factory { SetStarredUseCase(get<RepoRepository>()) }
         factory { IsStarredUseCase(get<RepoRepository>()) }
+        factory { IsWatchedUseCase(get<RepoRepository>()) }
+        factory { SetWatchedUseCase(get<RepoRepository>()) }
         factory { ForkRepositoryUseCase(get<RepoRepository>()) }
         factory { ClearRepoCacheUseCase(get<RepoRepository>()) }
+
+        // README 翻译（v0.16.0）：复用 core 的匿名 HttpClient（不带 GitHub token），
+        // 译文落 SharedPreferences，避免重复消耗免费翻译额度。
+        single { TranslationCacheStore(androidContext()) }
+        single { ReadmeTranslationApi(get(named(API_HTTP_CLIENT))) }
+        single<TranslationRepository> {
+            TranslationRepositoryImpl(
+                api = get(),
+                cache = get(),
+            )
+        }
+        factory { TranslateTextUseCase(get()) }
+        factory { ClearTranslationCacheUseCase(get()) }
     }

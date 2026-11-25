@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.repo.domain
 
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
@@ -52,7 +53,15 @@ class CommitDomainTest {
                 owner: String,
                 name: String,
                 starred: Boolean,
-            ): NetworkResult<Unit> = NetworkResult.Success(Unit)
+            ): MutationResult<Unit> = MutationResult.Success(Unit)
+
+            override suspend fun isWatched(owner: String, name: String): NetworkResult<Boolean> = NetworkResult.Success(false)
+
+            override suspend fun setWatched(
+                owner: String,
+                name: String,
+                watched: Boolean,
+            ): MutationResult<Unit> = MutationResult.Success(Unit)
 
             override suspend fun isStarred(owner: String, name: String): NetworkResult<Boolean> = NetworkResult.Success(false)
 

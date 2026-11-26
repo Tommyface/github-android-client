@@ -69,12 +69,17 @@ else
   echo "[7/8] Android Lint ..."
   ./gradlew lintDebug --no-daemon
 
-  echo "[8/8] Room 迁移测试 ..."
-  # 迁移测试源码存在时才执行，避免 --tests filter 无匹配导致任务假性 FAILED。
-  if grep -rq "MigrationTest" --include="*.kt" app/src core feature 2>/dev/null; then
+  echo "[8/8] Room 结构安全与迁移测试 ..."
+  # 结构安全门禁（始终存在）：version >= 2 的库必须有 Migration 且已注册。
+  ./gradlew :app:testDebugUnitTest --tests "*RoomSchemaGateTest" --no-daemon
+  # 真正的迁移测试：仅当存在**名为 *MigrationTest 的测试类**时才执行。
+  # 注意必须按类名匹配，不能用 "MigrationTest" 全文匹配——否则注释里提到
+  # MigrationTestHelper 的文件会被误判为存在迁移测试，导致 --tests filter
+  # 匹配不到任何测试而假性失败。
+  if grep -rqE "class [A-Za-z0-9_]*MigrationTest" --include="*.kt" app/src core feature 2>/dev/null; then
     ./gradlew :app:testDebugUnitTest --tests "*MigrationTest" --no-daemon
   else
-    echo "  (暂无 migration test，跳过)"
+    echo "  (暂无 MigrationTest 类，跳过；结构安全门禁已在上一步执行)"
   fi
 fi
 

@@ -123,9 +123,13 @@ class UpdateCoordinatorTest {
             val coordinator = UpdateCoordinator(source, ledger) { 0L }
             coordinator.skip(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
             assertTrue(ledger.skipped.contains(SkipKey("0.19.1", "abc")))
-            // 同版本号但指纹不同的新产物不受影响
-            val outcome = coordinator.evaluate(localVersion = "0.19.0")
-            assertEquals(UpdateLevel.OPTIONAL, outcome.level)
+            // 跳过后，同一指纹的产物不再提醒
+            val skippedOutcome = coordinator.evaluate(localVersion = "0.19.0")
+            assertEquals(UpdateLevel.NONE, skippedOutcome.level)
+            // 同版本号但指纹不同（重新打包）不受影响，仍应提醒
+            source.candidate = UpdateCandidate(version = "0.19.1", fingerprint = "xyz")
+            val newBuildOutcome = coordinator.evaluate(localVersion = "0.19.0")
+            assertEquals(UpdateLevel.OPTIONAL, newBuildOutcome.level)
         }
 
     @Test

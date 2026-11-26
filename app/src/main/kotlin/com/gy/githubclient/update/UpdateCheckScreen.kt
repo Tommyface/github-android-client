@@ -29,10 +29,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.BuildConfig
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import org.koin.androidx.compose.koinViewModel
 
 /** 检查更新页：手动检查 + 版本/摘要展示 + 应用内下载入口（v0.6.0 M5/M8 · M1-04 状态机可视化）。 */
@@ -163,19 +163,21 @@ fun UpdateCheckScreen(
 @Composable
 private fun UpdateStateCapsules(state: UpdateCheckUiState) {
     val current = state.stateName()
+    // 状态色一律取 Frost 令牌（单一色源，见 konsist 规则 14）
+    val frost = LocalFrostColors.current
     Row(
         modifier = Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         listOf(
-            "Idle" to Color(0xFF6E7F92),
-            "Checking" to Color(0xFF58A6FF),
-            "NoUpdate" to Color(0xFF3FB950),
-            "OptionalUpdate" to Color(0xFFD29922),
-            "ForcedUpdate" to Color(0xFFF85149),
-            "Unknown" to Color(0xFF6E7F92),
-            "Downloading" to Color(0xFF58A6FF),
-            "ReadyToInstall" to Color(0xFF3FB950),
+            "Idle" to frost.stateNeutral,
+            "Checking" to frost.stateInfo,
+            "NoUpdate" to frost.stateSuccess,
+            "OptionalUpdate" to frost.stateWarning,
+            "ForcedUpdate" to frost.danger,
+            "Unknown" to frost.stateNeutral,
+            "Downloading" to frost.stateInfo,
+            "ReadyToInstall" to frost.stateSuccess,
         ).forEach { (name, color) ->
             val active = name == current
             Surface(
@@ -185,7 +187,7 @@ private fun UpdateStateCapsules(state: UpdateCheckUiState) {
                 Text(
                     text = name,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (active) Color.White else color,
+                    color = if (active) frost.onStateFill else color,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }

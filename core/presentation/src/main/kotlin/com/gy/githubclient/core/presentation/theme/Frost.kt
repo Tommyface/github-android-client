@@ -61,6 +61,16 @@ data class FrostColors(
     val navBarFill: Color,
     /** 噪点层不透明度（0.04~0.07，仅用于消除玻璃"塑料感"）。 */
     val noiseAlpha: Float,
+    /** 状态色：成功（可更新 / 已完成）。 */
+    val stateSuccess: Color,
+    /** 状态色：警告（可选更新 / 需注意）。 */
+    val stateWarning: Color,
+    /** 状态色：进行中（检查中 / 下载中）。 */
+    val stateInfo: Color,
+    /** 状态色：中性（闲置 / 不可比较）。 */
+    val stateNeutral: Color,
+    /** 状态胶囊激活态的文字色（浅色主题为白，深色主题为深底）。 */
+    val onStateFill: Color,
 ) {
     /** 指定厚度的玻璃填充色。 */
     fun fill(level: FrostLevel): Color =
@@ -109,6 +119,11 @@ val FrostLightColors =
         topBarFill = Color(0xFFFFFFFF).copy(alpha = 0.86f),
         navBarFill = Color(0xFFFFFFFF).copy(alpha = 0.84f),
         noiseAlpha = 0.05f,
+        stateSuccess = Color(0xFF1F8B4C),
+        stateWarning = Color(0xFF9A6A12),
+        stateInfo = Color(0xFF2C63C8),
+        stateNeutral = Color(0xFF6E7F92),
+        onStateFill = Color(0xFFFFFFFF),
     )
 
 /** 深色 Frost 令牌（玻璃用深灰蓝底，避免纯白叠加导致发灰）。 */
@@ -141,6 +156,12 @@ val FrostDarkColors =
         topBarFill = Color(0xFF181F2A).copy(alpha = 0.84f),
         navBarFill = Color(0xFF202834).copy(alpha = 0.82f),
         noiseAlpha = 0.07f,
+
+        stateSuccess = Color(0xFF3FB950),
+        stateWarning = Color(0xFFD29922),
+        stateInfo = Color(0xFF58A6FF),
+        stateNeutral = Color(0xFF8B98A9),
+        onStateFill = Color(0xFF0B1220),
     )
 
 /** 当前生效的 Frost 令牌；未包裹主题时回落到浅色，保证组件可独立预览。 */

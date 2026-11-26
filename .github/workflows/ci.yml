@@ -19,7 +19,9 @@ jobs:
   verify:
     name: verify (8 项门禁)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    # 串行：与 fast 预检并发会让两个 job 同时抢 Maven 依赖，显著提高 429 限流概率
+    needs: fast-feedback
     steps:
       - uses: actions/checkout@v4
 

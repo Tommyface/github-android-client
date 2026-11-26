@@ -329,8 +329,8 @@ class ArchitectureTest {
         )
     }
 
-
     // ── 规则 14：业务屏不得写死色值（令牌单一色源） ───────────────────
+
     /**
      * P-200 收编 frost-ui 时的实测结论：3 个业务屏仍写死 `Color(0x…)`，
      * 改主题时不会跟随、深色下可能对比度不足。
@@ -361,7 +361,8 @@ class ArchitectureTest {
         roots.forEach { dir ->
             val root = File(repoRoot, dir)
             if (!root.exists()) return@forEach
-            root.walkTopDown()
+            root
+                .walkTopDown()
                 .filter { it.isFile && it.name.endsWith(".kt") }
                 .forEach { file ->
                     val relative = file.relativeTo(repoRoot).path.replace('\\', '/')

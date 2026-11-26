@@ -24,7 +24,9 @@ class StructuredLogger(
     private val keepDays: Int = DEFAULT_KEEP_DAYS,
 ) {
     /** 日志级别。 */
-    enum class Level(val label: String) {
+    enum class Level(
+        val label: String,
+    ) {
         DEBUG("D"),
         INFO("I"),
         WARN("W"),
@@ -39,19 +41,20 @@ class StructuredLogger(
         event: String,
         fields: Map<String, String> = emptyMap(),
     ) {
-        val line = buildString {
-            append(timestamp())
-            append(' ')
-            append(level.label)
-            append(' ')
-            append(event)
-            fields.forEach { (key, value) ->
+        val line =
+            buildString {
+                append(timestamp())
                 append(' ')
-                append(key)
-                append('=')
-                append(Redactor.redact(value))
+                append(level.label)
+                append(' ')
+                append(event)
+                fields.forEach { (key, value) ->
+                    append(' ')
+                    append(key)
+                    append('=')
+                    append(Redactor.redact(value))
+                }
             }
-        }
         runCatching { File(logDir, fileName()).appendText(line + "\n") }
     }
 

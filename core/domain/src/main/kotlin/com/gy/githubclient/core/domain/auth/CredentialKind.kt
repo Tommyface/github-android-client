@@ -95,11 +95,12 @@ object CredentialCapabilityEvaluator {
     fun supports(
         kind: CredentialKind,
         capability: CredentialCapability,
-    ): Boolean = when (capability) {
-        CredentialCapability.NOTIFICATIONS -> kind.supportsNotifications
-        CredentialCapability.CONTRIBUTION_HEATMAP -> kind.supportsGraphQl
-        CredentialCapability.REPOSITORY_WRITE -> kind != CredentialKind.UNKNOWN
-    }
+    ): Boolean =
+        when (capability) {
+            CredentialCapability.NOTIFICATIONS -> kind.supportsNotifications
+            CredentialCapability.CONTRIBUTION_HEATMAP -> kind.supportsGraphQl
+            CredentialCapability.REPOSITORY_WRITE -> kind != CredentialKind.UNKNOWN
+        }
 
     /** 不可用时给用户的原因（可用则返回 null）。 */
     fun unavailableReason(

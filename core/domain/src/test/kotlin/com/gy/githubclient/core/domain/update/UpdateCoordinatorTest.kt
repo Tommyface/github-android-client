@@ -5,6 +5,7 @@
 
 package com.gy.githubclient.core.domain.update
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -21,12 +22,12 @@ class UpdateCoordinatorTest {
         override suspend fun fetch(): UpdateCandidate? = candidate
     }
 
-    private class FakeLedger(
-        override var skipped: MutableSet<SkipKey> = mutableSetOf(),
-        override var lastInstall: Long? = null,
-        override var lastCheck: Long = 0L,
-        override var throttle: Long = 30 * 60 * 1000L,
-    ) : UpdateSkipLedger {
+    private class FakeLedger : UpdateSkipLedger {
+        val skipped = mutableSetOf<SkipKey>()
+        var lastInstall: Long? = null
+        var lastCheck: Long = 0L
+        var throttle: Long = 30 * 60 * 1000L
+
         override fun skippedKeys(): Set<SkipKey> = skipped
 
         override fun recordSkip(key: SkipKey) {
@@ -74,77 +75,88 @@ class UpdateCoordinatorTest {
     }
 
     @Test
-    fun coordinatorReportsOptionalWhenOnlyPatchChanged() {
-        val source = FakeSource(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
-        val coordinator = UpdateCoordinator(source, FakeLedger()) { 0L }
-        val outcome = coordinator.evaluate(localVersion = "0.19.0", localVersionCode = 20)
-        assertEquals(UpdateLevel.OPTIONAL, outcome.level)
-        assertTrue(outcome.shouldNotify)
-        assertFalse(outcome.isForced)
-    }
+    fun coordinatorReportsOptionalWhenOnlyPatchChanged() =
+        runBlocking {
+            val source = FakeSource(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
+            val coordinator = UpdateCoordinator(source, FakeLedger()) { 0L }
+            val outcome = coordinator.evaluate(localVersion = "0.19.0", localVersionCode = 20)
+            assertEquals(UpdateLevel.OPTIONAL, outcome.level)
+            assertTrue(outcome.shouldNotify)
+            assertFalse(outcome.isForced)
+        }
 
     @Test
-    fun coordinatorReportsForcedWhenVersionCodeJumps() {
-        val source = FakeSource(UpdateCandidate(version = "0.20.0", versionCode = 30, fingerprint = "abc"))
-        val coordinator = UpdateCoordinator(source, FakeLedger()) { 0L }
-        val outcome = coordinator.evaluate(localVersion = "0.19.0", localVersionCode = 20)
-        assertEquals(UpdateLevel.FORCED, outcome.level)
-        assertTrue(outcome.isForced)
-    }
+    fun coordinatorReportsForcedWhenVersionCodeJumps() =
+        runBlocking {
+            val source = FakeSource(UpdateCandidate(version = "0.20.0", versionCode = 30, fingerprint = "abc"))
+            val coordinator = UpdateCoordinator(source, FakeLedger()) { 0L }
+            val outcome = coordinator.evaluate(localVersion = "0.19.0", localVersionCode = 20)
+            assertEquals(UpdateLevel.FORCED, outcome.level)
+            assertTrue(outcome.isForced)
+        }
 
     @Test
-    fun coordinatorSilencesWhenAlreadyLatest() {
-        val source = FakeSource(UpdateCandidate(version = "0.19.0", versionCode = 20, fingerprint = "abc"))
-        val coordinator = UpdateCoordinator(source, FakeLedger()) { 0L }
-        val outcome = coordinator.evaluate(localVersion = "0.19.0", localVersionCode = 20)
-        assertEquals(UpdateLevel.NONE, outcome.level)
-        assertFalse(outcome.shouldNotify)
-    }
+    fun coordinatorSilencesWhenAlreadyLatest() =
+        runBlocking {
+            val source = FakeSource(UpdateCandidate(version = "0.19.0", versionCode = 20, fingerprint = "abc"))
+            val coordinator = UpdateCoordinator(source, FakeLedger()) { 0L }
+            val outcome = coordinator.evaluate(localVersion = "0.19.0", localVersionCode = 20)
+            assertEquals(UpdateLevel.NONE, outcome.level)
+            assertFalse(outcome.shouldNotify)
+        }
 
     @Test
-    fun coordinatorSilencesSkippedFingerprint() {
-        val source = FakeSource(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
-        val ledger = FakeLedger(skipped = mutableSetOf(SkipKey("0.19.1", "abc")))
-        val coordinator = UpdateCoordinator(source, ledger) { 0L }
-        val outcome = coordinator.evaluate(localVersion = "0.19.0")
-        assertEquals(UpdateLevel.NONE, outcome.level)
-    }
+    fun coordinatorSilencesSkippedFingerprint() =
+        runBlocking {
+            val source = FakeSource(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
+            val ledger = FakeLedger().apply { skipped.add(SkipKey("0.19.1", "abc")) }
+            val coordinator = UpdateCoordinator(source, ledger) { 0L }
+            val outcome = coordinator.evaluate(localVersion = "0.19.0")
+            assertEquals(UpdateLevel.NONE, outcome.level)
+        }
 
     @Test
-    fun skipRecordsFingerprintNotVersion() {
-        val source = FakeSource(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
-        val ledger = FakeLedger()
-        val coordinator = UpdateCoordinator(source, ledger) { 0L }
-        coordinator.skip(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
-        assertTrue(ledger.skippedKeys().contains(SkipKey("0.19.1", "abc")))
-        // 同版本号但指纹不同的新产物不受影响
-        val outcome = coordinator.evaluate(localVersion = "0.19.0")
-        assertEquals(UpdateLevel.OPTIONAL, outcome.level)
-    }
+    fun skipRecordsFingerprintNotVersion() =
+        runBlocking {
+            val source = FakeSource(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
+            val ledger = FakeLedger()
+            val coordinator = UpdateCoordinator(source, ledger) { 0L }
+            coordinator.skip(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
+            assertTrue(ledger.skipped.contains(SkipKey("0.19.1", "abc")))
+            // 同版本号但指纹不同的新产物不受影响
+            val outcome = coordinator.evaluate(localVersion = "0.19.0")
+            assertEquals(UpdateLevel.OPTIONAL, outcome.level)
+        }
 
     @Test
-    fun installTtlSuppressesReminder() {
-        val source = FakeSource(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
-        val ledger = FakeLedger(lastInstall = 1_000L)
-        val coordinator = UpdateCoordinator(source, ledger) { 1_060L }
-        val outcome = coordinator.evaluate(localVersion = "0.19.0")
-        assertEquals(UpdateLevel.NONE, outcome.level)
-    }
+    fun installTtlSuppressesReminder() =
+        runBlocking {
+            val source = FakeSource(UpdateCandidate(version = "0.19.1", fingerprint = "abc"))
+            val ledger = FakeLedger().apply { lastInstall = 1_000L }
+            val coordinator = UpdateCoordinator(source, ledger) { 1_060L }
+            val outcome = coordinator.evaluate(localVersion = "0.19.0")
+            assertEquals(UpdateLevel.NONE, outcome.level)
+        }
 
     @Test
-    fun throttleWindowIsRespected() {
-        val ledger = FakeLedger(lastCheck = 1_000L, throttle = 60_000L)
-        val coordinator = UpdateCoordinator(FakeSource(null), ledger) { 1_030L }
-        assertTrue(coordinator.isThrottled())
-        val later = UpdateCoordinator(FakeSource(null), ledger) { 61_100L }
-        assertFalse(later.isThrottled())
-    }
+    fun throttleWindowIsRespected() =
+        runBlocking {
+            val ledger = FakeLedger().apply {
+                lastCheck = 1_000L
+                throttle = 60_000L
+            }
+            val coordinator = UpdateCoordinator(FakeSource(null), ledger) { 1_030L }
+            assertTrue(coordinator.isThrottled())
+            val later = UpdateCoordinator(FakeSource(null), ledger) { 61_100L }
+            assertFalse(later.isThrottled())
+        }
 
     @Test
-    fun unknownWhenNoRemoteCandidate() {
-        val coordinator = UpdateCoordinator(FakeSource(null), FakeLedger()) { 0L }
-        val outcome = coordinator.evaluate(localVersion = "0.19.0")
-        assertEquals(UpdateLevel.UNKNOWN, outcome.level)
-        assertFalse(outcome.shouldNotify)
-    }
+    fun unknownWhenNoRemoteCandidate() =
+        runBlocking {
+            val coordinator = UpdateCoordinator(FakeSource(null), FakeLedger()) { 0L }
+            val outcome = coordinator.evaluate(localVersion = "0.19.0")
+            assertEquals(UpdateLevel.UNKNOWN, outcome.level)
+            assertFalse(outcome.shouldNotify)
+        }
 }

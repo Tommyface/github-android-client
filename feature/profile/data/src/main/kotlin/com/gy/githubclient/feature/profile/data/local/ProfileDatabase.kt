@@ -11,7 +11,7 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [ProfileEntity::class],
     version = ProfileDatabase.VERSION,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class ProfileDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao

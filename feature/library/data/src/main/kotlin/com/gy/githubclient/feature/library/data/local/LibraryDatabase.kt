@@ -8,7 +8,7 @@ package com.gy.githubclient.feature.library.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 
-@Database(entities = [TrackedAppEntity::class], version = 1, exportSchema = false)
+@Database(entities = [TrackedAppEntity::class], version = 1, exportSchema = true)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
 

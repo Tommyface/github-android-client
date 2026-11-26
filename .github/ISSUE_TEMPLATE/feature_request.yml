@@ -1,0 +1,23 @@
+name: Feature request
+
+description: 功能建议（请说明要解决的场景，而非仅罗列界面元素）
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 要解决的场景
+      placeholder: 你在什么情况下、遇到什么问题、希望怎么解决
+    validations:
+      required: true
+  - type: textarea
+    id: reference
+    attributes:
+      label: 参考实现
+      description: 可选。若参考其他开源项目，请注明许可与仓库地址（我们会做合规评估）
+  - type: textarea
+    id: boundary
+    attributes:
+      label: 边界与限制
+      description: 例：该能力需要哪种凭据（fine-grained PAT / classic PAT / OAuth）？是否有 API 限制？

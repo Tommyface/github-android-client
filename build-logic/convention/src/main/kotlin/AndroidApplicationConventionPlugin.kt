@@ -25,9 +25,14 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     applicationId = Config.namespacePrefix
                     minSdk = Config.minSdk
                     targetSdk = Config.targetSdk
-                    versionCode = 20
-                    versionName = "0.17.0"
+                    versionCode = VersionSource.versionCode(target)
+                    versionName = VersionSource.versionName(target)
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+                    buildConfigField(
+                        "String",
+                        "VERSION_NAME",
+                        "\"${VersionSource.versionName(target)}\"",
+                    )
                 }
                 // 固定 debug 签名：使用入库的 debug.keystore，保证跨机器/跨 CI 构建签名指纹一致，
                 // 从而使新 APK 能覆盖安装已装版本（覆盖安装要求 applicationId 与签名证书均一致）。
@@ -38,13 +43,37 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                         keyAlias = "androiddebugkey"
                         keyPassword = "android"
                     }
+                    // release 签名：密钥文件由 CI 从 Secrets 还原到该路径；本地不存在时保持未签名，
+                    // 由 release.yml 的「制品校验」门禁断言签名缺失即失败（禁止明文口令兜底）。
+                    create("release") {
+                        val keystore = rootProject.file("app/release.keystore")
+                        if (keystore.exists()) {
+                            storeFile = keystore
+                            storePassword =
+                                providers.gradleProperty("ghcKeystorePassword")
+                                    .orElse(providers.environmentVariable("GHC_KEYSTORE_PASSWORD"))
+                                    .orNull
+                            keyAlias = providers.gradleProperty("ghcKeyAlias").orNull
+                            keyPassword =
+                                providers.gradleProperty("ghcKeyPassword")
+                                    .orElse(providers.environmentVariable("GHC_KEY_PASSWORD"))
+                                    .orNull
+                        }
+                    }
                 }
                 buildTypes {
                     getByName("debug") {
                         signingConfig = signingConfigs.getByName("debug")
                     }
                     getByName("release") {
-                        isMinifyEnabled = false
+                        // 正式产物必须混淆 + 压缩资源（M0-07）：逆向门槛与包体同时收益。
+                        isMinifyEnabled = true
+                        isShrinkResources = true
+                        proguardFiles(
+                            getDefaultProguardFile("proguard-android-optimize.txt"),
+                            "proguard-rules.pro",
+                        )
+                        signingConfig = signingConfigs.getByName("release")
                     }
                 }
                 compileOptions {

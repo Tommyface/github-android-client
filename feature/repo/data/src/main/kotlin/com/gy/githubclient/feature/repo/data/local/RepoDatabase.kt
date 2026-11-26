@@ -11,7 +11,7 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [RepoEntity::class, RepoListMetaEntity::class],
     version = RepoDatabase.VERSION,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class RepoDatabase : RoomDatabase() {
     abstract fun repoDao(): RepoDao

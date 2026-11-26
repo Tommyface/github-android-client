@@ -11,7 +11,7 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [StarredEntity::class],
     version = StarredDatabase.VERSION,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class StarredDatabase : RoomDatabase() {
     abstract fun starredDao(): StarredDao

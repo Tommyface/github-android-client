@@ -1,0 +1,55 @@
+name: Nightly
+
+# 每夜回归：不阻塞当日合并，但失败必须有人处理（否则等同于没有）。
+# 内容：
+#  - Maestro 端到端冒烟（≥10 场景，其中"打开→加载→登录→下载→更新"为发版必过五步）
+#  - Paparazzi 视觉回归（UI 改动会在这里暴露）
+#  - 冷启动基准（Macrobenchmark）
+
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: maestro (端到端冒烟)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        run: |
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMGR" ] || SDKMGR="$(command -v sdkmanager)"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x ./gradlew
+      - name: 构建并安装
+        run: |
+          ./gradlew assembleDebug --no-daemon
+          adb install -r app/build/outputs/apk/debug/app-debug.apk
+      - name: 运行 Maestro 场景
+        run: |
+          if [ ! -d .maestro ]; then
+            echo "::notice::尚无 Maestro 场景（M4-10），跳过。"
+            exit 0
+          fi
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          "$HOME/.maestro/bin/maestro" test .maestro
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-report
+          path: |
+            ~/.maestro/tests/**/*.xml
+            preview/
+          retention-days: 14

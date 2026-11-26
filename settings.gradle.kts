@@ -18,7 +18,6 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://jitpack.io") // KSafe
     }
 }
 
@@ -30,16 +29,15 @@ include(":core:domain")
 include(":core:data")
 include(":core:presentation")
 
+// feature 清单按域展开三层（domain / data / presentation）。
+// 约定：模块一旦纳入本清单，必须有真实源码；空壳模块一律不在此登记，
+// 需要时随功能实现一并创建（见 spec/parity/PARITY-NOTICE.md「空壳模块处置」）。
 val features = listOf(
-    "auth", "repo", "discover", "release", "download", "share", "search", "starred", "profile", "library"
+    "auth", "repo", "discover", "download", "search", "starred", "profile", "library",
 )
 features.forEach { name ->
-    if (name == "share") {
-        include(":feature:share:presentation")
-    } else {
-        listOf("domain", "data", "presentation").forEach { layer ->
-            include(":feature:$name:$layer")
-        }
+    listOf("domain", "data", "presentation").forEach { layer ->
+        include(":feature:$name:$layer")
     }
 }
 

@@ -27,10 +27,9 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
-/** core 层共享依赖占位，后续阶段在此注册 Room/WorkManager。 */
+/** core 层共享依赖：目前只承载应用级 ViewModel。 */
 val coreModule =
     module {
-        // TODO(P4): Room 缓存、WorkManager 后台任务在此注册
         viewModel {
             UpdateCheckViewModel(androidContext(), get())
         }

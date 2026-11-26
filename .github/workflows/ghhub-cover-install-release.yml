@@ -32,11 +32,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # 直接用 runner 预装的 sdkmanager；避免 android-actions/setup-android@v3 默认安装已废弃的 tools 包而失败
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install platform / build-tools
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        run: |
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMGR" ] || SDKMGR="$(command -v sdkmanager)"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "sdkmanager=$SDKMGR"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v3

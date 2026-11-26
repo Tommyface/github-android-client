@@ -54,11 +54,24 @@ def write_threshold(value: int) -> None:
     GRADLE_PROPERTIES.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
+def is_ui_report(report: Path) -> bool:
+    """纯 UI 层（presentation）不计入单元测试覆盖率。
+
+    理由：Compose 界面的正确性由**视觉回归（Paparazzi）与交互测试**保障，
+    单元测试对它天然无覆盖。若把 UI 代码计入分母，新增界面就会稀释全项目比率，
+    棘轮机制将无法反映真实变化——这是"用错尺子量错东西"。
+    """
+    return "/presentation/" in report.as_posix()
+
+
 def find_reports(explicit: str | None) -> list[Path]:
     if explicit:
         candidate = Path(explicit)
         return [candidate] if candidate.exists() else []
-    return sorted(REPO_ROOT.glob("**/build/reports/kover/report.xml"))
+    reports = sorted(REPO_ROOT.glob("**/build/reports/kover/report.xml"))
+    if explicit is None:
+        reports = [r for r in reports if not is_ui_report(r)]
+    return reports
 
 
 def aggregate(reports: list[Path]) -> tuple[int, int, int]:
@@ -110,7 +123,7 @@ def main() -> int:
         return 1
 
     percent = covered * 100.0 / total
-    print(f"聚合报告数：{len(reports)}（去重后文件 {files} 个）")
+    print(f"聚合报告数：{len(reports)}（已排除纯 UI 层；去重后文件 {files} 个）")
     for report in reports:
         print(f"  · {report.relative_to(REPO_ROOT)}")
     print(f"全项目行覆盖：{covered}/{total} = {percent:.2f}%（阈值 {threshold}%）")

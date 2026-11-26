@@ -24,8 +24,9 @@ import androidx.compose.ui.platform.LocalContext
 object NetworkMonitor {
     /** 当前是否有可用网络。 */
     fun isOnline(context: Context): Boolean {
-        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return true // 拿不到就按在线处理，不给用户假警报
+        val manager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return true // 拿不到就按在线处理，不给用户假警报
         val network = manager.activeNetwork ?: return false
         val capabilities = manager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)

@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -26,15 +29,12 @@ import com.gy.githubclient.core.presentation.theme.FrostInsets
 import com.gy.githubclient.core.presentation.theme.FrostNavBar
 import com.gy.githubclient.core.presentation.theme.FrostNavItem
 import com.gy.githubclient.core.presentation.theme.FrostTopBar
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.core.presentation.theme.LocalFrostContentInsets
 import com.gy.githubclient.core.presentation.theme.LocalFrostMotion
 import com.gy.githubclient.core.presentation.theme.rememberFrostMotionState
 import com.gy.githubclient.core.presentation.theme.trackFrostScroll
 import com.gy.githubclient.navigation.Route
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 
 /**
  * 离线提示条（P-200 缺口 3）。
@@ -166,8 +166,7 @@ fun AppScaffold(
                             } else {
                                 Modifier.padding(top = topInset, bottom = bottomInset)
                             },
-                        )
-                        .trackFrostScroll(motion),
+                        ).trackFrostScroll(motion),
             ) {
                 content()
             }

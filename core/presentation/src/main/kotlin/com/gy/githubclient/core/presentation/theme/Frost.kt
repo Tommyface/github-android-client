@@ -156,7 +156,6 @@ val FrostDarkColors =
         topBarFill = Color(0xFF181F2A).copy(alpha = 0.84f),
         navBarFill = Color(0xFF202834).copy(alpha = 0.82f),
         noiseAlpha = 0.07f,
-
         stateSuccess = Color(0xFF3FB950),
         stateWarning = Color(0xFFD29922),
         stateInfo = Color(0xFF58A6FF),

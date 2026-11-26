@@ -24,7 +24,7 @@ class UpdateCandidateParserTest {
                     listOf(
                         ReleaseAssetDto(
                             name = "app.apk",
-                            browserDownloadUrl = "https://github.com/o/r/releases/download/v0.19.0/app.apk",
+                            downloadUrl = "https://github.com/o/r/releases/download/v0.19.0/app.apk",
                             size = 1234L,
                             digest = "sha256:" + "a".repeat(64),
                         ),

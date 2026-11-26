@@ -49,11 +49,16 @@ object Redactor {
         return result
     }
 
-    /** 保留前 4 位与末 2 位，其余打码；过短的值整体打码（不泄露任何信息）。 */
+    /**
+     * 保留前 4 位与末 2 位，其余打码；过短的值整体打码（不泄露任何信息）。
+     *
+     * 已打码的值（含 `***`）原样返回——保证脱敏**幂等**：
+     * 同一段文本反复脱敏不会越打越短，也不会把 `***` 再切一次。
+     */
     fun maskValue(value: String): String =
-        if (value.length <= 8) {
-            "***"
-        } else {
-            value.take(4) + "***" + value.takeLast(2)
+        when {
+            value.contains("***") -> value
+            value.length <= 8 -> "***"
+            else -> value.take(4) + "***" + value.takeLast(2)
         }
 }

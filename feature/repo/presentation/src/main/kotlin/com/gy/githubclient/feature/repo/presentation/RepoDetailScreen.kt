@@ -842,8 +842,8 @@ private fun MarkdownBlockView(
     repo: String,
     defaultBranch: String,
 ) {
-    // 主题令牌在 Composable 上下文取一次，供 buildAnnotatedString 内部使用
-    // （buildAnnotatedString 不是 @Composable，不能直接读 MaterialTheme）。
+    // 主题令牌在 Composable 上下文取一次，再传入纯函数 renderInline
+    // （renderInline / buildAnnotatedString 不是 @Composable，不能直接读 MaterialTheme）。
     val codeBackground = MaterialTheme.colorScheme.surfaceVariant
     when (block) {
         is MdBlock.Heading ->
@@ -860,7 +860,7 @@ private fun MarkdownBlockView(
 
         is MdBlock.Paragraph ->
             Text(
-                remember(block.text) { renderInline(block.text) },
+                remember(block.text, codeBackground) { renderInline(block.text, codeBackground) },
                 style = MaterialTheme.typography.bodyMedium,
             )
 
@@ -868,7 +868,7 @@ private fun MarkdownBlockView(
             Row(Modifier.padding(start = 8.dp)) {
                 Text("• ", style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    remember(block.text) { renderInline(block.text) },
+                    remember(block.text, codeBackground) { renderInline(block.text, codeBackground) },
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -905,7 +905,10 @@ private fun MarkdownBlockView(
  * 行内格式渲染（v0.6.0 M6）：`code` 等宽、**粗体**、[链接](url) 可点开。
  * 纯函数，可单测（返回 AnnotatedString 断言文本即可）。
  */
-internal fun renderInline(text: String): AnnotatedString =
+internal fun renderInline(
+    text: String,
+    codeBackground: androidx.compose.ui.graphics.Color? = null,
+): AnnotatedString =
     buildAnnotatedString {
         var index = 0
         while (index < text.length) {
@@ -966,7 +969,7 @@ private val SPAN_BOLD = SpanStyle(fontWeight = androidx.compose.ui.text.font.Fon
  * 之所以不直接在这里取 MaterialTheme：调用点在 `buildAnnotatedString` 内（非 @Composable 上下文），
  * 因此颜色由 Composable 侧取好后传入。
  */
-private fun spanCode(background: androidx.compose.ui.graphics.Color): SpanStyle =
+private fun spanCode(background: androidx.compose.ui.graphics.Color?): SpanStyle =
     SpanStyle(
         fontFamily = FontFamily.Monospace,
         background = background,

@@ -51,6 +51,8 @@ class RedactorTest {
         assertEquals("***", Redactor.maskValue("abc"))
         assertEquals("***", Redactor.maskValue("abcdefgh"))
         assertEquals("abcd***ij", Redactor.maskValue("abcdefghij"))
+        // 已打码的值原样返回（脱敏幂等）
+        assertEquals("ghp_***ij", Redactor.maskValue("ghp_***ij"))
     }
 
     @Test

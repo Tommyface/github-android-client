@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primer Dark -->
+    <color name="bg_canvas">#0B0F14</color>
+    <color name="bg_page">#0D1117</color>
+    <color name="surface_1">#161B22</color>
+    <color name="surface_2">#1C2330</color>
+    <color name="surface_3">#21283B</color>
+    <color name="border_default">#30363D</color>
+    <color name="text_primary">#E6EDF3</color>
+    <color name="text_secondary">#9198A1</color>
+    <color name="text_muted">#6E7681</color>
+    <color name="accent_blue">#58A6FF</color>
+    <color name="accent_green">#3FB950</color>
+    <color name="accent_amber">#D29922</color>
+    <color name="accent_red">#F85149</color>
+    <color name="accent_purple">#BC8CFF</color>
+</resources>

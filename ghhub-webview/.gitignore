@@ -1,0 +1,12 @@
+*.iml
+.gradle/
+local.properties
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+# 解码后的密钥不入库（base64 文本 ghhub-release.jks.b64 才入库，供 CI 解码）
+*.jks
+!*.jks.b64
+.DS_Store

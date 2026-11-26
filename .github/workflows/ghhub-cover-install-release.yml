@@ -1,0 +1,105 @@
+name: GHHub Cover-Install Release
+
+# 覆盖安装发布流水线：固定签名 + versionCode 单调递增，保证新包可覆盖安装旧包（保留数据）。
+# 触发：推送 v* 标签，或手动。工作目录为 ghhub-webview/（本 WebView 壳工程）。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: '版本名（如 0.2.0）'
+        required: true
+        default: '0.2.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ghhub-webview
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install platform / build-tools
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
+
+      - name: Grant gradlew execute
+        run: chmod +x ./gradlew || true
+
+      - name: Compute version
+        id: ver
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VN="${GITHUB_REF_NAME#v}"
+          else
+            VN="${{ github.event.inputs.version_name }}"
+          fi
+          echo "name=$VN" >> "$GITHUB_OUTPUT"
+          echo "code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release APK
+        env:
+          GHUB_VERSION_CODE: ${{ github.run_number }}
+          GHUB_VERSION_NAME: ${{ steps.ver.outputs.name }}
+          # 生产环境请把以下四项改为 GitHub Secrets，并移除仓库内示例 ghhub-release.jks.b64
+          GHUB_STORE_PASSWORD: ${{ secrets.GHUB_STORE_PASSWORD || 'ghhub2026' }}
+          GHUB_KEY_PASSWORD: ${{ secrets.GHUB_KEY_PASSWORD || 'ghhub2026' }}
+          GHUB_KEY_ALIAS: ${{ secrets.GHUB_KEY_ALIAS || 'ghhub' }}
+        run: gradle :app:assembleRelease --no-daemon
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk \
+             "dist/GHHub-v${{ steps.ver.outputs.name }}.apk"
+          cd dist
+          sha256sum "GHHub-v${{ steps.ver.outputs.name }}.apk" > \
+                    "GHHub-v${{ steps.ver.outputs.name }}.apk.sha256"
+          cat > version.json <<EOF
+          {
+            "version": "${{ steps.ver.outputs.name }}",
+            "versionCode": ${{ github.run_number }},
+            "fingerprint": "$(cut -c1-16 GHHub-v${{ steps.ver.outputs.name }}.apk.sha256)",
+            "changelog": ["覆盖安装发布：固定签名，versionCode 随构建号递增"],
+            "apk_url": "https://github.com/${{ github.repository }}/releases/download/v${{ steps.ver.outputs.name }}/GHHub-v${{ steps.ver.outputs.name }}.apk"
+          }
+          EOF
+          cat version.json
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.name }}
+          name: GHHub v${{ steps.ver.outputs.name }}
+          body: |
+            ## GHHub v${{ steps.ver.outputs.name }}（覆盖安装版）
+            - 固定签名：`ghhub-release.jks`（示例密钥，生产须替换）
+            - versionCode：${{ github.run_number }}（随构建单调递增）
+            - 覆盖安装：安装新包将保留应用数据，需同签名（系统强制校验）
+            - 校验：`*.apk.sha256` 为 SHA-256 摘要
+          files: |
+            ghhub-webview/dist/*.apk
+            ghhub-webview/dist/*.sha256
+            ghhub-webview/dist/version.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

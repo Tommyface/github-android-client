@@ -14,7 +14,7 @@
 | M0-05 | `release.yml`：签名构建 + 硬断言 + 产物三件套 + 三处一致校验 | ✅ |
 | M0-06 | release 密钥从 Secrets 还原；无密钥直接失败（禁明文兜底） | ✅ |
 | M0-07 | release 开启混淆 + 资源压缩 + ProGuard 规则 | ✅ |
-| M0-08 | 签名指纹钉子改为钉 release 指纹 | ⏳（需真实密钥后固化） |
+| M0-08 | 签名指纹钉子改为钉 release 指纹 | ✅（新密钥已生成，Secrets 已托管，debug/release 按构建变体分流） |
 | M0-09 | kover 阈值门禁（`tools/check_coverage.py`，阈值 60%） | ✅ |
 | M0-10 | Room 结构安全门禁 + schema 导出 + DownloadDatabase v1→v2 迁移 | ✅（真实迁移测试待 schema 首次 bump） |
 | M0-11 | konsist 2 → 12 条规则 | ✅ |

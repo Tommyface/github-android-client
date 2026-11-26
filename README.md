@@ -87,6 +87,15 @@ sdk.dir=/path/to/android-sdk
 - `release` 使用 CI 从 Secrets 还原的 `app/release.keystore`；
   **无密钥时 release.yml 直接失败，不允许明文口令兜底**（避免历史事故：示例密钥入库 + 口令明文）。
 
+**正式签名证书 SHA-256 指纹**（下载官方包后请核对此值）：
+
+```
+e86de404352ba7a1a03f3ed80565a6fd56d9f50672fbf106db160d796c62cb77
+```
+
+> 该指纹同时写入 `ApkSignatureVerifier.RELEASE_CERT_SHA256`，用于自更新包的防替换校验。
+> **密钥丢失即无法再发布可覆盖安装的版本**，请务必离线多地备份（见 SECURITY.md）。
+
 ## 移植来源
 
 mirror / download / share 部分代码改编自 [komi-store](https://github.com/komi-store/komi-store)（Apache-2.0），已保留来源声明。

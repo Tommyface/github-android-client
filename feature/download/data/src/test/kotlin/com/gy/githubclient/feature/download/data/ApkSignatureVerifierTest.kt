@@ -30,12 +30,23 @@ class ApkSignatureVerifierTest {
 
     @Test
     fun matchesExpectedFingerprintIgnoringCaseAndSeparators() {
-        val expected = ApkSignatureVerifier.EXPECTED_CERT_SHA256
-        assertTrue(ApkSignatureVerifier.matches(expected))
-        assertTrue(ApkSignatureVerifier.matches(expected.uppercase()))
-        assertTrue(ApkSignatureVerifier.matches(expected.chunked(2).joinToString(":")))
-        assertFalse(ApkSignatureVerifier.matches("deadbeef" + expected.drop(8)))
-        assertFalse(ApkSignatureVerifier.matches(""))
+        val expected = ApkSignatureVerifier.RELEASE_CERT_SHA256
+        assertTrue(ApkSignatureVerifier.matches(expected, expected))
+        assertTrue(ApkSignatureVerifier.matches(expected.uppercase(), expected))
+        assertTrue(ApkSignatureVerifier.matches(expected.chunked(2).joinToString(":"), expected))
+        assertFalse(ApkSignatureVerifier.matches("deadbeef" + expected.drop(8), expected))
+        assertFalse(ApkSignatureVerifier.matches("", expected))
+    }
+
+    /** M0-08：debug 与 release 必须使用不同的期望指纹，且不能互相接受。 */
+    @Test
+    fun expectedFingerprintDependsOnBuildVariant() {
+        val debugFingerprint = ApkSignatureVerifier.expectedFor(debuggable = true)
+        val releaseFingerprint = ApkSignatureVerifier.expectedFor(debuggable = false)
+        assertEquals(ApkSignatureVerifier.DEBUG_CERT_SHA256, debugFingerprint)
+        assertEquals(ApkSignatureVerifier.RELEASE_CERT_SHA256, releaseFingerprint)
+        assertFalse("debug 指纹不得被 release 接受", ApkSignatureVerifier.matches(debugFingerprint, releaseFingerprint))
+        assertFalse("release 指纹不得被 debug 接受", ApkSignatureVerifier.matches(releaseFingerprint, debugFingerprint))
     }
 
     @Test

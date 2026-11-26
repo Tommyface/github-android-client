@@ -26,7 +26,21 @@
 - 正式包使用 CI Secrets 还原的 release 密钥；**仓库内不存在任何正式密钥**。
 - `app/debug.keystore` 是刻意入库的公开调试密钥（口令 `android`），仅供内部覆盖安装调试，
   **不得**用于正式分发。
-- 官方签名证书 SHA-256 指纹公示于 README，请以本文件/仓库公布的指纹为准校验下载包。
+- 正式签名证书 SHA-256 指纹：
+
+  ```
+  e86de404352ba7a1a03f3ed80565a6fd56d9f50672fbf106db160d796c62cb77
+  ```
+
+  请以本文件/仓库公布的指纹为准校验下载包。
+
+**密钥保管须知（务必执行）**
+
+1. release keystore 与口令**必须离线备份**（至少两处，含一份离线介质）。
+2. keystore 丢失或口令遗忘 = **永久无法发布可覆盖安装的新版本**（用户必须卸载重装，数据丢失）。
+3. 备份时请同时记录口令；不要把 keystore 与口令放在同一位置。
+4. 密钥已在 GitHub Actions Secrets 中以 sealed-box 加密形式托管（`GHC_KEYSTORE_B64` 等四项），
+   轮换密钥需同时更新 Secrets、`ApkSignatureVerifier.RELEASE_CERT_SHA256` 与本文件。
 
 ## 五、权限
 

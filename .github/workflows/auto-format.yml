@@ -62,4 +62,6 @@ jobs:
             exit 0
           fi
           git commit -m "style: 自动应用 ktlint 格式化"
+          # 分支可能已被人工提交推进；推送前先同步，避免 non-fast-forward 失败。
+          git pull --rebase origin "${{ github.ref_name }}" || true
           git push origin "HEAD:${{ github.ref_name }}"

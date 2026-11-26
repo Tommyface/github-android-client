@@ -47,8 +47,10 @@ class RedactorTest {
 
     @Test
     fun keepsShortValuesFullyMasked() {
+        // ≤8 位不保留任何片段，避免短凭据被部分泄露
         assertEquals("***", Redactor.maskValue("abc"))
-        assertEquals("abcd***ef", Redactor.maskValue("abcdef"))
+        assertEquals("***", Redactor.maskValue("abcdefgh"))
+        assertEquals("abcd***ij", Redactor.maskValue("abcdefghij"))
     }
 
     @Test

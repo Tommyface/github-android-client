@@ -842,6 +842,9 @@ private fun MarkdownBlockView(
     repo: String,
     defaultBranch: String,
 ) {
+    // 主题令牌在 Composable 上下文取一次，供 buildAnnotatedString 内部使用
+    // （buildAnnotatedString 不是 @Composable，不能直接读 MaterialTheme）。
+    val codeBackground = MaterialTheme.colorScheme.surfaceVariant
     when (block) {
         is MdBlock.Heading ->
             Text(
@@ -920,7 +923,7 @@ internal fun renderInline(text: String): AnnotatedString =
                     val codeEnd = text.indexOf('`', codeStart + 1)
                     if (codeEnd > codeStart) {
                         append(text, index, codeStart)
-                        pushStyle(spanCode())
+                        pushStyle(spanCode(codeBackground))
                         append(text.substring(codeStart + 1, codeEnd))
                         pop()
                         index = codeEnd + 1
@@ -957,10 +960,14 @@ private val LINK_REGEX = Regex("\\[([^\\]]+)]\\((https?://[^)\\s]+)\\)")
 
 private val SPAN_BOLD = SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
 
-/** 代码片段样式：背景取主题令牌（不写死色值，见 konsist 规则 14）。 */
-@Composable
-private fun spanCode(): SpanStyle =
+/**
+ * 代码片段样式：背景由调用方传入**主题令牌**（不写死色值，见 konsist 规则 14）。
+ *
+ * 之所以不直接在这里取 MaterialTheme：调用点在 `buildAnnotatedString` 内（非 @Composable 上下文），
+ * 因此颜色由 Composable 侧取好后传入。
+ */
+private fun spanCode(background: androidx.compose.ui.graphics.Color): SpanStyle =
     SpanStyle(
         fontFamily = FontFamily.Monospace,
-        background = MaterialTheme.colorScheme.surfaceVariant,
+        background = background,
     )

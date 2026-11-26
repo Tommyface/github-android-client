@@ -37,6 +37,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -85,13 +88,16 @@ fun Modifier.frostContentPadding(
 }
 
 /** 线性图标集合：项目无图标库，全部用 Canvas 手绘，保证 1.6dp 发丝线质感一致。 */
-enum class FrostIcon {
-    BACK,
-    CLOSE,
-    SEARCH,
-    GRID,
-    COMPASS,
-    USER,
+enum class FrostIcon(
+    /** 无障碍朗读文本（TalkBack）。图标本身无文字，必须由语义补足。 */
+    val contentDescription: String,
+) {
+    BACK("返回"),
+    CLOSE("关闭"),
+    SEARCH("搜索"),
+    GRID("仓库"),
+    COMPASS("发现"),
+    USER("我的"),
 }
 
 /** 底部导航项。 */
@@ -219,13 +225,17 @@ fun FrostIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     tint: Color = LocalFrostColors.current.textPrimary,
+    /** 无障碍朗读文本；默认取图标自带的描述，调用方可覆盖为更具体的说法。 */
+    contentDescription: String = icon.contentDescription,
 ) {
     Box(
         modifier =
             modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .clickable(onClick = onClick),
+                .clickable(onClick = onClick)
+                // 图标本身没有文字，语义必须补上，否则 TalkBack 只会念"按钮"。
+                .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
         FrostIconCanvas(icon = icon, tint = tint, modifier = Modifier.size(18.dp))
@@ -277,7 +287,11 @@ fun FrostNavBar(
                             Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .clickable { onSelect(index) },
+                                .clickable { onSelect(index) }
+                                .semantics {
+                                    contentDescription = item.label
+                                    this.selected = selected
+                                },
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {

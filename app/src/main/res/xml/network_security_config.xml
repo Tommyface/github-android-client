@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  v0.16.0 安全基线（对照 githup 的 Guard/网络白名单）：
+  - 全站禁用明文 HTTP，GitHub 与翻译服务均走 HTTPS；
+  - 仅信任系统 CA（不信任用户安装证书，降低中间人抓包风险）。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

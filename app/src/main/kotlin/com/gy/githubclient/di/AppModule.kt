@@ -23,6 +23,7 @@ import com.gy.githubclient.feature.search.data.di.searchDataModule
 import com.gy.githubclient.feature.search.presentation.di.searchPresentationModule
 import com.gy.githubclient.feature.starred.data.di.starredDataModule
 import com.gy.githubclient.feature.starred.presentation.di.starredPresentationModule
+import com.gy.githubclient.settings.AppSettingsStore
 import com.gy.githubclient.update.UpdateCandidateSourceImpl
 import com.gy.githubclient.update.UpdateCheckViewModel
 import com.gy.githubclient.update.UpdateSkipLedgerImpl
@@ -50,6 +51,8 @@ val coreModule =
 val appModules =
     listOf(
         coreModule,
+        // 外观设置（主题模式 / 代码字号）：单例，供 MainActivity 与设置页共享
+        module { single { AppSettingsStore(androidContext()) } },
         coreNetworkModule,
         authDataModule,
         authPresentationModule,

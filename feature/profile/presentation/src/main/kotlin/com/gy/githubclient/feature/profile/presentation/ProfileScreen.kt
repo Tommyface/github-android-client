@@ -55,6 +55,7 @@ fun ProfileScreen(
     onOpenUpdateCheck: () -> Unit = {},
     onOpenLibrary: () -> Unit = {},
     onOpenActivity: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onOpenOrg: () -> Unit = {},
     onOpenGists: () -> Unit = {},
     viewModel: ProfileViewModel = koinViewModel(),
@@ -95,6 +96,7 @@ fun ProfileScreen(
                 FullWidthButton(text = "下载管理", onClick = onOpenDownloads)
                 HorizontalDivider()
                 FullWidthButton(text = "镜像加速设置", onClick = onOpenMirrorSettings)
+                FullWidthButton(text = "🎨 外观与缓存", onClick = onOpenSettings)
                 HorizontalDivider()
                 FullWidthButton(text = "🔐 权限体检", onClick = onOpenPermissionAudit)
                 HorizontalDivider()

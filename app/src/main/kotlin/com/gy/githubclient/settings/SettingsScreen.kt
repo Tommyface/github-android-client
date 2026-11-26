@@ -39,7 +39,6 @@ import com.gy.githubclient.core.presentation.theme.FrostLevel
 import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.core.presentation.theme.LocalFrostContentInsets
 import com.gy.githubclient.core.presentation.theme.ThemeMode
-import com.gy.githubclient.feature.repo.domain.translation.ClearTranslationCacheUseCase
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -47,7 +46,7 @@ import org.koin.compose.koinInject
  * 外观与缓存设置（v0.16.0，v0.19.0 换 Frost 外观）：
  * - 主题三态（跟随系统/浅色/深色）即时生效并持久化；
  * - 代码字号影响 README 代码块与文件浏览；
- * - 译文缓存可手动清除（翻译走第三方免费服务，缓存仅在本机）。
+ * - 译文缓存的清理待翻译能力并入后补充。
  *
  * v0.19.0：标题与返回按钮交给外壳的 Frost 顶部通栏，页面本身只排内容；
  * 滚动时内容从通栏下方穿过，通栏的实时模糊有真实内容可折射。
@@ -59,7 +58,6 @@ import org.koin.compose.koinInject
 fun SettingsScreen(
     onBack: () -> Unit,
     store: AppSettingsStore = koinInject(),
-    clearTranslationCache: ClearTranslationCacheUseCase = koinInject(),
 ) {
     val settings by store.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -127,27 +125,6 @@ fun SettingsScreen(
         FrostCard {
             SectionTitle("缓存")
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = "README 译文缓存仅保存在本机，清除后下次翻译会重新请求第三方免费服务。",
-                style = MaterialTheme.typography.bodySmall,
-                color = frost.textSecondary,
-            )
-            Spacer(Modifier.height(10.dp))
-            OutlinedButton(
-                onClick = {
-                    scope.launch {
-                        runCatching { clearTranslationCache() }
-                            .onSuccess { Toast.makeText(context, "译文缓存已清除", Toast.LENGTH_SHORT).show() }
-                            .onFailure {
-                                Toast.makeText(context, "清除失败：${it.message ?: "未知错误"}", Toast.LENGTH_SHORT).show()
-                            }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = frost.primaryInk),
-            ) {
-                Text("清除译文缓存")
-            }
         }
 
         Text(

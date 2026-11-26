@@ -32,14 +32,13 @@ class UpdateSkipLedgerImpl(
         val raw = prefs.getString(KEY_SKIPPED, null) ?: return emptySet()
         return runCatching {
             val array = JSONArray(raw)
-            buildSet {
-                for (i in 0 until array.length()) {
-                    val item = array.optJSONObject(i) ?: continue
-                    val version = item.optString("version").takeIf { it.isNotBlank() } ?: continue
-                    val fingerprint = item.optString("fingerprint").orEmpty()
-                    add(SkipKey(version, fingerprint))
+            (0 until array.length())
+                .mapNotNull { index -> array.optJSONObject(index) }
+                .mapNotNull { item ->
+                    val version = item.optString("version").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    SkipKey(version, item.optString("fingerprint").orEmpty())
                 }
-            }
+                .toSet()
         }.getOrDefault(emptySet())
     }
 

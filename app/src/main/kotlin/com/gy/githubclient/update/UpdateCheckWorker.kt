@@ -54,11 +54,6 @@ class UpdateCheckWorker(
         return Result.success()
     }
 
-    private fun includePrereleaseFromPrefs(): Boolean =
-        applicationContext
-            .getSharedPreferences(UpdateCheckPrefs.NAME, Context.MODE_PRIVATE)
-            .getBoolean(UpdateCheckPrefs.KEY_INCLUDE_PRERELEASE, false)
-
     private fun notify(candidate: UpdateCandidate) {
         val context = applicationContext
         val granted =

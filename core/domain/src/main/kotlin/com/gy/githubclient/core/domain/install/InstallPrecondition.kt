@@ -47,24 +47,38 @@ sealed class InstallPrecondition {
 }
 
 /**
+ * 安装前置校验所需的**事实集合**。
+ *
+ * 字段均为调用方从 PackageManager 读出的原始事实；用数据类承载，
+ * 避免长参数列表（同时让调用点更易读）。
+ */
+data class InstallFacts(
+    val expectedPackageName: String,
+    val incomingPackageName: String?,
+    val apkExists: Boolean,
+    val apkSizeBytes: Long,
+    val installedSignatureHex: String?,
+    val incomingSignatureHex: String?,
+    val installedVersionCode: Long,
+    val incomingVersionCode: Long,
+    val canRequestPackageInstalls: Boolean,
+)
+
+/**
  * 安装前置校验的**纯函数**实现（无 Android 依赖，可穷举测试）。
  *
- * 参数均为调用方从 [android.content.pm.PackageManager] 读出的事实，
- * 本对象只负责判定与给出文案。
+ * 本对象只负责判定与给出文案，不执行安装。
  */
 object InstallPreconditionChecker {
-    fun check(
-        expectedPackageName: String,
-        incomingPackageName: String?,
-        apkExists: Boolean,
-        apkSizeBytes: Long,
-        installedSignatureHex: String?,
-        incomingSignatureHex: String?,
-        installedVersionCode: Long,
-        incomingVersionCode: Long,
-        canRequestPackageInstalls: Boolean,
-    ): InstallPrecondition {
-        if (!apkExists || apkSizeBytes <= 0L) {
+    fun check(facts: InstallFacts): InstallPrecondition {
+        val expectedPackageName = facts.expectedPackageName
+        val incomingPackageName = facts.incomingPackageName
+        val installedSignatureHex = facts.installedSignatureHex
+        val incomingSignatureHex = facts.incomingSignatureHex
+        val installedVersionCode = facts.installedVersionCode
+        val incomingVersionCode = facts.incomingVersionCode
+        val canRequestPackageInstalls = facts.canRequestPackageInstalls
+        if (!facts.apkExists || facts.apkSizeBytes <= 0L) {
             return InstallPrecondition.Rejected(
                 InstallPrecondition.Code.APK_MISSING,
                 "安装包不存在或为空，请重新下载",

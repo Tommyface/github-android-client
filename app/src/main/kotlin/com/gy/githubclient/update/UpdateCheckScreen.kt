@@ -102,11 +102,14 @@ fun UpdateCheckScreen(
 
             is UpdateCheckUiState.Available -> {
                 NewVersionCard(
-                    tagName = s.info.tagName,
-                    sizeBytes = s.info.assetSize,
-                    sha256 = s.info.sha256,
-                    forced = s.forced,
-                    reason = s.reason,
+                    state =
+                        NewVersionCardState(
+                            tagName = s.info.tagName,
+                            sizeBytes = s.info.assetSize,
+                            sha256 = s.info.sha256,
+                            forced = s.forced,
+                            reason = s.reason,
+                        ),
                     onDownload = { viewModel.download(s.info) },
                     onSkip = if (s.forced) null else viewModel::skipCurrentVersion,
                 )
@@ -221,34 +224,39 @@ private fun PrereleaseSwitch(
     }
 }
 
+/** 新版本卡片的数据（用数据类承载，避免长参数列表）。 */
+private data class NewVersionCardState(
+    val tagName: String,
+    val sizeBytes: Long,
+    val sha256: String?,
+    val forced: Boolean,
+    val reason: String,
+)
+
 @Composable
 private fun NewVersionCard(
-    tagName: String,
-    sizeBytes: Long,
-    sha256: String?,
-    forced: Boolean,
-    reason: String,
+    state: NewVersionCardState,
     onDownload: () -> Unit,
     onSkip: (() -> Unit)?,
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(
-                if (forced) "必须更新：$tagName" else "发现新版本：$tagName",
+                if (state.forced) "必须更新：${state.tagName}" else "发现新版本：${state.tagName}",
                 style = MaterialTheme.typography.titleMedium,
             )
-            if (reason.isNotBlank()) {
-                Text(reason, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (state.reason.isNotBlank()) {
+                Text(state.reason, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(4.dp))
-            if (sizeBytes > 0) {
+            if (state.sizeBytes > 0) {
                 Text(
-                    "APK 大小：%.1f MB".format(sizeBytes / BYTES_PER_MB),
+                    "APK 大小：%.1f MB".format(state.sizeBytes / BYTES_PER_MB),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
             Text(
-                sha256?.let { "官方 SHA-256 前 16 位：${it.take(16)}…" }
+                state.sha256?.let { "官方 SHA-256 前 16 位：${it.take(16)}…" }
                     ?: "官方摘要缺失：下载后将仅做 APK 签名指纹校验",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

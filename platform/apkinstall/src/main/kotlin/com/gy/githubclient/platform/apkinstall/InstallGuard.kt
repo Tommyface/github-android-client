@@ -28,7 +28,9 @@ class InstallGuard(
     /** 检查结论。 */
     sealed class Result {
         /** 可以安装。 */
-        data class Allowed(val message: String) : Result()
+        data class Allowed(
+            val message: String,
+        ) : Result()
 
         /** 不允许安装；[action] 指出用户下一步该做什么。 */
         data class Rejected(

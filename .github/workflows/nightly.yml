@@ -45,6 +45,10 @@ jobs:
           fi
           curl -Ls "https://get.maestro.mobile.dev" | bash
           "$HOME/.maestro/bin/maestro" test .maestro
+      - name: UI 审计（P-200 方法学）
+        run: |
+          bash tools/ui_audit.sh || true
+          bash tools/ui_audit.sh --strict && echo "UI 审计达标" || echo "::warning::UI 审计存在不达标项（详见报告）"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +34,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.feature.download.domain.model.DownloadStatus
 import com.gy.githubclient.feature.download.domain.model.DownloadTask
+import com.gy.githubclient.platform.apkinstall.InstallGuard
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
 
@@ -81,6 +83,7 @@ fun DownloadScreen(
                     onRetry = { viewModel.onRetry(task.id) },
                     onRemove = { viewModel.onRemove(task.id) },
                     onOpen = { task.filePath?.let { openFile(context, it, task.request.fileName) } },
+                    onInstall = { task.filePath?.let { installApk(context, it) } },
                 )
             }
         }
@@ -95,6 +98,7 @@ private fun DownloadTaskCard(
     onRetry: () -> Unit,
     onRemove: () -> Unit,
     onOpen: () -> Unit,
+    onInstall: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp)) {
@@ -165,10 +169,47 @@ private fun DownloadTaskCard(
 
                     DownloadStatus.DONE -> {
                         TextButton(onClick = onOpen) { Text("打开") }
+                        if (task.request.fileName.endsWith(".apk", ignoreCase = true)) {
+                            TextButton(onClick = onInstall) { Text("安装") }
+                        }
                         TextButton(onClick = onRemove) { Text("删除记录") }
                     }
 
                     DownloadStatus.PAUSED -> TextButton(onClick = onRetry) { Text("继续") }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 安装已下载的 APK（闭合"发现 → 下载 → 校验 → 安装"回路）。
+ *
+ * 安装前先过 [InstallGuard]：包名一致 + 签名一致 + versionCode 不降级 + 未知来源权限，
+ * 任一不满足都给出**可行动**的提示，而不是把用户丢给一个必然失败的系统安装器。
+ */
+private fun installApk(
+    context: Context,
+    apkPath: String,
+) {
+    val guard = InstallGuard(context)
+    when (val result = guard.check(apkPath)) {
+        is InstallGuard.Result.Allowed -> {
+            val intent = guard.installIntent(apkPath)
+            runCatching { context.startActivity(intent) }
+                .onFailure { Toast.makeText(context, "无法调起系统安装器：${it.message}", Toast.LENGTH_LONG).show() }
+        }
+
+        is InstallGuard.Result.Rejected -> {
+            val message =
+                when (result.action) {
+                    InstallGuard.Result.Action.GRANT_UNKNOWN_APPS -> "${result.message}（将跳转授权页）"
+                    else -> result.message
+                }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            if (result.action == InstallGuard.Result.Action.GRANT_UNKNOWN_APPS) {
+                guard.unknownAppsSettingsIntent()?.let { intent ->
+                    runCatching { context.startActivity(intent) }
                 }
             }
         }

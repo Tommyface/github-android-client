@@ -141,10 +141,11 @@ class UpdateCoordinatorTest {
     @Test
     fun throttleWindowIsRespected() =
         runBlocking {
-            val ledger = FakeLedger().apply {
-                lastCheck = 1_000L
-                throttle = 60_000L
-            }
+            val ledger =
+                FakeLedger().apply {
+                    lastCheck = 1_000L
+                    throttle = 60_000L
+                }
             val coordinator = UpdateCoordinator(FakeSource(null), ledger) { 1_030L }
             assertTrue(coordinator.isThrottled())
             val later = UpdateCoordinator(FakeSource(null), ledger) { 61_100L }

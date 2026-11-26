@@ -79,11 +79,14 @@ fun DownloadScreen(
             items(tasks, key = { it.id }) { task ->
                 DownloadTaskCard(
                     task = task,
-                    onCancel = { viewModel.onCancel(task.id) },
-                    onRetry = { viewModel.onRetry(task.id) },
-                    onRemove = { viewModel.onRemove(task.id) },
-                    onOpen = { task.filePath?.let { openFile(context, it, task.request.fileName) } },
-                    onInstall = { task.filePath?.let { installApk(context, it) } },
+                    actions =
+                        TaskActions(
+                            onCancel = { viewModel.onCancel(task.id) },
+                            onRetry = { viewModel.onRetry(task.id) },
+                            onRemove = { viewModel.onRemove(task.id) },
+                            onOpen = { task.filePath?.let { openFile(context, it, task.request.fileName) } },
+                            onInstall = { task.filePath?.let { installApk(context, it) } },
+                        ),
                 )
             }
         }
@@ -92,13 +95,18 @@ fun DownloadScreen(
 
 @Composable
 @Suppress("CyclomaticComplexMethod")
+/** 下载卡片上的操作回调（用数据类承载，避免长参数列表）。 */
+private data class TaskActions(
+    val onCancel: () -> Unit,
+    val onRetry: () -> Unit,
+    val onRemove: () -> Unit,
+    val onOpen: () -> Unit,
+    val onInstall: () -> Unit,
+)
+
 private fun DownloadTaskCard(
     task: DownloadTask,
-    onCancel: () -> Unit,
-    onRetry: () -> Unit,
-    onRemove: () -> Unit,
-    onOpen: () -> Unit,
-    onInstall: () -> Unit,
+    actions: TaskActions,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp)) {
@@ -158,24 +166,24 @@ private fun DownloadTaskCard(
                 when (task.status) {
                     DownloadStatus.DOWNLOADING,
                     DownloadStatus.QUEUED,
-                    -> TextButton(onClick = onCancel) { Text("取消") }
+                    -> TextButton(onClick = actions.onCancel) { Text("取消") }
 
                     DownloadStatus.FAILED,
                     DownloadStatus.CANCELLED,
                     -> {
-                        TextButton(onClick = onRetry) { Text("重试") }
-                        TextButton(onClick = onRemove) { Text("删除") }
+                        TextButton(onClick = actions.onRetry) { Text("重试") }
+                        TextButton(onClick = actions.onRemove) { Text("删除") }
                     }
 
                     DownloadStatus.DONE -> {
-                        TextButton(onClick = onOpen) { Text("打开") }
+                        TextButton(onClick = actions.onOpen) { Text("打开") }
                         if (task.request.fileName.endsWith(".apk", ignoreCase = true)) {
-                            TextButton(onClick = onInstall) { Text("安装") }
+                            TextButton(onClick = actions.onInstall) { Text("安装") }
                         }
-                        TextButton(onClick = onRemove) { Text("删除记录") }
+                        TextButton(onClick = actions.onRemove) { Text("删除记录") }
                     }
 
-                    DownloadStatus.PAUSED -> TextButton(onClick = onRetry) { Text("继续") }
+                    DownloadStatus.PAUSED -> TextButton(onClick = actions.onRetry) { Text("继续") }
                 }
             }
         }

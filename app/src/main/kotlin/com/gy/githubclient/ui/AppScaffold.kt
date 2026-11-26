@@ -20,6 +20,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -35,6 +36,30 @@ import com.gy.githubclient.core.presentation.theme.LocalFrostMotion
 import com.gy.githubclient.core.presentation.theme.rememberFrostMotionState
 import com.gy.githubclient.core.presentation.theme.trackFrostScroll
 import com.gy.githubclient.navigation.Route
+
+/** 顶部占位：通栏页 / 自绘通栏页 / 普通页三种情形。 */
+private fun computeTopInset(
+    showsTopBar: Boolean,
+    selfChrome: Boolean,
+    statusTop: Dp,
+    barBodyHeight: Dp,
+): Dp =
+    when {
+        showsTopBar -> statusTop + barBodyHeight + FrostDimens.TopBarFade
+        selfChrome -> statusTop + FrostDimens.TopBarHeight + FrostDimens.TopBarFade
+        else -> statusTop + 8.dp
+    }
+
+/** 底部占位：Tab 页需要为浮动导航条留位。 */
+private fun computeBottomInset(
+    hasTab: Boolean,
+    navInset: Dp,
+): Dp =
+    if (hasTab) {
+        FrostDimens.NavBarHeight + FrostDimens.NavBarBottomGap + navInset
+    } else {
+        navInset + 8.dp
+    }
 
 /**
  * 离线提示条（P-200 缺口 3）。
@@ -134,19 +159,8 @@ fun AppScaffold(
     // 二级页面自己画通栏（返回键在通栏左侧），外壳只下发占位高度。
     val selfChrome = currentRoute != null && currentRoute in selfChromeRoutes
 
-    val topInset =
-        when {
-            showsTopBar -> statusTop + barBodyHeight + FrostDimens.TopBarFade
-            selfChrome ->
-                statusTop + FrostDimens.TopBarHeight + FrostDimens.TopBarFade
-            else -> statusTop + 8.dp
-        }
-    val bottomInset =
-        if (tab != null) {
-            FrostDimens.NavBarHeight + FrostDimens.NavBarBottomGap + navInset
-        } else {
-            navInset + 8.dp
-        }
+    val topInset = computeTopInset(showsTopBar, selfChrome, statusTop, barBodyHeight)
+    val bottomInset = computeBottomInset(tab != null, navInset)
 
     // Frost 页面自己消费 LocalFrostContentInsets；老页面由外壳兜底加 padding。
     val consumesInsets = showsTopBar || selfChrome

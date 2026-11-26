@@ -99,5 +99,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: 校验 gradle.properties == git tag == version.json
+      - name: 校验 gradle.properties 与 git tag 一致（仅 tag 触发时）
+        # PR 上没有发布 tag（ref_name 形如 "1/merge"），此时只校验版本真源本身存在且合法；
+        # tag 与 version.json 的一致性由 release.yml 在发版时强制。
+        if: startsWith(github.ref, 'refs/tags/')
         run: python3 tools/verify_version.py --require-tag "${{ github.ref_name }}"
+      - name: 校验版本真源可解析（PR / 分支推送）
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: python3 tools/verify_version.py

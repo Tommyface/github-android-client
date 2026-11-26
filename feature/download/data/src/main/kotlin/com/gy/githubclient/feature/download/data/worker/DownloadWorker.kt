@@ -144,7 +144,6 @@ class DownloadWorker(
         dao.updateStatus(taskId, status.name, error, now())
     }
 
-    /** 读取 APK 的签名证书 SHA-256（hex）；解析失败返回 null（调用方按不匹配处理）。 */
     /**
      * 当前安装包是否可调试（debuggable）。
      *
@@ -154,6 +153,7 @@ class DownloadWorker(
     private fun isDebuggableBuild(): Boolean =
         applicationContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
+    /** 读取 APK 的签名证书 SHA-256（hex）；解析失败返回 null（调用方按不匹配处理）。 */
     private fun apkCertificateHex(apkPath: String): String? {
         val pm = applicationContext.packageManager
         val flags =

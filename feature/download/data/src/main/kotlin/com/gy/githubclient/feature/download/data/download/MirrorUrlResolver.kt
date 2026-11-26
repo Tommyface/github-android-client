@@ -119,9 +119,9 @@ object MirrorUrlResolver {
             }
             .sortedBy { query.latencies[it.id] ?: Int.MAX_VALUE }
             .mapNotNull { mirror ->
-                mirror.urlTemplate?.let { template ->
-                    mirror.id to MirrorRewriter.applyTemplate(template, query.githubUrl)
-                }
+                val template = mirror.urlTemplate ?: return@mapNotNull null
+                val url = MirrorRewriter.applyTemplate(template, query.githubUrl) ?: return@mapNotNull null
+                mirror.id to url
             }
 
     /** 兜底候选的查询参数（用数据类承载，避免长参数列表）。 */

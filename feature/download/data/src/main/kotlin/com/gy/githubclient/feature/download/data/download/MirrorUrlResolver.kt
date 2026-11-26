@@ -93,13 +93,15 @@ object MirrorUrlResolver {
                 ?.let { MirrorRewriter.applyTemplate(it, githubUrl) }
         val fallbacks =
             fallbackCandidates(
-                githubUrl = githubUrl,
-                kind = kind,
-                catalog = catalog,
-                latencies = latencies,
-                excludedId = primaryId,
-                excludedTemplate = primaryTemplate,
-                openCircuitIds = openCircuitIds,
+                FallbackQuery(
+                    githubUrl = githubUrl,
+                    kind = kind,
+                    catalog = catalog,
+                    latencies = latencies,
+                    excludedId = primaryId,
+                    excludedTemplate = primaryTemplate,
+                    openCircuitIds = openCircuitIds,
+                ),
             )
         val primaryEntry = primary?.let { url -> primaryId to url }
         val chain = (listOfNotNull(primaryEntry) + fallbacks + (null to githubUrl))
@@ -107,24 +109,29 @@ object MirrorUrlResolver {
     }
 
     /** 兜底候选：池内其余支持该流量、未被熔断、且不是首选的镜像，按延迟升序。 */
-    private fun fallbackCandidates(
-        githubUrl: String,
-        kind: TrafficKind,
-        catalog: List<MirrorConfig>,
-        latencies: Map<String, Int>,
-        excludedId: String?,
-        excludedTemplate: String?,
-        openCircuitIds: Set<String>,
-    ): List<Pair<String, String>> =
-        catalog
+    private fun fallbackCandidates(query: FallbackQuery): List<Pair<String, String>> =
+        query.catalog
             .filter {
-                kind in it.trafficKinds &&
-                    it.id != excludedId &&
-                    it.urlTemplate != excludedTemplate &&
-                    it.id !in openCircuitIds
+                query.kind in it.trafficKinds &&
+                    it.id != query.excludedId &&
+                    it.urlTemplate != query.excludedTemplate &&
+                    it.id !in query.openCircuitIds
             }
-            .sortedBy { latencies[it.id] ?: Int.MAX_VALUE }
+            .sortedBy { query.latencies[it.id] ?: Int.MAX_VALUE }
             .mapNotNull { mirror ->
-                mirror.urlTemplate?.let { template -> mirror.id to MirrorRewriter.applyTemplate(template, githubUrl) }
+                mirror.urlTemplate?.let { template ->
+                    mirror.id to MirrorRewriter.applyTemplate(template, query.githubUrl)
+                }
             }
+
+    /** 兜底候选的查询参数（用数据类承载，避免长参数列表）。 */
+    private data class FallbackQuery(
+        val githubUrl: String,
+        val kind: TrafficKind,
+        val catalog: List<MirrorConfig>,
+        val latencies: Map<String, Int>,
+        val excludedId: String?,
+        val excludedTemplate: String?,
+        val openCircuitIds: Set<String>,
+    )
 }

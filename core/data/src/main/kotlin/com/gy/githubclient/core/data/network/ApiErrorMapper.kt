@@ -50,7 +50,10 @@ object ApiErrorMapper {
         response: HttpResponse,
         nowMillis: Long = System.currentTimeMillis(),
     ): Long? {
-        response.headers[HttpHeaders.RetryAfter]?.trim()?.toLongOrNull()?.let { return it.coerceAtLeast(0L) }
+        response.headers[HttpHeaders.RetryAfter]
+            ?.trim()
+            ?.toLongOrNull()
+            ?.let { return it.coerceAtLeast(0L) }
         return response.headers["X-RateLimit-Reset"]?.toLongOrNull()?.let { resetEpoch ->
             max(0L, resetEpoch - nowMillis / MILLIS_PER_SECOND)
         }

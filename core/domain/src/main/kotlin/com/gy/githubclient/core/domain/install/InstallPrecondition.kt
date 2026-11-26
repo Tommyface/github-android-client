@@ -17,7 +17,9 @@ package com.gy.githubclient.core.domain.install
  */
 sealed class InstallPrecondition {
     /** 可以进入安装流程。 */
-    data class Allowed(val message: String) : InstallPrecondition()
+    data class Allowed(
+        val message: String,
+    ) : InstallPrecondition()
 
     /** 不允许安装，并给出**可行动**的原因。 */
     data class Rejected(

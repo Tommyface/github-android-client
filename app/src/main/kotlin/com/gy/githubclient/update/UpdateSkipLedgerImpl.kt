@@ -37,23 +37,26 @@ class UpdateSkipLedgerImpl(
                 .mapNotNull { item ->
                     val version = item.optString("version").takeIf { it.isNotBlank() } ?: return@mapNotNull null
                     SkipKey(version, item.optString("fingerprint").orEmpty())
-                }
-                .toSet()
+                }.toSet()
         }.getOrDefault(emptySet())
     }
 
     override fun recordSkip(key: SkipKey) {
         val array = JSONArray()
         skippedKeys().forEach { existing ->
-            array.put(JSONObject().apply {
-                put("version", existing.version)
-                put("fingerprint", existing.fingerprint)
-            })
+            array.put(
+                JSONObject().apply {
+                    put("version", existing.version)
+                    put("fingerprint", existing.fingerprint)
+                },
+            )
         }
-        array.put(JSONObject().apply {
-            put("version", key.version)
-            put("fingerprint", key.fingerprint)
-        })
+        array.put(
+            JSONObject().apply {
+                put("version", key.version)
+                put("fingerprint", key.fingerprint)
+            },
+        )
         prefs.edit().putString(KEY_SKIPPED, array.toString()).apply()
     }
 

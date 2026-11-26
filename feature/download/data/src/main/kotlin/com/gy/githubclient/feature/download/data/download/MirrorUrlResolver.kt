@@ -116,8 +116,7 @@ object MirrorUrlResolver {
                     it.id != query.excludedId &&
                     it.urlTemplate != query.excludedTemplate &&
                     it.id !in query.openCircuitIds
-            }
-            .sortedBy { query.latencies[it.id] ?: Int.MAX_VALUE }
+            }.sortedBy { query.latencies[it.id] ?: Int.MAX_VALUE }
             .mapNotNull { mirror ->
                 val template = mirror.urlTemplate ?: return@mapNotNull null
                 val url = MirrorRewriter.applyTemplate(template, query.githubUrl) ?: return@mapNotNull null

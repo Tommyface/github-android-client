@@ -290,8 +290,8 @@ class ArchitectureTest {
         }
     }
 
-
     // ── 规则 13：新增界面不得硬编码中文字面量（字符串化棘轮） ───────
+
     /**
      * M0-18 前置门禁。
      *
@@ -311,7 +311,8 @@ class ArchitectureTest {
         sourceDirs.forEach { dir ->
             val root = File(repoRoot, dir)
             if (!root.exists()) return@forEach
-            root.walkTopDown()
+            root
+                .walkTopDown()
                 .filter { it.isFile && it.name.endsWith(".kt") }
                 .forEach { file ->
                     val relative = file.relativeTo(repoRoot).path.replace('\\', '/')

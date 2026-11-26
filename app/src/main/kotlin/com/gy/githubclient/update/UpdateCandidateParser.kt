@@ -39,7 +39,11 @@ object UpdateCandidateParser {
 
     /** Release → 候选。缺少版本号时返回 null（不可比较）。 */
     fun fromRelease(dto: ReleaseLatestDto): UpdateCandidate? {
-        val version = dto.tagName.trim().removePrefix("v").takeIf { it.isNotBlank() } ?: return null
+        val version =
+            dto.tagName
+                .trim()
+                .removePrefix("v")
+                .takeIf { it.isNotBlank() } ?: return null
         val asset = dto.assets.firstOrNull { it.isApkOrZip() }
         return UpdateCandidate(
             version = version,
@@ -60,9 +64,20 @@ object UpdateCandidateParser {
 
     /** version.json → 候选。 */
     fun fromVersionJson(dto: VersionJsonDto): UpdateCandidate? {
-        val version = dto.version.trim().removePrefix("v").takeIf { it.isNotBlank() } ?: return null
-        val fingerprint = dto.fingerprint?.trim()?.lowercase()?.takeIf { it.length == SHA256_HEX_LENGTH }
-            ?: dto.sha256?.trim()?.lowercase()?.takeIf { it.length == SHA256_HEX_LENGTH }
+        val version =
+            dto.version
+                .trim()
+                .removePrefix("v")
+                .takeIf { it.isNotBlank() } ?: return null
+        val fingerprint =
+            dto.fingerprint
+                ?.trim()
+                ?.lowercase()
+                ?.takeIf { it.length == SHA256_HEX_LENGTH }
+                ?: dto.sha256
+                    ?.trim()
+                    ?.lowercase()
+                    ?.takeIf { it.length == SHA256_HEX_LENGTH }
         return UpdateCandidate(
             version = version,
             versionCode = dto.versionCode,

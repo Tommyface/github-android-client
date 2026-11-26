@@ -19,9 +19,9 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.delay
 import kotlin.math.min
 import kotlin.random.Random
-import kotlinx.coroutines.delay
 
 /**
  * 全 App 共用的统一 REST 客户端封装：

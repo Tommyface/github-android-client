@@ -35,8 +35,7 @@ object LinkHeader {
                 val rest = chunk.substring(end + 1)
                 val relMatch = REL_PATTERN.find(rest) ?: return@mapNotNull null
                 if (relMatch.groupValues[1].lowercase() == wanted) url else null
-            }
-            .firstOrNull()
+            }.firstOrNull()
     }
 
     /** 下一页 URL（rel="next"）。 */

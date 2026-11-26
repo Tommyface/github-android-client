@@ -28,16 +28,19 @@ class UpdateCoordinatorTest {
         override var throttle: Long = 30 * 60 * 1000L,
     ) : UpdateSkipLedger {
         override fun skippedKeys(): Set<SkipKey> = skipped
+
         override fun recordSkip(key: SkipKey) {
             skipped.add(key)
         }
 
         override fun lastInstallRequestedAt(): Long? = lastInstall
+
         override fun recordInstallRequested(at: Long) {
             lastInstall = at
         }
 
         override fun lastCheckAt(): Long = lastCheck
+
         override fun recordCheckAt(at: Long) {
             lastCheck = at
         }

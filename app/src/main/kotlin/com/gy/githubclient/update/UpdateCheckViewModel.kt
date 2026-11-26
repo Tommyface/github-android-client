@@ -186,8 +186,7 @@ class UpdateCheckViewModel(
                     // 记录安装点击：进入安装 TTL，避免安装失败时反复提醒。
                     coordinator.markInstallRequested()
                     _uiState.value = UpdateCheckUiState.Queued(taskId, fileName)
-                }
-                .onFailure { throwable ->
+                }.onFailure { throwable ->
                     _uiState.value = UpdateCheckUiState.Error(throwable.message ?: "入队失败，请稍后重试")
                 }
         }

@@ -6,6 +6,7 @@
 package com.gy.githubclient.di
 
 import com.gy.githubclient.core.data.di.coreNetworkModule
+import com.gy.githubclient.core.domain.update.UpdateCoordinator
 import com.gy.githubclient.feature.auth.data.di.authDataModule
 import com.gy.githubclient.feature.auth.presentation.di.authPresentationModule
 import com.gy.githubclient.feature.discover.data.di.discoverDataModule
@@ -25,7 +26,6 @@ import com.gy.githubclient.feature.starred.presentation.di.starredPresentationMo
 import com.gy.githubclient.update.UpdateCandidateSourceImpl
 import com.gy.githubclient.update.UpdateCheckViewModel
 import com.gy.githubclient.update.UpdateSkipLedgerImpl
-import com.gy.githubclient.core.domain.update.UpdateCoordinator
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module

@@ -290,7 +290,65 @@ class ArchitectureTest {
         }
     }
 
+
+    // ── 规则 13：新增界面不得硬编码中文字面量（字符串化棘轮） ───────
+    /**
+     * M0-18 前置门禁。
+     *
+     * 现状：仓库中仍有大量硬编码中文（strings.xml 化尚未完成）。
+     * 本规则采用**棘轮**形式：已登记的存量文件白名单放行，
+     * **任何新增/改名后的界面文件**一旦出现中文字符串字面量即失败。
+     *
+     * 这样做的目的：把"全量字符串化"从"一次性大改"变成"每改一屏就少一屏"，
+     * 同时保证**不再新增**技术债。
+     */
+    @Test
+    fun newUiFilesDoNotHardcodeChineseStrings() {
+        val chineseLiteral = Regex("\"[^\"]*[\\u4e00-\\u9fff][^\"]*\"")
+        val allowedFiles = LEGACY_HARDCODED_STRING_FILES
+        val violations = mutableListOf<String>()
+        val sourceDirs = listOf("app/src/main/kotlin", "core/presentation/src/main/kotlin")
+        sourceDirs.forEach { dir ->
+            val root = File(repoRoot, dir)
+            if (!root.exists()) return@forEach
+            root.walkTopDown()
+                .filter { it.isFile && it.name.endsWith(".kt") }
+                .forEach { file ->
+                    val relative = file.relativeTo(repoRoot).path.replace('\\', '/')
+                    if (relative in allowedFiles) return@forEach
+                    if (chineseLiteral.containsMatchIn(file.readText())) {
+                        violations += relative
+                    }
+                }
+        }
+        junitAssertTrue(
+            "新增/改名的界面文件不得硬编码中文字面量（请用 stringResource）：\n" +
+                violations.joinToString("\n") { "  $it" },
+            violations.isEmpty(),
+        )
+    }
+
     private companion object {
+        /**
+         * 已知硬编码中文的存量界面文件白名单（M0-18 棘轮）。
+         *
+         * 每完成一屏的字符串化，就从这里删掉对应条目——白名单只减不增，
+         * 确保"不再新增技术债"这件事本身是可机器校验的。
+         */
+        val LEGACY_HARDCODED_STRING_FILES: Set<String> =
+            setOf(
+                "app/src/main/kotlin/com/gy/githubclient/GithubClientApp.kt",
+                "app/src/main/kotlin/com/gy/githubclient/navigation/AppNavigation.kt",
+                "app/src/main/kotlin/com/gy/githubclient/ui/AppScaffold.kt",
+                "app/src/main/kotlin/com/gy/githubclient/update/UpdateCheckScreen.kt",
+                "app/src/main/kotlin/com/gy/githubclient/update/UpdateCheckViewModel.kt",
+                "app/src/main/kotlin/com/gy/githubclient/update/UpdateCheckWorker.kt",
+                "app/src/main/kotlin/com/gy/githubclient/update/UpdateCandidateParser.kt",
+                "app/src/main/kotlin/com/gy/githubclient/update/UpdateCandidateSourceImpl.kt",
+                "app/src/main/kotlin/com/gy/githubclient/update/UpdateSkipLedgerImpl.kt",
+                "app/src/main/kotlin/com/gy/githubclient/update/UpdateChecker.kt",
+            )
+
         /**
          * 已登记的 feature 横向依赖存量（22 项）。
          * 棘轮规则：新增即失败；登记项失效也失败（必须同步删除）。

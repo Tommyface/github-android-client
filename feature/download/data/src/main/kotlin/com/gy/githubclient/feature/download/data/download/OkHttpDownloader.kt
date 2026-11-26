@@ -13,6 +13,7 @@ import com.gy.githubclient.core.data.download.ProgressThrottle
 import com.gy.githubclient.core.data.download.RangeDecision
 import com.gy.githubclient.core.data.download.RangeRequest
 import com.gy.githubclient.core.domain.model.installation.DownloadProgress
+import com.gy.githubclient.core.domain.model.mirror.MirrorHealthRegistry
 import com.gy.githubclient.core.domain.network.AssetIdentity
 import com.gy.githubclient.core.domain.network.Downloader
 import com.gy.githubclient.core.domain.repository.MirrorRepository
@@ -46,6 +47,8 @@ class OkHttpDownloader(
     private val httpClient: OkHttpClient,
     private val fileStore: DownloadFileStore,
     private val mirrorRepository: MirrorRepository,
+    /** M1-05：镜像健康登记簿（成功/失败累计与熔断），全进程共享。 */
+    private val mirrorHealth: MirrorHealthRegistry = MirrorHealthRegistry(),
 ) : Downloader {
     private val activeCalls = ConcurrentHashMap<String, MutableList<Call>>()
 
@@ -66,26 +69,35 @@ class OkHttpDownloader(
                 val catalog = mirrorRepository.observeCatalog().first()
                 val latencies = mirrorRepository.observeMeasuredLatencies().first()
                 // v0.5.3 M1：选定镜像失败 → 池内其他镜像（按延迟）→ 直连，全池轮换。
-                val urls =
+                // M1-05：熔断冷却期的镜像不再进入候选链；直连与自定义模板不参与熔断统计。
+                val chain =
                     if (bypassMirror) {
-                        listOf(url)
+                        listOf(null to url)
                     } else {
-                        MirrorUrlResolver.candidateUrls(url, preference, catalog, latencies)
+                        MirrorUrlResolver.candidateChain(
+                            githubUrl = url,
+                            preference = preference,
+                            catalog = catalog,
+                            latencies = latencies,
+                            openCircuitIds = mirrorHealth.openCircuitIds(System.currentTimeMillis()),
+                        )
                     }
 
                 var lastError: IOException? = null
                 var succeeded = false
-                for (candidate in urls) {
+                for ((mirrorId, candidate) in chain) {
                     try {
                         performDownload(candidate, fileName, identity ?: AssetIdentity(), calls) { progress ->
                             trySend(progress)
                         }
+                        mirrorId?.let { mirrorHealth.recordSuccess(it) }
                         succeeded = true
                         break
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: IOException) {
                         lastError = e
+                        mirrorId?.let { mirrorHealth.recordFailure(it, System.currentTimeMillis()) }
                         // M12：切换镜像时保留 .part，让下一候选从已收字节偏移续传；
                         // 若新源不兼容（返回 200 全量），performOnce 内 TRUNCATE_REWRITE 会从头覆盖。
                         // 仅当服务端明确资源不再存在（404/410）才丢弃（见 performOnce 内决策）。

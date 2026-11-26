@@ -5,6 +5,8 @@
 
 package com.gy.githubclient.update
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,12 +29,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.BuildConfig
 import org.koin.androidx.compose.koinViewModel
 
-/** 检查更新页：手动检查 + 版本/摘要展示 + 应用内下载入口（v0.6.0 M5/M8）。 */
+/** 检查更新页：手动检查 + 版本/摘要展示 + 应用内下载入口（v0.6.0 M5/M8 · M1-04 状态机可视化）。 */
 @Composable
 fun UpdateCheckScreen(
     onBack: () -> Unit = {},
@@ -53,6 +57,10 @@ fun UpdateCheckScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Spacer(Modifier.height(12.dp))
+
+        UpdateStateCapsules(state)
+
         Spacer(Modifier.height(12.dp))
 
         PrereleaseSwitch(viewModel.includePrerelease, viewModel::setIncludePrerelease)
@@ -80,15 +88,44 @@ fun UpdateCheckScreen(
                 }
             }
 
-            is UpdateCheckUiState.UpToDate -> Text("已是最新版本（${s.currentVersion}）")
+            is UpdateCheckUiState.UpToDate -> {
+                Text("已是最新版本（${s.currentVersion}）")
+                if (s.reason.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        s.reason,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             is UpdateCheckUiState.Available -> {
                 NewVersionCard(
                     tagName = s.info.tagName,
                     sizeBytes = s.info.assetSize,
                     sha256 = s.info.sha256,
+                    forced = s.forced,
+                    reason = s.reason,
                     onDownload = { viewModel.download(s.info) },
+                    onSkip = if (s.forced) null else viewModel::skipCurrentVersion,
                 )
+            }
+
+            is UpdateCheckUiState.Skipped -> {
+                Text("已跳过 ${s.version}（按指纹记录，同一产物不再提醒）")
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = viewModel::checkNow) { Text("重新检查") }
+            }
+
+            is UpdateCheckUiState.Silent -> {
+                Text(
+                    "暂无可比较的更新信息：${s.reason}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = viewModel::checkNow) { Text("重试") }
             }
 
             is UpdateCheckUiState.Queued -> {
@@ -115,6 +152,57 @@ fun UpdateCheckScreen(
     }
 }
 
+/**
+ * 更新状态机可视化（P-101 八态胶囊）。
+ *
+ * 状态色 + 文字双编码（色盲可用），当前态高亮；不可横向滚动截断。
+ */
+@Composable
+private fun UpdateStateCapsules(state: UpdateCheckUiState) {
+    val current = state.stateName()
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        listOf(
+            "Idle" to Color(0xFF6E7F92),
+            "Checking" to Color(0xFF58A6FF),
+            "NoUpdate" to Color(0xFF3FB950),
+            "OptionalUpdate" to Color(0xFFD29922),
+            "ForcedUpdate" to Color(0xFFF85149),
+            "Unknown" to Color(0xFF6E7F92),
+            "Downloading" to Color(0xFF58A6FF),
+            "ReadyToInstall" to Color(0xFF3FB950),
+        ).forEach { (name, color) ->
+            val active = name == current
+            Surface(
+                color = if (active) color else color.copy(alpha = 0.14f),
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (active) Color.White else color,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+/** 当前 UI 状态对应的状态机名称。 */
+private fun UpdateCheckUiState.stateName(): String =
+    when (this) {
+        UpdateCheckUiState.Idle -> "Idle"
+        UpdateCheckUiState.Checking -> "Checking"
+        is UpdateCheckUiState.UpToDate -> "NoUpdate"
+        is UpdateCheckUiState.Available -> if (forced) "ForcedUpdate" else "OptionalUpdate"
+        is UpdateCheckUiState.Skipped -> "NoUpdate"
+        is UpdateCheckUiState.Silent -> "Unknown"
+        is UpdateCheckUiState.Queued -> "Downloading"
+        is UpdateCheckUiState.Error -> "Unknown"
+    }
+
 @Composable
 private fun PrereleaseSwitch(
     checked: Boolean,
@@ -138,11 +226,20 @@ private fun NewVersionCard(
     tagName: String,
     sizeBytes: Long,
     sha256: String?,
+    forced: Boolean,
+    reason: String,
     onDownload: () -> Unit,
+    onSkip: (() -> Unit)?,
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text("发现新版本：$tagName", style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (forced) "必须更新：$tagName" else "发现新版本：$tagName",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (reason.isNotBlank()) {
+                Text(reason, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Spacer(Modifier.height(4.dp))
             if (sizeBytes > 0) {
                 Text(
@@ -159,6 +256,17 @@ private fun NewVersionCard(
             Spacer(Modifier.height(8.dp))
             Button(onClick = onDownload, modifier = Modifier.fillMaxWidth()) {
                 Text("应用内下载（自动校验）")
+            }
+            if (onSkip != null) {
+                TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth()) {
+                    Text("跳过此版（按指纹记录）")
+                }
+            } else {
+                Text(
+                    "主/次版本变化：需升级后才能继续使用，不提供跳过。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }

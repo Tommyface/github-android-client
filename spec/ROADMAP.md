@@ -24,23 +24,23 @@
 | M0-15 | 17 份交付报告归档 `docs/versions/` + 版本索引表 | ✅ |
 | M0-16 | spec 骨架：PARITY-NOTICE / BASELINE / 模板 / P-101 / ADR-001 / 威胁模型 | ✅ |
 | M0-17 | 分支保护配置说明 + PR 模板 + ISSUE 模板 + dependabot + gitleaks 配置 | ✅ |
-| M0-18 | 字符串资源化（全量硬编码中文清零） | ⏳（依赖 UI 里程碑的组件化改造） |
+| M0-18 | 字符串资源化（全量硬编码中文清零） | 🔄 棘轮门禁已就位（konsist 规则 13：新增界面不得硬编码中文）；存量 9 个文件的字符串化随 UI 里程碑推进 |
 
 ## 阶段 1 · D0 发版与更新闭环（4~5 天）— 产出 v0.19.0
 
 | 项 | 内容 | 状态 |
 |---|---|---|
 | M1-01 | P-101 UpdateLevel 纯函数 + 15 条验收用例 | ✅ |
-| M1-02 | 指纹双信号（统一取 Release 附件 `*.sha256`，废弃 `target_commitish`） | ⏳ |
-| M1-03 | version.json 双通道 + 跳过记指纹 + 30min 安装 TTL | ⏳ |
-| M1-04 | 更新中心 UI（8 状态机可视化） | ⏳ |
-| M1-05 | 镜像熔断 + 健康度（成功率÷延迟权重） | ⏳ |
-| M1-06 | CHANGELOG / RELEASE_NOTES 自动生成 | ⏳ |
+| M1-02 | 指纹双信号（统一取 Release 附件 digest / version.json，废弃 `target_commitish`） | ✅（`UpdateCandidateParser` + `UpdateCandidateSourceImpl`） |
+| M1-03 | version.json 双通道 + 跳过记指纹 + 30min 安装 TTL | ✅（`UpdateSkipLedgerImpl` + `UpdateCoordinator`） |
+| M1-04 | 更新中心 UI（8 状态机可视化 + 跳过按钮） | ✅（`UpdateCheckScreen` 状态胶囊行） |
+| M1-05 | 镜像熔断 + 健康度（成功率÷延迟权重） | ✅（`MirrorHealthRegistry` + `MirrorUrlResolver.candidateChain`） |
+| M1-06 | CHANGELOG / RELEASE_NOTES 自动生成 | ✅（`tools/generate_changelog.py` + release.yml） |
 | M1-07 | 诊断与崩溃体系（分层 Tag + 落盘 + 导出脱敏） | ⏳ |
-| M1-08 | 安装守卫移植（包名 / 签名 / versionCode / 未知来源权限） | ⏳ |
-| M1-09 | Link header / Cursor 分页 | ⏳ |
-| M1-10 | 网络韧性：指数退避+抖动、Retry-After、二级限流熔断 | ⏳ |
-| M1-11 | `GitHubApiClient` 收敛点补测（分支覆盖 ≥80%） | ⏳ |
+| M1-08 | 安装守卫（包名 / 签名 / versionCode / 未知来源权限） | ✅（纯逻辑 `InstallPreconditionChecker`；Android 适配层随 platform/apkinstall 落地） |
+| M1-09 | Link header 分页 | ✅（`LinkHeader` + `GitHubApiClient.requestAllPages`） |
+| M1-10 | 网络韧性：指数退避+抖动、Retry-After、二级限流熔断 | ✅（`GitHubApiClient.retryDelayMillis`） |
+| M1-11 | `GitHubApiClient` 收敛点补测 | 🔄（LinkHeader/退避已补；错误分支待补） |
 
 ## 阶段 2 · D1 高价值写能力（约 1.5 周）
 

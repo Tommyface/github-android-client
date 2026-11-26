@@ -67,6 +67,20 @@ jobs:
             echo "ghcKeyPassword=$KEY_PASS"
           } >> "$GITHUB_ENV"
 
+      - name: 生成 CHANGELOG（Conventional Commits → 变更日志）
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^ghcVersionName=' gradle.properties | cut -d= -f2)
+          PREV=$(git tag --list 'v*' --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+          python3 tools/generate_changelog.py --version "$VERSION" --since "${PREV:-}" || true
+          if ! git diff --quiet -- CHANGELOG.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add CHANGELOG.md
+            git commit -m "docs(changelog): 生成 v${VERSION} 变更日志 [skip ci]"
+            git push origin HEAD:main
+          fi
+
       - name: 三处一致校验（gradle.properties == tag）
         run: |
           set -euo pipefail

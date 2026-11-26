@@ -82,6 +82,10 @@ data class UpdateDecisionInput(
     val localFingerprint: String?,
     /** 远端版本号。 */
     val remoteVersion: String,
+    /** 本地 versionCode（Release body `versionCode: N` 约定）；null 表示未知。 */
+    val localVersionCode: Int? = null,
+    /** 远端 versionCode；null 表示未知。 */
+    val remoteVersionCode: Int? = null,
     /** 远端产物 SHA-256 摘要（可为空，表示未知）。 */
     val remoteFingerprint: String?,
     /** 用户已跳过的键集合（版本号 + 指纹双键）。 */
@@ -148,8 +152,21 @@ object UpdateLevelDecider {
         }
 
         val fingerprintChanged = fingerprintDiffers(input)
-        val newer = remote > local
-        val majorOrMinorChanged = remote.major != local.major || remote.minor != local.minor
+        // versionCode 权威优先（发布约定写在 Release body / version.json）；
+        // 两侧都有 versionCode 时以它为准，否则回退语义版本比较。
+        val codesComparable = input.localVersionCode != null && input.remoteVersionCode != null
+        val newer =
+            if (codesComparable) {
+                input.remoteVersionCode!! > input.localVersionCode!!
+            } else {
+                remote > local
+            }
+        val majorOrMinorChanged =
+            if (codesComparable) {
+                input.remoteVersionCode != input.localVersionCode
+            } else {
+                remote.major != local.major || remote.minor != local.minor
+            }
 
         // 规则 7：已是最新 → 完全静默。
         if (!newer && !fingerprintChanged) {

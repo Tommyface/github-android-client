@@ -22,7 +22,10 @@ import com.gy.githubclient.feature.search.data.di.searchDataModule
 import com.gy.githubclient.feature.search.presentation.di.searchPresentationModule
 import com.gy.githubclient.feature.starred.data.di.starredDataModule
 import com.gy.githubclient.feature.starred.presentation.di.starredPresentationModule
+import com.gy.githubclient.update.UpdateCandidateSourceImpl
 import com.gy.githubclient.update.UpdateCheckViewModel
+import com.gy.githubclient.update.UpdateSkipLedgerImpl
+import com.gy.githubclient.core.domain.update.UpdateCoordinator
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -31,7 +34,15 @@ import org.koin.dsl.module
 val coreModule =
     module {
         viewModel {
-            UpdateCheckViewModel(androidContext(), get())
+            UpdateCheckViewModel(
+                appContext = androidContext(),
+                downloadManager = get(),
+                coordinator =
+                    UpdateCoordinator(
+                        source = UpdateCandidateSourceImpl(),
+                        ledger = UpdateSkipLedgerImpl(androidContext()),
+                    ),
+            )
         }
     }
 

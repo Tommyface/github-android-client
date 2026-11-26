@@ -122,27 +122,30 @@ class UpdateCheckViewModel(
     }
 
     /** 把领域结论映射为 UI 状态（纯映射，便于单测）。 */
-    internal fun toUiState(outcome: UpdateOutcome): UpdateCheckUiState =
-        when (outcome.level) {
+    internal fun toUiState(outcome: UpdateOutcome): UpdateCheckUiState {
+        // 先取到局部变量：跨模块的 data class 属性不能智能转换。
+        val candidate = outcome.candidate
+        return when (outcome.level) {
             UpdateLevel.NONE ->
-                if (outcome.candidate == null) {
+                if (candidate == null) {
                     UpdateCheckUiState.UpToDate(outcome.currentVersion, outcome.reason)
                 } else {
-                    UpdateCheckUiState.Skipped(outcome.candidate.version)
+                    UpdateCheckUiState.Skipped(candidate.version)
                 }
 
             UpdateLevel.OPTIONAL ->
-                outcome.candidate?.let {
+                candidate?.let {
                     UpdateCheckUiState.Available(it.toUpdateInfo(), forced = false, reason = outcome.reason)
                 } ?: UpdateCheckUiState.UpToDate(outcome.currentVersion, outcome.reason)
 
             UpdateLevel.FORCED ->
-                outcome.candidate?.let {
+                candidate?.let {
                     UpdateCheckUiState.Available(it.toUpdateInfo(), forced = true, reason = outcome.reason)
                 } ?: UpdateCheckUiState.UpToDate(outcome.currentVersion, outcome.reason)
 
             UpdateLevel.UNKNOWN -> UpdateCheckUiState.Silent(outcome.reason)
         }
+    }
 
     /** 「跳过此版」：按**指纹**记录（不是版本号），同指纹不再提醒。 */
     fun skipCurrentVersion() {

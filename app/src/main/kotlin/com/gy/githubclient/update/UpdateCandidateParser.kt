@@ -47,7 +47,13 @@ object UpdateCandidateParser {
             fingerprint = asset?.officialSha256(),
             downloadUrl = asset?.downloadUrl ?: dto.htmlUrl.takeIf { it.isNotBlank() },
             assetSize = asset?.size ?: -1L,
-            notes = dto.body?.lines().map { it.trim().removePrefix("- ") }.filter { it.isNotBlank() }.take(8).orEmpty(),
+            notes =
+                dto.body
+                    .orEmpty()
+                    .lines()
+                    .map { it.trim().removePrefix("- ") }
+                    .filter { it.isNotBlank() }
+                    .take(8),
             channel = UpdateCandidate.CHANNEL_RELEASE,
         )
     }

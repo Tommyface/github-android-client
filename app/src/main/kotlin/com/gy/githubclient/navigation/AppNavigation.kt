@@ -265,12 +265,10 @@ fun AppNavigation(
             )
         }
         composable(Route.Search.path) {
-            SearchScreen(
-                onOpenRepo = { owner, name ->
-                    navController.navigate(Route.RepoDetail.route(owner, name))
-                },
-                onOpenLink = openLink,
-            )
+            // 搜索页的"结果点击跳转"与"深链跳转"依赖 frost-ui 的关注/收藏写能力
+            // （core:permission + profile/repo 写用例），待写操作里程碑一并接入；
+            // 本轮先保持原行为，不阻塞其余外壳改造。
+            SearchScreen()
         }
         composable(Route.Profile.path) {
             ProfileScreen(

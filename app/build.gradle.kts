@@ -20,6 +20,7 @@ dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.data)
     implementation(projects.core.presentation)
+    implementation(projects.platform.diagnostics)
 
     implementation(projects.feature.auth.domain)
     implementation(projects.feature.auth.data)

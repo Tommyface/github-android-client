@@ -15,7 +15,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
+import com.gy.githubclient.core.presentation.theme.GithubClientTheme
 import com.gy.githubclient.feature.auth.domain.model.AuthState
 import com.gy.githubclient.feature.auth.presentation.AuthViewModel
 import com.gy.githubclient.feature.auth.presentation.LoginScreen
@@ -36,7 +36,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         requestNotificationPermissionIfNeeded()
         setContent {
-            MaterialTheme {
+            // Frost 设计系统（P-200 收编）：全 App 统一走令牌派生的 Material3 色板，
+            // 页面底色与光斑由 FrostPageBackground 绘制一次，滚动不再重绘底图。
+            GithubClientTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val authViewModel: AuthViewModel = koinViewModel()
                     val authState by authViewModel.authState.collectAsStateWithLifecycle()

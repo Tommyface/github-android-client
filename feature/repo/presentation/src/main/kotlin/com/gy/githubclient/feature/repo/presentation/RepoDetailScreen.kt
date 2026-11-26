@@ -920,7 +920,7 @@ internal fun renderInline(text: String): AnnotatedString =
                     val codeEnd = text.indexOf('`', codeStart + 1)
                     if (codeEnd > codeStart) {
                         append(text, index, codeStart)
-                        pushStyle(SPAN_CODE)
+                        pushStyle(spanCode())
                         append(text.substring(codeStart + 1, codeEnd))
                         pop()
                         index = codeEnd + 1
@@ -957,10 +957,10 @@ private val LINK_REGEX = Regex("\\[([^\\]]+)]\\((https?://[^)\\s]+)\\)")
 
 private val SPAN_BOLD = SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
 
-private val SPAN_CODE =
+/** 代码片段样式：背景取主题令牌（不写死色值，见 konsist 规则 14）。 */
+@Composable
+private fun spanCode(): SpanStyle =
     SpanStyle(
         fontFamily = FontFamily.Monospace,
-        background =
-            androidx.compose.ui.graphics
-                .Color(0x14000000),
+        background = MaterialTheme.colorScheme.surfaceVariant,
     )

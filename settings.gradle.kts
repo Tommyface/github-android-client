@@ -49,5 +49,6 @@ features.forEach { name ->
 // platform/*：系统能力层（只放真正需要 Android API 的部分）。
 // 约定：不得依赖 feature/*（konsist 规则 3）。
 include(":platform:apkinstall")
+include(":platform:diagnostics")
 
 include(":konsist-test")

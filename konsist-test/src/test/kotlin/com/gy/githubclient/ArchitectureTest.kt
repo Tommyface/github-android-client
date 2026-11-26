@@ -329,6 +329,60 @@ class ArchitectureTest {
         )
     }
 
+
+    // ── 规则 14：业务屏不得写死色值（令牌单一色源） ───────────────────
+    /**
+     * P-200 收编 frost-ui 时的实测结论：3 个业务屏仍写死 `Color(0x…)`，
+     * 改主题时不会跟随、深色下可能对比度不足。
+     *
+     * 本规则要求：除 `core/presentation/theme`（令牌定义处）外，
+     * 任何 UI 源码出现 `Color(0x` 即失败。存量例外登记在白名单里，只减不增。
+     */
+    @Test
+    fun businessScreensDoNotHardcodeColors() {
+        val allowed =
+            setOf(
+                // 令牌定义处：色值的唯一来源
+                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/Frost.kt",
+                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/FrostChrome.kt",
+                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/FrostSurface.kt",
+                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/Theme.kt",
+                // 内容调色板（代码高亮 / Diff 语义色）：**刻意不随主题变化**，
+                // 因为它们表达的是「语法角色」而非「界面层级」，跟随主题反而会丢失可读性。
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/FileBrowserScreen.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/CommitScreen.kt",
+                // GitHub 标签色（label color）来自 API 数据，不是界面色，必须按数据原样呈现。
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/RepoDetailScreen.kt",
+            )
+        val violations = mutableListOf<String>()
+        val roots =
+            listOf("app/src/main/kotlin", "core/presentation/src/main/kotlin") +
+                featureUiRoots()
+        roots.forEach { dir ->
+            val root = File(repoRoot, dir)
+            if (!root.exists()) return@forEach
+            root.walkTopDown()
+                .filter { it.isFile && it.name.endsWith(".kt") }
+                .forEach { file ->
+                    val relative = file.relativeTo(repoRoot).path.replace('\\', '/')
+                    if (relative in allowed) return@forEach
+                    if (file.readText().contains("Color(0x")) violations += relative
+                }
+        }
+        junitAssertTrue(
+            "业务屏不得写死色值（请用 Frost 令牌）：\n" + violations.joinToString("\n") { "  $it" },
+            violations.isEmpty(),
+        )
+    }
+
+    /** 所有 feature 的 presentation 源码目录。 */
+    private fun featureUiRoots(): List<String> =
+        File(repoRoot, "feature")
+            .listFiles()
+            ?.filter { File(it, "presentation/src/main/kotlin").exists() }
+            ?.map { "feature/${it.name}/presentation/src/main/kotlin" }
+            ?: emptyList()
+
     private companion object {
         /**
          * 已知硬编码中文的存量界面文件白名单（M0-18 棘轮）。

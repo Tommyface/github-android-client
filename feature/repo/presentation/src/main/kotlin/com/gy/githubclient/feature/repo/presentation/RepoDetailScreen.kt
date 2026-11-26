@@ -970,7 +970,11 @@ private val SPAN_BOLD = SpanStyle(fontWeight = androidx.compose.ui.text.font.Fon
  * 因此颜色由 Composable 侧取好后传入。
  */
 private fun spanCode(background: androidx.compose.ui.graphics.Color?): SpanStyle =
-    SpanStyle(
-        fontFamily = FontFamily.Monospace,
-        background = background,
-    )
+    if (background == null) {
+        SpanStyle(fontFamily = FontFamily.Monospace)
+    } else {
+        SpanStyle(
+            fontFamily = FontFamily.Monospace,
+            background = background,
+        )
+    }

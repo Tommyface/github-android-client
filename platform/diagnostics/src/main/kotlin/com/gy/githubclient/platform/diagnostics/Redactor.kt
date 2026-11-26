@@ -21,8 +21,8 @@ package com.gy.githubclient.platform.diagnostics
 object Redactor {
     private val TOKEN_PATTERNS =
         listOf(
-            Regex("""(?i)(authorization\s*[:=]\s*bearer\s+)([A-Za-z0-9._\-]+)"""),
-            Regex("""(?i)((?:access_|refresh_)?token\s*[:=]\s*)([A-Za-z0-9._\-]+)"""),
+            Regex("""(?i)(authorization\s*[:=]\s*bearer\s+)([A-Za-z0-9._\-*]+)"""),
+            Regex("""(?i)((?:access_|refresh_)?token\s*[:=]\s*)([A-Za-z0-9._\-*]+)"""),
             Regex("""(?i)(secret|password|passwd|pwd)\s*[:=]\s*([^\s,;&]+)"""),
         )
 

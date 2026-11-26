@@ -314,7 +314,6 @@ fun AppNavigation(
         }
         composable(Route.Downloads.path) {
             DownloadScreen(
-                onBack = { navController.popBackStack() },
                 onOpenMirrorSettings = { navController.navigate(Route.MirrorSettings.path) },
             )
         }

@@ -57,6 +57,12 @@ GraphQL 开关 / 热力图降级 / PR 合并 / **UI 体系落地（设计系统 
 TOTP / 扫码 / 正文翻译（默认离线）/ 多账号 / 五环降级版 / 收敛内置浏览器 / Lists /
 性能基线 / Maestro —— 详见报告 §4.5。
 
+## 工具链补充
+
+- `.github/workflows/auto-format.yml`：自动应用 ktlint 格式化并提交，把"格式"从评审话题里拿走。
+  注意：由 `github-actions[bot]` 推送触发的后续 CI 可能需要**人工批准**（GitHub 对 bot 推送的
+  workflow 运行默认要求确认）；在 Actions 页点「Approve and run workflow」即可，或用个人令牌补一个提交。
+
 ## 已知冲突与决策
 
 `feat/frost-ui` 分支已实现 Frost 设计体系、MutationExecutor、审计库、权限能力矩阵、链接解析、

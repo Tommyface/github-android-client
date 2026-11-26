@@ -76,6 +76,9 @@ jobs:
           path: |
             app/build/outputs/apk/debug/
             app/build/reports/
+            */build/reports/kover/
+            */*/build/reports/kover/
+            */*/*/build/reports/kover/
           retention-days: 14
 
   # 快速预检：与 verify 并行，给 PR 更快的第一轮反馈（不替代 verify）。

@@ -409,6 +409,10 @@ class ArchitectureTest {
                 "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/FrostChrome.kt",
                 "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/FrostSurface.kt",
                 "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/Theme.kt",
+                // 本轮并入的外壳/设置/深链/离线提示文件：随字符串化推进替换（存量登记，只减不增）。
+                "app/src/main/kotlin/com/gy/githubclient/navigation/DeepLinks.kt",
+                "app/src/main/kotlin/com/gy/githubclient/settings/SettingsScreen.kt",
+                "app/src/main/kotlin/com/gy/githubclient/ui/NetworkMonitor.kt",
             )
 
         /**

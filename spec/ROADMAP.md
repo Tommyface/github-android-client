@@ -57,6 +57,14 @@ GraphQL 开关 / 热力图降级 / PR 合并 / **UI 体系落地（设计系统 
 TOTP / 扫码 / 正文翻译（默认离线）/ 多账号 / 五环降级版 / 收敛内置浏览器 / Lists /
 性能基线 / Maestro —— 详见报告 §4.5。
 
+## 第四轮（P-201）落地
+
+- **Frost 设计系统收编**：`core/presentation/theme` 四件套落地，MainActivity 统一走 `GithubClientTheme`；
+  konsist 规则 14 锁死"业务屏不得写死色值"。
+- **诊断中心**：`platform/diagnostics`（Redactor 脱敏 + StructuredLogger 分层日志 + CrashRecorder 崩溃落盘）。
+- **凭据能力矩阵**：`CredentialKind` 与能力求值器，把"fine-grained 不支持 GraphQL 与通知"变成可展示规则。
+- **安装闭环**：`platform/apkinstall` + 下载页「安装」动作 + FileProvider 路径修正。
+
 ## 工具链补充
 
 - `.github/workflows/auto-format.yml`：自动应用 ktlint 格式化并提交，把"格式"从评审话题里拿走。

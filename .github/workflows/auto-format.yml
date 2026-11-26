@@ -1,0 +1,65 @@
+name: Auto Format
+
+# 自动格式化（ktlint / spotless）：把"格式"从代码评审话题里拿走。
+#
+# 触发：推送到 feature/* 或 main。
+# 行为：若 spotless 发现格式差异 → 自动提交格式化结果（幂等：第二次运行无差异即不再提交）。
+# 说明：
+#  - 提交信息带 "style:" 前缀，符合 Conventional Commits；
+#  - 不使用 [skip ci]，让格式化结果同样经过完整门禁（下一轮 CI 不会再产生差异，流程自然收敛）；
+#  - 首次接入或规则变更时会产生一个纯格式化提交，属预期行为。
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-format-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: spotlessApply
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        run: |
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMGR" ] || SDKMGR="$(command -v sdkmanager)"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x ./gradlew
+
+      - name: 应用格式化
+        run: ./gradlew spotlessApply --no-daemon
+
+      - name: 有差异则提交
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "格式已是最新，无需提交。"
+            exit 0
+          fi
+          git commit -m "style: 自动应用 ktlint 格式化"
+          git push origin "HEAD:${{ github.ref_name }}"

@@ -93,8 +93,6 @@ fun DownloadScreen(
     }
 }
 
-@Composable
-@Suppress("CyclomaticComplexMethod")
 /** 下载卡片上的操作回调（用数据类承载，避免长参数列表）。 */
 private data class TaskActions(
     val onCancel: () -> Unit,
@@ -104,6 +102,8 @@ private data class TaskActions(
     val onInstall: () -> Unit,
 )
 
+@Composable
+@Suppress("CyclomaticComplexMethod")
 private fun DownloadTaskCard(
     task: DownloadTask,
     actions: TaskActions,

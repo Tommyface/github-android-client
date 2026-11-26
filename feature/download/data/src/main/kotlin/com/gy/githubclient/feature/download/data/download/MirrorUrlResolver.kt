@@ -76,20 +76,19 @@ object MirrorUrlResolver {
     ): List<Pair<String?, String>> {
         if (!MirrorRewriter.shouldRewrite(githubUrl)) return listOf(null to githubUrl)
         val kind = MirrorRewriter.classify(githubUrl) ?: TrafficKind.RELEASE_ASSET
+
+        // 直连偏好：不产生镜像候选，仅直连。
+        if (preference is MirrorPreference.Direct) return listOf(null to githubUrl)
+
+        val primaryId = (preference as? MirrorPreference.Selected)?.id
         val primaryTemplate =
             when (preference) {
-                // 直连偏好：不产生镜像候选，仅直连。
-                MirrorPreference.Direct -> return listOf(null to githubUrl)
                 is MirrorPreference.Custom -> preference.template.takeIf { it.isNotBlank() }
                 is MirrorPreference.Selected ->
                     catalog.firstOrNull { it.id == preference.id }?.urlTemplate
+                MirrorPreference.Direct -> null
             }
-        val primaryId =
-            when (preference) {
-                is MirrorPreference.Selected -> preference.id
-                else -> null
-            }
-        // 处于熔断冷却期的源不再进入候选链（M1-05）。
+        // 处于熔断冷却期的源不进入候选链（M1-05）。
         val primary =
             primaryTemplate
                 ?.takeIf { primaryId == null || primaryId !in openCircuitIds }
@@ -106,7 +105,9 @@ object MirrorUrlResolver {
                 .mapNotNull { mirror ->
                     mirror.urlTemplate?.let { template -> mirror.id to MirrorRewriter.applyTemplate(template, githubUrl) }
                 }
-        val chain = (listOfNotNull(primaryId?.let { it to primary }) + fallbacks + (null to githubUrl))
+        // 自定义模板没有内置 id（null），但仍要作为首选候选。
+        val primaryEntry = primary?.let { url -> primaryId to url }
+        val chain = (listOfNotNull(primaryEntry) + fallbacks + (null to githubUrl))
         return chain.distinctBy { it.second }
     }
 }

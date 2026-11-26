@@ -137,6 +137,15 @@ object CrashRecorder {
             val previous = Thread.getDefaultUncaughtExceptionHandler()
             Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
                 runCatching {
+                    // 同时落一条结构化日志：崩溃摘要也能出现在导出的诊断报告里。
+                    logger.error(
+                        "crash",
+                        mapOf(
+                            "thread" to thread.name,
+                            "exception" to throwable::class.java.name,
+                            "message" to (throwable.message ?: ""),
+                        ),
+                    )
                     val file = File(context.filesDir, "${StructuredLogger.DIR_NAME}/${StructuredLogger.CRASH_FILE}")
                     file.parentFile?.mkdirs()
                     file.writeText(

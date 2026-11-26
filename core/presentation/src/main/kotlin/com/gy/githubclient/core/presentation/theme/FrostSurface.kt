@@ -160,7 +160,7 @@ fun Modifier.trackFrostScroll(state: FrostMotionState?): Modifier {
  * @param blur 层级标记：true 表示"动态层"（顶部通栏 / 底部导航）。v0.19.0 起不产生
  *   renderEffect（原因见上方说明），保留参数用于表达设计层级；列表项与卡片恒为 false。
  */
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "UnusedParameter")
 @Composable
 fun FrostSurface(
     modifier: Modifier = Modifier,

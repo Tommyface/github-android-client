@@ -403,6 +403,12 @@ class ArchitectureTest {
                 "app/src/main/kotlin/com/gy/githubclient/update/UpdateCandidateSourceImpl.kt",
                 "app/src/main/kotlin/com/gy/githubclient/update/UpdateSkipLedgerImpl.kt",
                 "app/src/main/kotlin/com/gy/githubclient/update/UpdateChecker.kt",
+                // 设计系统（令牌与通用组件）：默认文案与无障碍描述随字符串化推进替换，
+                // 属存量登记项（只减不增）。
+                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/Frost.kt",
+                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/FrostChrome.kt",
+                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/FrostSurface.kt",
+                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/Theme.kt",
             )
 
         /**

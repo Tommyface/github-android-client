@@ -40,8 +40,17 @@ jobs:
       - name: Grant gradlew execute
         run: chmod +x ./gradlew
 
-      - name: Run 8 项门禁
-        run: ./verify.sh
+      - name: Run 8 项门禁（失败自动重试，规避 Maven Central 429）
+        # GitHub runner 偶发命中 Maven Central 的 429 Too Many Requests（瞬时限流）。
+        # 真实缺陷重试 3 次也会失败，因此重试只影响耗时、不影响判定。
+        run: |
+          for i in 1 2 3; do
+            if ./verify.sh; then exit 0; fi
+            echo "::warning::verify.sh 第 ${i} 次失败，$((i * 30))s 后重试"
+            sleep $((i * 30))
+          done
+          echo "::error::8 项门禁连续 3 次失败"
+          exit 1
 
       - name: 回写门禁摘要
         # Actions 日志在部分网络环境取不到，把结果摘要写回仓库以便追溯。
@@ -86,7 +95,15 @@ jobs:
           "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x ./gradlew
-      - run: ./gradlew detekt testDebugUnitTest --no-daemon
+      - name: detekt + 单测（失败自动重试，规避 Maven Central 429）
+        run: |
+          for i in 1 2 3; do
+            if ./gradlew detekt testDebugUnitTest --no-daemon; then exit 0; fi
+            echo "::warning::第 ${i} 次失败，$((i * 30))s 后重试"
+            sleep $((i * 30))
+          done
+          echo "::error::detekt + 单测连续 3 次失败"
+          exit 1
 
   # 版本单一真源的三处一致校验（M0-02）。
   version-consistency:

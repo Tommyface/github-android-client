@@ -8,6 +8,7 @@ package com.gy.githubclient.feature.repo.data.remote
 import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.core.mutation.MutationSpec
+import com.gy.githubclient.feature.repo.domain.model.UploadTarget
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpMethod
@@ -109,13 +110,14 @@ class GitHubWriteApi(
      * @param branch 目标分支；为空时用仓库默认分支
      */
     suspend fun uploadFile(
-        owner: String,
-        name: String,
-        path: String,
+        target: UploadTarget,
         contentBase64: String,
         message: String,
-        branch: String?,
     ): MutationResult<Unit> {
+        val owner = target.owner
+        val name = target.repository
+        val path = target.path
+        val branch = target.branch
         val body =
             buildString {
                 append("{\"message\":${message.asJsonString()}")

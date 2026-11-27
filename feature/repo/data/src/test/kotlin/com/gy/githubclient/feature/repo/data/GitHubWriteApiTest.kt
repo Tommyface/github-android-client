@@ -10,6 +10,7 @@ import com.gy.githubclient.core.domain.network.ApiChannel
 import com.gy.githubclient.core.domain.network.AuthTokenProvider
 import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.data.remote.GitHubWriteApi
+import com.gy.githubclient.feature.repo.domain.model.UploadTarget
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -76,7 +77,12 @@ class GitHubWriteApiTest {
                 }
             val api = GitHubWriteApi(buildClient(engine))
 
-            val result = api.uploadFile("o", "r", "docs/a.md", "Y29kZQ==", "add a")
+            val result =
+                api.uploadFile(
+                    target = UploadTarget(owner = "o", repository = "r", path = "docs/a.md"),
+                    contentBase64 = "Y29kZQ==",
+                    message = "add a",
+                )
 
             assertTrue(result is MutationResult.Success)
             assertEquals("PUT", capturedMethod)

@@ -89,12 +89,9 @@ class RepoRepositoryImpl(
                     )
             }
         return writeApi.uploadFile(
-            owner = owner,
-            name = name,
-            path = validated,
+            target = target.copy(path = validated),
             contentBase64 = contentBase64,
             message = message,
-            branch = target.branch,
         )
     }
 

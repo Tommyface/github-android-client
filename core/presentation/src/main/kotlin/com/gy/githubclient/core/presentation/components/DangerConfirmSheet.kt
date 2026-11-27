@@ -31,8 +31,9 @@ import com.gy.githubclient.core.presentation.theme.LocalFrostColors
  *  - **可再次确认**：极高危操作（删仓库）可要求输入仓库名，由 [requireTypedConfirmation] 控制。
  *
  * konsist 规则 8 要求：危险操作界面必须挂载本组件（以文件名或 import 判定）。
+ *
+ * 确认请求的内容用数据类承载（见下方 [DangerConfirmRequest]），避免长参数列表。
  */
-/** 破坏性操作确认的请求内容（用数据类承载，避免长参数列表）。 */
 data class DangerConfirmRequest(
     val title: String,
     /** 后果说明：必须写清会发生什么、是否可撤销。 */

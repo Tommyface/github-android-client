@@ -436,6 +436,8 @@ class ArchitectureTest {
                 "profile/presentation/ProfileViewModel.kt" to "auth",
                 "repo/presentation/RepoViewModel.kt" to "download",
                 "search/presentation/SearchViewModel.kt" to "repo",
+                // 搜索页的「关注/取关」直接用 profile 域的用例（跨域依赖，登记为存量）
+                "search/presentation/SearchViewModel.kt" to "profile",
                 "starred/data/StarredDataTest.kt" to "repo",
                 "starred/data/StarredRepositoryImpl.kt" to "repo",
                 "starred/data/local/StarredMappers.kt" to "repo",

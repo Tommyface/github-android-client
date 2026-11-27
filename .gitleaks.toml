@@ -1,0 +1,28 @@
+# gitleaks 配置（M0-17 / 门禁 10）
+#
+# 例外原则：仓库内刻意保留的公开调试密钥不属于泄漏，但必须显式登记，
+# 避免"为了让扫描变绿"而随意加 allowlist。
+
+[extend]
+useDefault = true
+
+# ── 允许项：明确说明理由的公开/示例内容 ────────────────────────────
+[[allowlists]]
+description = "调试签名密钥：公开口令、仅用于内部覆盖安装调试，正式分发一律用 CI Secrets 还原的 release 密钥"
+paths = [
+  '''app/debug\.keystore''',
+  '''app/release\.keystore''',
+]
+
+[[allowlists]]
+description = "示例与文档中的占位凭据（PAT 形态字符串等）"
+regexes = [
+  '''gh[pousr]_[A-Za-z0-9]{20,}''',
+  '''github_pat_[A-Za-z0-9_]{20,}''',
+]
+paths = [
+  '''docs/''',
+  '''spec/''',
+  '''**/test/''',
+  '''**/*Test\.kt''',
+]

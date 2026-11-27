@@ -1,0 +1,159 @@
+name: Release
+
+# 发版流水线：由 CI 在 main 上创建 tag 后触发，或人工触发（须指定已存在的 tag）。
+# 设计要点（对照《GHHub 最优修改报告》§12.3）：
+#  1. 无 Secret 直接失败——禁止明文口令兜底（壳工程的历史教训）；
+#  2. versionCode 取自 gradle.properties，不用 run_number（与语义版本不对齐）；
+#  3. 三处一致校验：gradle.properties == git tag == version.json；
+#  4. 制品三件套：APK / .sha256 / version.json；
+#  5. 硬断言：产物存在 + 体积下限 + 签名可解析，任一不过即红。
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '已存在的 tag（例 v0.19.0）'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: build & publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        run: |
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMGR" ] || SDKMGR="$(command -v sdkmanager)"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x ./gradlew
+
+      - name: 还原签名密钥（无 Secret 直接失败）
+        env:
+          KEYSTORE_B64: ${{ secrets.GHC_KEYSTORE_B64 }}
+          KEYSTORE_PASS: ${{ secrets.GHC_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.GHC_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.GHC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_B64}" ] || [ -z "${KEYSTORE_PASS}" ]; then
+            echo "::error::缺少签名密钥 Secret（GHC_KEYSTORE_B64 / GHC_KEYSTORE_PASSWORD）。发布终止——不允许明文口令兜底。"
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_B64" | base64 -d > app/release.keystore
+          chmod 600 app/release.keystore
+          echo "::add-mask::$KEYSTORE_PASS"
+          echo "::add-mask::$KEY_PASS"
+          {
+            echo "ghcKeystorePassword=$KEYSTORE_PASS"
+            echo "ghcKeyAlias=$KEY_ALIAS"
+            echo "ghcKeyPassword=$KEY_PASS"
+          } >> "$GITHUB_ENV"
+
+      - name: 生成 CHANGELOG（Conventional Commits → 变更日志）
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^ghcVersionName=' gradle.properties | cut -d= -f2)
+          PREV=$(git tag --list 'v*' --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+          python3 tools/generate_changelog.py --version "$VERSION" --since "${PREV:-}" || true
+          if ! git diff --quiet -- CHANGELOG.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add CHANGELOG.md
+            git commit -m "docs(changelog): 生成 v${VERSION} 变更日志 [skip ci]"
+            git push origin HEAD:main
+          fi
+
+      - name: 三处一致校验（gradle.properties == tag）
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          python3 tools/verify_version.py --require-tag "$TAG"
+
+      - name: 构建签名 Release
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: 制品校验（硬断言）
+        run: |
+          set -euo pipefail
+          APK=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          if [ -z "$APK" ]; then
+            echo "::error::未产出 Release APK"; exit 1
+          fi
+          SIZE=$(stat -c%s "$APK")
+          if [ "$SIZE" -lt 5000000 ]; then
+            echo "::error::APK 体积异常：$SIZE 字节（下限 5,000,000）"; exit 1
+          fi
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          if ! "$APKSIGNER" verify --print-certs "$APK" > /tmp/certs.txt 2>&1; then
+            echo "::error::APK 签名校验失败（未签名或签名损坏）"; cat /tmp/certs.txt; exit 1
+          fi
+          echo "APK=$APK"
+          echo "SIZE=$SIZE"
+          echo "APK_PATH=$APK" >> "$GITHUB_ENV"
+          cat /tmp/certs.txt
+
+      - name: 生成产物三件套
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp "$APK_PATH" "dist/github-android-client-${GITHUB_REF_NAME}.apk"
+          cd dist
+          sha256sum "github-android-client-${GITHUB_REF_NAME}.apk" > "github-android-client-${GITHUB_REF_NAME}.apk.sha256"
+          SHA=$(cut -d' ' -f1 "github-android-client-${GITHUB_REF_NAME}.apk.sha256")
+          VERSION_NAME=$(grep '^ghcVersionName=' ../gradle.properties | cut -d= -f2)
+          VERSION_CODE=$(grep '^ghcVersionCode=' ../gradle.properties | cut -d= -f2)
+          cat > version.json <<EOF
+          {
+            "version": "${VERSION_NAME}",
+            "versionCode": ${VERSION_CODE},
+            "fingerprint": "${SHA}",
+            "sha256": "${SHA}",
+            "size": $(stat -c%s "github-android-client-${GITHUB_REF_NAME}.apk"),
+            "apk": "github-android-client-${GITHUB_REF_NAME}.apk",
+            "publishedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          cat version.json
+
+      - name: 三处一致校验（version.json）
+        run: |
+          set -euo pipefail
+          python3 tools/verify_version.py --require-tag "${{ github.event.inputs.tag || github.ref_name }}" --version-json dist/version.json
+
+      - name: 发布 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: GitHub Android Client ${{ github.event.inputs.tag || github.ref_name }}
+          body: |
+            ## ${{ github.event.inputs.tag || github.ref_name }}
+
+            versionCode: ${{ github.event.inputs.tag || github.ref_name }}
+
+            - 产物三件套：APK / .sha256 / version.json
+            - 安装前请校验 SHA-256；App 内安装链路另做签名证书指纹校验
+            - 覆盖安装要求：applicationId 一致 + 签名一致 + versionCode 不降级
+          files: |
+            dist/*.apk
+            dist/*.sha256
+            dist/version.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

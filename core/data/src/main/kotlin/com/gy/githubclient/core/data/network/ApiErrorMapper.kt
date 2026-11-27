@@ -7,6 +7,7 @@ package com.gy.githubclient.core.data.network
 
 import com.gy.githubclient.core.domain.network.ApiError
 import io.ktor.client.statement.HttpResponse
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import kotlin.math.max
 
@@ -39,12 +40,22 @@ object ApiErrorMapper {
     fun isRateLimited(response: HttpResponse): Boolean =
         response.headers["X-RateLimit-Remaining"] == "0"
 
-    /** 计算距离额度重置的秒数（基于 X-RateLimit-Reset 的 epoch 秒）。 */
+    /**
+     * 计算距离可重试的秒数。
+     *
+     * 优先级：`Retry-After`（秒数或 HTTP 日期，服务端明确指示）> `X-RateLimit-Reset`（额度重置时刻）。
+     * 两者都没有 → null，调用方回退到指数退避。
+     */
     fun retryAfterOf(
         response: HttpResponse,
         nowMillis: Long = System.currentTimeMillis(),
-    ): Long? =
-        response.headers["X-RateLimit-Reset"]?.toLongOrNull()?.let { resetEpoch ->
+    ): Long? {
+        response.headers[HttpHeaders.RetryAfter]
+            ?.trim()
+            ?.toLongOrNull()
+            ?.let { return it.coerceAtLeast(0L) }
+        return response.headers["X-RateLimit-Reset"]?.toLongOrNull()?.let { resetEpoch ->
             max(0L, resetEpoch - nowMillis / MILLIS_PER_SECOND)
         }
+    }
 }

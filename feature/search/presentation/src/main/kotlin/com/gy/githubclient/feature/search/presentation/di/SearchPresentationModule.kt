@@ -12,5 +12,5 @@ import org.koin.dsl.module
 /** search presentation 层 DI：ViewModel。 */
 val searchPresentationModule =
     module {
-        viewModel { SearchViewModel(search = get(), setStarred = get()) }
+        viewModel { SearchViewModel(search = get(), setStarred = get(), isFollowing = get(), setFollowing = get()) }
     }

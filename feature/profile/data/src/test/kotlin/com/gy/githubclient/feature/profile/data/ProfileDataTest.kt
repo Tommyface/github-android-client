@@ -9,6 +9,7 @@ import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.domain.network.ApiChannel
 import com.gy.githubclient.core.domain.network.AuthTokenProvider
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.profile.data.local.ProfileDao
 import com.gy.githubclient.feature.profile.data.local.ProfileEntity
 import com.gy.githubclient.feature.profile.data.local.toDomain
@@ -111,6 +112,59 @@ class ProfileDataTest {
             assertTrue(result is NetworkResult.Success)
             assertEquals(1, dao.upsertCalls)
             assertEquals("cached", dao.lastEntity?.login)
+        }
+
+    @Test
+    fun followStatus404MeansNotFollowing() =
+        runTest {
+            val engine = MockEngine { respond("", HttpStatusCode.NotFound) }
+            val repo = ProfileRepositoryImpl(FakeProfileDao(), GitHubUserApi(buildClient(engine)))
+
+            val result = repo.isFollowing("octocat")
+
+            assertTrue(result is NetworkResult.Success)
+            assertEquals(false, (result as NetworkResult.Success).data)
+        }
+
+    @Test
+    fun setFollowingUsesPutAndDelete() =
+        runTest {
+            val methods = mutableListOf<io.ktor.http.HttpMethod>()
+            val paths = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    methods += request.method
+                    paths += request.url.encodedPath
+                    respond("", HttpStatusCode.NoContent)
+                }
+            val api = GitHubUserApi(buildClient(engine))
+
+            assertTrue(api.setFollowing("octocat", following = true) is MutationResult.Success)
+            assertTrue(api.setFollowing("octocat", following = false) is MutationResult.Success)
+
+            assertEquals(listOf(io.ktor.http.HttpMethod.Put, io.ktor.http.HttpMethod.Delete), methods)
+            assertEquals(listOf("/user/following/octocat", "/user/following/octocat"), paths)
+        }
+
+    @Test
+    fun subscriptionIgnoreSendsBodyAndDeleteRestores() =
+        runTest {
+            val bodies = mutableListOf<String>()
+            val methods = mutableListOf<io.ktor.http.HttpMethod>()
+            val engine =
+                MockEngine { request ->
+                    methods += request.method
+                    bodies += (request.body as? io.ktor.http.content.TextContent)?.text.orEmpty()
+                    respond("", HttpStatusCode.NoContent)
+                }
+            val api = GitHubUserApi(buildClient(engine))
+
+            assertTrue(api.setThreadSubscription(7, ignored = true) is MutationResult.Success)
+            assertTrue(api.setThreadSubscription(7, ignored = false) is MutationResult.Success)
+
+            assertEquals(listOf(io.ktor.http.HttpMethod.Put, io.ktor.http.HttpMethod.Delete), methods)
+            assertEquals("""{"ignored":true}""", bodies.first())
+            assertEquals("", bodies.last())
         }
 
     private fun buildClient(engine: MockEngine): GitHubApiClient =

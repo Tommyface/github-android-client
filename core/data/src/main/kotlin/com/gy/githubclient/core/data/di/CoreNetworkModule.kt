@@ -7,6 +7,8 @@ package com.gy.githubclient.core.data.di
 
 import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.domain.network.AuthTokenProvider
+import com.gy.githubclient.core.mutation.AuditSink
+import com.gy.githubclient.core.mutation.NoOpAuditSink
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -43,6 +45,9 @@ val coreNetworkModule =
             GitHubApiClient(
                 httpClient = get(named(API_HTTP_CLIENT)),
                 tokenProvider = get<AuthTokenProvider>(),
+                // 审计 sink 由组合根（app 层）提供；core:data 不反向依赖 core:audit。
+                // 未提供时退化为无操作实现，写操作仍可正常执行（只是不留痕）。
+                auditSink = getOrNull<AuditSink>() ?: NoOpAuditSink,
             )
         }
     }

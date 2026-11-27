@@ -1,5 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="exports" path="exports/" />
-    <external-path name="downloads" path="Download/" />
+    <!-- 下载目录（DownloadFileStore 写入 context.filesDir/downloads）：安装 APK 时需经 FileProvider 授权 -->
+    <files-path name="downloads" path="downloads/" />
+    <external-path name="downloads_external" path="Download/" />
 </paths>

@@ -15,6 +15,7 @@ import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
 import com.gy.githubclient.feature.repo.data.remote.ContentEntryDto
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
+import com.gy.githubclient.feature.repo.data.remote.GitHubWriteApi
 import com.gy.githubclient.feature.repo.data.remote.IssueCommentDto
 import com.gy.githubclient.feature.repo.data.remote.IssueDetailDto
 import com.gy.githubclient.feature.repo.data.remote.IssueItemDto
@@ -118,7 +119,12 @@ class RepoDataTest {
                         FakeTokenProvider("t"),
                     ),
                 )
-            val repo304 = RepoRepositoryImpl(dao, api304)
+            val repo304 =
+                RepoRepositoryImpl(
+                    dao,
+                    api304,
+                    buildWriteApi(MockEngine { respond("", HttpStatusCode.NotFound) }),
+                )
 
             val result = repo304.refreshRepositories(RepoFilter(), append = false)
 
@@ -148,6 +154,7 @@ class RepoDataTest {
                             FakeTokenProvider("t"),
                         ),
                     ),
+                    buildWriteApi(MockEngine { respond("", HttpStatusCode.NotFound) }),
                 )
             val result = repo.isStarred("o", "a")
             assertTrue(result is NetworkResult.Success)
@@ -228,6 +235,7 @@ class RepoDataTest {
                             FakeTokenProvider("t"),
                         ),
                     ),
+                    buildWriteApi(MockEngine { respond("", HttpStatusCode.NotFound) }),
                 )
             val result = repo.getStarHistory("o", "a")
             assertTrue(result is NetworkResult.Success)
@@ -377,6 +385,18 @@ class RepoDataTest {
 
     private fun buildApi(engine: MockEngine): GitHubRepoApi =
         GitHubRepoApi(
+            GitHubApiClient(
+                buildTestClient(engine),
+                FakeTokenProvider("t"),
+            ),
+        )
+
+    /**
+     * 写操作通道替身：这些用例只验证读路径与缓存分支，写通道不会被调用，
+     * 但构造器要求它存在，因此给一个同样指向 MockEngine 的实例。
+     */
+    private fun buildWriteApi(engine: MockEngine): GitHubWriteApi =
+        GitHubWriteApi(
             GitHubApiClient(
                 buildTestClient(engine),
                 FakeTokenProvider("t"),

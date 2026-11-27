@@ -6,6 +6,7 @@
 package com.gy.githubclient.feature.download.data.worker
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.work.CoroutineWorker
@@ -104,9 +105,11 @@ class DownloadWorker(
             }
 
             // APK 签名指纹校验（v0.5.3 M3）：摘要缺失场景下的防替换兜底，不匹配即删。
+            // 期望指纹按构建变体取：debug 用公开调试证书指纹，release 用正式证书指纹（M0-08）。
             if (fileName.endsWith(".apk")) {
                 val certHex = apkCertificateHex(path)
-                if (certHex == null || !ApkSignatureVerifier.matches(certHex)) {
+                val expected = ApkSignatureVerifier.expectedFor(isDebuggableBuild())
+                if (certHex == null || !ApkSignatureVerifier.matches(certHex, expected)) {
                     java.io.File(path).delete()
                     markStatus(taskId, DownloadStatus.FAILED, "APK 签名指纹不匹配（防替换校验），文件已删除")
                     setForeground(
@@ -140,6 +143,15 @@ class DownloadWorker(
     ) {
         dao.updateStatus(taskId, status.name, error, now())
     }
+
+    /**
+     * 当前安装包是否可调试（debuggable）。
+     *
+     * 用运行时 FLAG_DEBUGGABLE 而非编译期常量：数据层不应依赖 app 模块，
+     * 且这样测试包/正式包各自使用对应的期望证书指纹。
+     */
+    private fun isDebuggableBuild(): Boolean =
+        applicationContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
     /** 读取 APK 的签名证书 SHA-256（hex）；解析失败返回 null（调用方按不匹配处理）。 */
     private fun apkCertificateHex(apkPath: String): String? {

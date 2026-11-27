@@ -1,0 +1,135 @@
+name: CI
+
+# 门禁唯一真源是仓库根的 ./verify.sh；本 workflow 只负责"在干净环境里跑一遍"。
+# 严禁在此处复制门禁逻辑——两套规则必然漂移（见 spec/parity/PARITY-NOTICE.md）。
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify (8 项门禁)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # 串行：与 fast 预检并发会让两个 job 同时抢 Maven 依赖，显著提高 429 限流概率
+    needs: fast-feedback
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        run: |
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMGR" ] || SDKMGR="$(command -v sdkmanager)"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant gradlew execute
+        run: chmod +x ./gradlew
+
+      - name: Run 8 项门禁（失败自动重试，规避 Maven Central 429）
+        # GitHub runner 偶发命中 Maven Central 的 429 Too Many Requests（瞬时限流）。
+        # 真实缺陷重试 3 次也会失败，因此重试只影响耗时、不影响判定。
+        run: |
+          for i in 1 2 3; do
+            if ./verify.sh; then exit 0; fi
+            echo "::warning::verify.sh 第 ${i} 次失败，$((i * 30))s 后重试"
+            sleep $((i * 30))
+          done
+          echo "::error::8 项门禁连续 3 次失败"
+          exit 1
+
+      - name: 回写门禁摘要
+        # Actions 日志在部分网络环境取不到，把结果摘要写回仓库以便追溯。
+        if: always()
+        run: |
+          mkdir -p ci
+          {
+            echo "commit: ${{ github.sha }}"
+            echo "ref: ${{ github.ref }}"
+            echo "conclusion: ${{ job.status }}"
+            echo "---"
+            ls -la app/build/outputs/apk/debug/ 2>/dev/null || true
+          } > ci/ci-summary.txt
+          cat ci/ci-summary.txt
+
+      - name: 上传门禁产物
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts
+          path: |
+            app/build/outputs/apk/debug/
+            app/build/reports/
+            */build/reports/kover/
+            */*/build/reports/kover/
+            */*/*/build/reports/kover/
+          retention-days: 14
+
+  # 快速预检：与 verify 并行，给 PR 更快的第一轮反馈（不替代 verify）。
+  fast-feedback:
+    name: fast (detekt + unit test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        run: |
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMGR" ] || SDKMGR="$(command -v sdkmanager)"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x ./gradlew
+      - name: UI 审计棘轮（UI 债务只减不增）
+        # 与 konsist 规则 13/14 同口径的 UI 债务棘轮：中文硬编码文件数、裸色值、复用度、无障碍语义。
+        # 纯文件扫描，无需构建，几秒完成。
+        run: bash tools/ui_audit.sh --strict
+      - name: detekt + 单测（失败自动重试，规避 Maven Central 429）
+        run: |
+          for i in 1 2 3; do
+            if ./gradlew detekt testDebugUnitTest --no-daemon; then exit 0; fi
+            echo "::warning::第 ${i} 次失败，$((i * 30))s 后重试"
+            sleep $((i * 30))
+          done
+          echo "::error::detekt + 单测连续 3 次失败"
+          exit 1
+
+  # 版本单一真源的三处一致校验（M0-02）。
+  version-consistency:
+    name: version (三处一致)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 校验 gradle.properties 与 git tag 一致（仅 tag 触发时）
+        # PR 上没有发布 tag（ref_name 形如 "1/merge"），此时只校验版本真源本身存在且合法；
+        # tag 与 version.json 的一致性由 release.yml 在发版时强制。
+        if: startsWith(github.ref, 'refs/tags/')
+        run: python3 tools/verify_version.py --require-tag "${{ github.ref_name }}"
+      - name: 校验版本真源可解析（PR / 分支推送）
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: python3 tools/verify_version.py

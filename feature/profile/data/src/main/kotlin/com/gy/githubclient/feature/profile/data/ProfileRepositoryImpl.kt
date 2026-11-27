@@ -6,6 +6,7 @@
 package com.gy.githubclient.feature.profile.data
 
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.profile.data.local.ProfileDao
 import com.gy.githubclient.feature.profile.data.local.toDomain
 import com.gy.githubclient.feature.profile.data.local.toEntity
@@ -41,6 +42,29 @@ class ProfileRepositoryImpl(
         api.listNotifications(all)
 
     override suspend fun markThreadRead(threadId: Long): NetworkResult<Unit> = api.markThreadRead(threadId)
+
+    override suspend fun markAllNotificationsRead(): NetworkResult<Unit> = api.markAllNotificationsRead()
+
+    override suspend fun isFollowing(login: String): NetworkResult<Boolean> =
+        when (val result = api.isFollowing(login)) {
+            is NetworkResult.Success -> result
+            is NetworkResult.Failure ->
+                if (result.error is com.gy.githubclient.core.domain.network.ApiError.NotFound) {
+                    NetworkResult.Success(false)
+                } else {
+                    result
+                }
+        }
+
+    override suspend fun setFollowing(
+        login: String,
+        following: Boolean,
+    ): MutationResult<Unit> = api.setFollowing(login, following)
+
+    override suspend fun setThreadSubscription(
+        threadId: Long,
+        ignored: Boolean,
+    ): MutationResult<Unit> = api.setThreadSubscription(threadId, ignored)
 
     override suspend fun listUserEvents(login: String): NetworkResult<List<UserEvent>> = api.listUserEvents(login)
 

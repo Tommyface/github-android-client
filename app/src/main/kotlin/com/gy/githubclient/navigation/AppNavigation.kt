@@ -11,6 +11,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.gy.githubclient.core.domain.link.GitHubLink
 import com.gy.githubclient.feature.auth.presentation.PermissionAuditScreen
 import com.gy.githubclient.feature.discover.presentation.DiscoverScreen
 import com.gy.githubclient.feature.discover.presentation.ReleaseDetailScreen
@@ -29,6 +30,7 @@ import com.gy.githubclient.feature.repo.presentation.RepoDetailScreen
 import com.gy.githubclient.feature.repo.presentation.RepoListScreen
 import com.gy.githubclient.feature.search.presentation.SearchScreen
 import com.gy.githubclient.feature.starred.presentation.StarredScreen
+import com.gy.githubclient.settings.SettingsScreen
 
 /** 类型安全路由。P3 阶段各 feature 在此注册自己的路由。 */
 sealed class Route(
@@ -65,6 +67,9 @@ sealed class Route(
 
     /** Gist 浏览只读（v0.15.0 A6）。 */
     data object Gists : Route("gists")
+
+    /** 外观与缓存设置（v0.16.0）。 */
+    data object Settings : Route("settings")
 
     data object RepoDetail : Route("repo_detail/{owner}/{name}") {
         const val ARG_OWNER = "owner"
@@ -137,7 +142,10 @@ sealed class Route(
 fun AppNavigation(
     navController: NavHostController,
     startDestination: String = Route.Home.path,
+    startLink: GitHubLink? = null,
+    onLinkConsumed: () -> Unit = {},
 ) {
+    val openLink = rememberDeepLinkAction(navController)
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Route.Home.path) {
             RepoListScreen(
@@ -256,7 +264,12 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() },
             )
         }
-        composable(Route.Search.path) { SearchScreen() }
+        composable(Route.Search.path) {
+            // 搜索页的"结果点击跳转"与"深链跳转"依赖 frost-ui 的关注/收藏写能力
+            // （core:permission + profile/repo 写用例），待写操作里程碑一并接入；
+            // 本轮先保持原行为，不阻塞其余外壳改造。
+            SearchScreen()
+        }
         composable(Route.Profile.path) {
             ProfileScreen(
                 onOpenStarred = { navController.navigate(Route.Starred.path) },
@@ -269,7 +282,11 @@ fun AppNavigation(
                 onOpenActivity = { navController.navigate(Route.Activity.path) },
                 onOpenOrg = { navController.navigate(Route.Org.path) },
                 onOpenGists = { navController.navigate(Route.Gists.path) },
+                onOpenSettings = { navController.navigate(Route.Settings.path) },
             )
+        }
+        composable(Route.Settings.path) {
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(Route.Activity.path) {
             ActivityScreen(onBack = { navController.popBackStack() })
@@ -322,4 +339,7 @@ fun AppNavigation(
             )
         }
     }
+
+    // 启动/分享链接在导航图就绪后消费；同一条链接只会触发一次。
+    DeepLinkHandler(link = startLink, openLink = openLink, onConsumed = onLinkConsumed)
 }

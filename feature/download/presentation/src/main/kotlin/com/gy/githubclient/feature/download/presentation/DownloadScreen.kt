@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.download.presentation
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.feature.download.domain.model.DownloadStatus
 import com.gy.githubclient.feature.download.domain.model.DownloadTask
+import com.gy.githubclient.platform.apkinstall.InstallGuard
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
 
@@ -77,24 +79,34 @@ fun DownloadScreen(
             items(tasks, key = { it.id }) { task ->
                 DownloadTaskCard(
                     task = task,
-                    onCancel = { viewModel.onCancel(task.id) },
-                    onRetry = { viewModel.onRetry(task.id) },
-                    onRemove = { viewModel.onRemove(task.id) },
-                    onOpen = { task.filePath?.let { openFile(context, it, task.request.fileName) } },
+                    actions =
+                        TaskActions(
+                            onCancel = { viewModel.onCancel(task.id) },
+                            onRetry = { viewModel.onRetry(task.id) },
+                            onRemove = { viewModel.onRemove(task.id) },
+                            onOpen = { task.filePath?.let { openFile(context, it, task.request.fileName) } },
+                            onInstall = { task.filePath?.let { installApk(context, it) } },
+                        ),
                 )
             }
         }
     }
 }
 
+/** 下载卡片上的操作回调（用数据类承载，避免长参数列表）。 */
+private data class TaskActions(
+    val onCancel: () -> Unit,
+    val onRetry: () -> Unit,
+    val onRemove: () -> Unit,
+    val onOpen: () -> Unit,
+    val onInstall: () -> Unit,
+)
+
 @Composable
 @Suppress("CyclomaticComplexMethod")
 private fun DownloadTaskCard(
     task: DownloadTask,
-    onCancel: () -> Unit,
-    onRetry: () -> Unit,
-    onRemove: () -> Unit,
-    onOpen: () -> Unit,
+    actions: TaskActions,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp)) {
@@ -154,21 +166,58 @@ private fun DownloadTaskCard(
                 when (task.status) {
                     DownloadStatus.DOWNLOADING,
                     DownloadStatus.QUEUED,
-                    -> TextButton(onClick = onCancel) { Text("取消") }
+                    -> TextButton(onClick = actions.onCancel) { Text("取消") }
 
                     DownloadStatus.FAILED,
                     DownloadStatus.CANCELLED,
                     -> {
-                        TextButton(onClick = onRetry) { Text("重试") }
-                        TextButton(onClick = onRemove) { Text("删除") }
+                        TextButton(onClick = actions.onRetry) { Text("重试") }
+                        TextButton(onClick = actions.onRemove) { Text("删除") }
                     }
 
                     DownloadStatus.DONE -> {
-                        TextButton(onClick = onOpen) { Text("打开") }
-                        TextButton(onClick = onRemove) { Text("删除记录") }
+                        TextButton(onClick = actions.onOpen) { Text("打开") }
+                        if (task.request.fileName.endsWith(".apk", ignoreCase = true)) {
+                            TextButton(onClick = actions.onInstall) { Text("安装") }
+                        }
+                        TextButton(onClick = actions.onRemove) { Text("删除记录") }
                     }
 
-                    DownloadStatus.PAUSED -> TextButton(onClick = onRetry) { Text("继续") }
+                    DownloadStatus.PAUSED -> TextButton(onClick = actions.onRetry) { Text("继续") }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 安装已下载的 APK（闭合"发现 → 下载 → 校验 → 安装"回路）。
+ *
+ * 安装前先过 [InstallGuard]：包名一致 + 签名一致 + versionCode 不降级 + 未知来源权限，
+ * 任一不满足都给出**可行动**的提示，而不是把用户丢给一个必然失败的系统安装器。
+ */
+private fun installApk(
+    context: Context,
+    apkPath: String,
+) {
+    val guard = InstallGuard(context)
+    when (val result = guard.check(apkPath)) {
+        is InstallGuard.Result.Allowed -> {
+            val intent = guard.installIntent(apkPath)
+            runCatching { context.startActivity(intent) }
+                .onFailure { Toast.makeText(context, "无法调起系统安装器：${it.message}", Toast.LENGTH_LONG).show() }
+        }
+
+        is InstallGuard.Result.Rejected -> {
+            val message =
+                when (result.action) {
+                    InstallGuard.Result.Action.GRANT_UNKNOWN_APPS -> "${result.message}（将跳转授权页）"
+                    else -> result.message
+                }
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            if (result.action == InstallGuard.Result.Action.GRANT_UNKNOWN_APPS) {
+                guard.unknownAppsSettingsIntent()?.let { intent ->
+                    runCatching { context.startActivity(intent) }
                 }
             }
         }

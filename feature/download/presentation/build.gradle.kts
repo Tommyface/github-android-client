@@ -9,6 +9,7 @@ dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.presentation)
     implementation(projects.feature.download.domain)
+    implementation(projects.platform.apkinstall)
     implementation(libs.bundles.compose.ui)
     implementation(libs.koin.androidx.compose)
     implementation(libs.bundles.koin.common)

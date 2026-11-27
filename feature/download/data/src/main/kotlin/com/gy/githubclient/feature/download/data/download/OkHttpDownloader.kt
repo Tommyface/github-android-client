@@ -13,6 +13,9 @@ import com.gy.githubclient.core.data.download.ProgressThrottle
 import com.gy.githubclient.core.data.download.RangeDecision
 import com.gy.githubclient.core.data.download.RangeRequest
 import com.gy.githubclient.core.domain.model.installation.DownloadProgress
+import com.gy.githubclient.core.domain.model.mirror.MirrorConfig
+import com.gy.githubclient.core.domain.model.mirror.MirrorHealthRegistry
+import com.gy.githubclient.core.domain.model.mirror.MirrorPreference
 import com.gy.githubclient.core.domain.network.AssetIdentity
 import com.gy.githubclient.core.domain.network.Downloader
 import com.gy.githubclient.core.domain.repository.MirrorRepository
@@ -46,6 +49,8 @@ class OkHttpDownloader(
     private val httpClient: OkHttpClient,
     private val fileStore: DownloadFileStore,
     private val mirrorRepository: MirrorRepository,
+    /** M1-05：镜像健康登记簿（成功/失败累计与熔断），全进程共享。 */
+    private val mirrorHealth: MirrorHealthRegistry = MirrorHealthRegistry(),
 ) : Downloader {
     private val activeCalls = ConcurrentHashMap<String, MutableList<Call>>()
 
@@ -66,33 +71,12 @@ class OkHttpDownloader(
                 val catalog = mirrorRepository.observeCatalog().first()
                 val latencies = mirrorRepository.observeMeasuredLatencies().first()
                 // v0.5.3 M1：选定镜像失败 → 池内其他镜像（按延迟）→ 直连，全池轮换。
-                val urls =
-                    if (bypassMirror) {
-                        listOf(url)
-                    } else {
-                        MirrorUrlResolver.candidateUrls(url, preference, catalog, latencies)
-                    }
+                // M1-05：熔断冷却期的镜像不再进入候选链；直连与自定义模板不参与熔断统计。
+                val chain = buildCandidateChain(url, preference, catalog, latencies, bypassMirror)
 
-                var lastError: IOException? = null
-                var succeeded = false
-                for (candidate in urls) {
-                    try {
-                        performDownload(candidate, fileName, identity ?: AssetIdentity(), calls) { progress ->
-                            trySend(progress)
-                        }
-                        succeeded = true
-                        break
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: IOException) {
-                        lastError = e
-                        // M12：切换镜像时保留 .part，让下一候选从已收字节偏移续传；
-                        // 若新源不兼容（返回 200 全量），performOnce 内 TRUNCATE_REWRITE 会从头覆盖。
-                        // 仅当服务端明确资源不再存在（404/410）才丢弃（见 performOnce 内决策）。
-                    }
-                }
-                if (!succeeded) {
-                    throw lastError ?: IOException("下载失败：无可用下载源")
+                val lastError = runChain(chain, fileName, identity, calls) { progress -> trySend(progress) }
+                if (lastError != null) {
+                    throw lastError
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -105,6 +89,56 @@ class OkHttpDownloader(
             }
             awaitClose { calls.forEach { it.cancel() } }
         }
+
+    /**
+     * 构建候选链（M1-05：熔断中的源不参与）。
+     */
+    private fun buildCandidateChain(
+        url: String,
+        preference: MirrorPreference,
+        catalog: List<MirrorConfig>,
+        latencies: Map<String, Int>,
+        bypassMirror: Boolean,
+    ): List<Pair<String?, String>> {
+        if (bypassMirror) return listOf(null to url)
+        return MirrorUrlResolver.candidateChain(
+            githubUrl = url,
+            preference = preference,
+            catalog = catalog,
+            latencies = latencies,
+            openCircuitIds = mirrorHealth.openCircuitIds(System.currentTimeMillis()),
+        )
+    }
+
+    /**
+     * 依次尝试候选源；成功返回 null，失败返回最后一个错误。
+     *
+     * 切换镜像时保留 .part，让下一候选从已收字节偏移续传；
+     * 若新源不兼容（返回 200 全量），performOnce 内 TRUNCATE_REWRITE 会从头覆盖。
+     * 仅当服务端明确资源不再存在（404/410）才丢弃（见 performOnce 内决策）。
+     */
+    private suspend fun runChain(
+        chain: List<Pair<String?, String>>,
+        fileName: String,
+        identity: AssetIdentity?,
+        calls: MutableList<Call>,
+        onProgress: (DownloadProgress) -> Unit,
+    ): IOException? {
+        var lastError: IOException? = null
+        for ((mirrorId, candidate) in chain) {
+            try {
+                performDownload(candidate, fileName, identity ?: AssetIdentity(), calls, onProgress)
+                mirrorId?.let { mirrorHealth.recordSuccess(it) }
+                return null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                lastError = e
+                mirrorId?.let { mirrorHealth.recordFailure(it, System.currentTimeMillis()) }
+            }
+        }
+        return lastError ?: IOException("下载失败：无可用下载源")
+    }
 
     /** 单源下载：断点续传 + 流式写文件 + 进度节流 + 有限重试。 */
     @Suppress("NestedBlockDepth", "ReturnCount")

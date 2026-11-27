@@ -5,7 +5,9 @@
 
 package com.gy.githubclient.di
 
+import com.gy.githubclient.core.audit.di.auditModule
 import com.gy.githubclient.core.data.di.coreNetworkModule
+import com.gy.githubclient.core.domain.update.UpdateCoordinator
 import com.gy.githubclient.feature.auth.data.di.authDataModule
 import com.gy.githubclient.feature.auth.presentation.di.authPresentationModule
 import com.gy.githubclient.feature.discover.data.di.discoverDataModule
@@ -22,17 +24,27 @@ import com.gy.githubclient.feature.search.data.di.searchDataModule
 import com.gy.githubclient.feature.search.presentation.di.searchPresentationModule
 import com.gy.githubclient.feature.starred.data.di.starredDataModule
 import com.gy.githubclient.feature.starred.presentation.di.starredPresentationModule
+import com.gy.githubclient.settings.AppSettingsStore
+import com.gy.githubclient.update.UpdateCandidateSourceImpl
 import com.gy.githubclient.update.UpdateCheckViewModel
+import com.gy.githubclient.update.UpdateSkipLedgerImpl
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
-/** core 层共享依赖占位，后续阶段在此注册 Room/WorkManager。 */
+/** core 层共享依赖：目前只承载应用级 ViewModel。 */
 val coreModule =
     module {
-        // TODO(P4): Room 缓存、WorkManager 后台任务在此注册
         viewModel {
-            UpdateCheckViewModel(androidContext(), get())
+            UpdateCheckViewModel(
+                appContext = androidContext(),
+                downloadManager = get(),
+                coordinator =
+                    UpdateCoordinator(
+                        source = UpdateCandidateSourceImpl(),
+                        ledger = UpdateSkipLedgerImpl(androidContext()),
+                    ),
+            )
         }
     }
 
@@ -40,6 +52,10 @@ val coreModule =
 val appModules =
     listOf(
         coreModule,
+        // 写操作审计（core:audit）：所有写操作落库，可导出「操作审计报告」
+        auditModule,
+        // 外观设置（主题模式 / 代码字号）：单例，供 MainActivity 与设置页共享
+        module { single { AppSettingsStore(androidContext()) } },
         coreNetworkModule,
         authDataModule,
         authPresentationModule,

@@ -17,11 +17,15 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.gy.githubclient.BuildConfig
+import com.gy.githubclient.core.domain.update.UpdateCandidate
+import com.gy.githubclient.core.domain.update.UpdateCoordinator
 
 /**
- * 每 6 小时一次的自更新检查（WorkManager 周期任务）：
- * - [UpdateChecker.check] 命中新版本时发本地通知（点击打开应用内「检查更新」页，
- *   由该页完成应用内下载 + SHA-256/签名指纹双校验闭环，不再跳浏览器）。
+ * 每 6 小时一次的自更新检查（WorkManager 周期任务，M1-02~M1-04）：
+ * - 走与手动检查**同一条**判定链路（双通道候选 → UpdateCoordinator → UpdateLevelDecider）；
+ * - 仅在判定为「可选更新 / 强制更新」时通知；已是最新、已跳过、无法比较一律静默；
+ * - 点击通知打开应用内「检查更新」页，由该页完成应用内下载 + SHA-256/签名指纹双校验闭环。
  * - 预发布开关持久于 SharedPreferences，与手动检查共用同一判定。
  * - Android 13+ 通知权限未授予时静默跳过，不崩溃、不重试。
  * - 检查本身零配额消耗（304 条件请求），失败静默，符合"用户主动、低频、可解释"原则。
@@ -31,17 +35,26 @@ class UpdateCheckWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        val update = UpdateChecker(applicationContext).check(includePrereleaseFromPrefs()) ?: return Result.success()
-        notify(update)
+        val coordinator =
+            UpdateCoordinator(
+                source = UpdateCandidateSourceImpl(),
+                ledger = UpdateSkipLedgerImpl(applicationContext),
+            )
+        // 后台检查同样受节流窗口约束，避免与手动检查叠加请求。
+        if (coordinator.isThrottled()) return Result.success()
+        val outcome =
+            coordinator.evaluate(
+                localVersion = BuildConfig.VERSION_NAME,
+                localVersionCode = BuildConfig.VERSION_CODE,
+            )
+        coordinator.recordCheck()
+        val candidate = outcome.candidate ?: return Result.success()
+        if (!outcome.shouldNotify) return Result.success()
+        notify(candidate)
         return Result.success()
     }
 
-    private fun includePrereleaseFromPrefs(): Boolean =
-        applicationContext
-            .getSharedPreferences(UpdateCheckPrefs.NAME, Context.MODE_PRIVATE)
-            .getBoolean(UpdateCheckPrefs.KEY_INCLUDE_PRERELEASE, false)
-
-    private fun notify(update: UpdateChecker.UpdateInfo) {
+    private fun notify(candidate: UpdateCandidate) {
         val context = applicationContext
         val granted =
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -66,12 +79,12 @@ class UpdateCheckWorker(
                 },
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
-        val digestHint = update.sha256?.take(DIGEST_HINT_LENGTH) ?: "官方摘要缺失，安装前将做签名指纹校验"
+        val digestHint = candidate.fingerprint?.take(DIGEST_HINT_LENGTH) ?: "官方摘要缺失，安装前将做签名指纹校验"
         val notification =
             NotificationCompat
                 .Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                .setContentTitle("GitHub Client 有新版本 ${update.tagName}")
+                .setContentTitle("GitHub Client 有新版本 ${candidate.version}")
                 .setContentText("SHA-256 前 $DIGEST_HINT_LENGTH 位：$digestHint（点击查看并下载）")
                 .setAutoCancel(true)
                 .setContentIntent(contentIntent)

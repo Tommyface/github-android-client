@@ -1,0 +1,48 @@
+name: Bug report
+
+description: 缺陷报告（请附脱敏后的日志）
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 现象
+      placeholder: 期望什么、实际发生什么
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      placeholder: 例 v0.17.0（设置 → 关于可查）
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 设备与系统
+      placeholder: 例 Pixel 8 / Android 14
+    validations:
+      required: true
+  - type: input
+    id: account-type
+    attributes:
+      label: 登录方式
+      placeholder: OAuth Device Flow / PAT（fine-grained / classic）
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志
+      description: 设置 → 诊断与导出 → 导出报告（已自动脱敏）
+      render: text

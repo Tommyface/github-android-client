@@ -8,15 +8,18 @@ package com.gy.githubclient.feature.repo.data
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.data.local.RepoDao
 import com.gy.githubclient.feature.repo.data.local.toDomain
 import com.gy.githubclient.feature.repo.data.local.toEntity
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
+import com.gy.githubclient.feature.repo.data.remote.GitHubWriteApi
 import com.gy.githubclient.feature.repo.data.remote.buildCheckOverview
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.CommitSummary
+import com.gy.githubclient.feature.repo.domain.model.CreatedRepository
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
@@ -25,6 +28,7 @@ import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
+import com.gy.githubclient.feature.repo.domain.model.UploadTarget
 import com.gy.githubclient.feature.repo.domain.model.WorkflowRunPage
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import kotlinx.coroutines.flow.Flow
@@ -40,7 +44,57 @@ import com.gy.githubclient.feature.repo.data.remote.toDomain as toDomainDto
 class RepoRepositoryImpl(
     private val dao: RepoDao,
     private val api: GitHubRepoApi,
+    /** 写操作通道（M2-05/07/08）：统一信封 + 审计。 */
+    private val writeApi: GitHubWriteApi,
 ) : RepoRepository {
+    override suspend fun updateRepoSettings(
+        owner: String,
+        name: String,
+        description: String?,
+        private: Boolean?,
+        archived: Boolean?,
+    ): MutationResult<Unit> = writeApi.updateRepository(owner, name, description, private, archived)
+
+    override suspend fun deleteRepository(
+        owner: String,
+        name: String,
+    ): MutationResult<Unit> = writeApi.deleteRepository(owner, name)
+
+    override suspend fun createRepository(
+        name: String,
+        description: String?,
+        private: Boolean,
+    ): MutationResult<CreatedRepository> = writeApi.createRepository(name, description, private)
+
+    override suspend fun uploadFile(
+        owner: String,
+        name: String,
+        target: UploadTarget,
+        contentBase64: String,
+        message: String,
+    ): MutationResult<Unit> {
+        // 路径穿越防护：写入前必须通过白名单校验（数据层兜底，不依赖 UI）。
+        val validated =
+            when (
+                val result =
+                    com.gy.githubclient.feature.repo.domain.usecase.UploadPathValidator
+                        .validate(target.path)
+            ) {
+                is com.gy.githubclient.feature.repo.domain.usecase.UploadPathValidator.Result.Valid -> result.normalizedPath
+                is com.gy.githubclient.feature.repo.domain.usecase.UploadPathValidator.Result.Invalid ->
+                    return MutationResult.Failure(
+                        com.gy.githubclient.core.mutation.MutationError.Validation(
+                            message = result.reason,
+                        ),
+                    )
+            }
+        return writeApi.uploadFile(
+            target = target.copy(path = validated),
+            contentBase64 = contentBase64,
+            message = message,
+        )
+    }
+
     override fun observeRepositories(filter: RepoFilter): Flow<List<Repository>> =
         dao.observeByBucket(bucketOf(filter)).map { entities -> entities.map { it.toDomain() } }
 

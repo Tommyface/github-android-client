@@ -15,7 +15,6 @@ room = "2.6.1"
 datastore = "1.1.1"
 kotlinxDatetime = "0.6.1"
 coroutines = "1.9.0"
-ksafe = "0.5.0"
 
 # UI
 composeBom = "2024.12.01"
@@ -28,7 +27,6 @@ lifecycle = "2.8.7"
 # 后台 / 分享 / 安全
 work = "2.10.0"
 coreKtx = "1.15.0"
-fileprovider = "1.1.0"
 securityCrypto = "1.1.0"
 
 # 质量门禁
@@ -66,7 +64,6 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version = "1.7.3" }
-ksafe = { module = "com.github.stevdza-san:KSafe", version.ref = "ksafe" }
 
 # UI
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -83,7 +80,6 @@ lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-com
 # 后台 / 系统
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
-fileprovider = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
 
 # 测试

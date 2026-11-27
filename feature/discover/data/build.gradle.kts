@@ -22,3 +22,9 @@ dependencies {
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+// Room schema 导出（M0-10）：导出后 schema 版本历史可入库，
+// 后续 schema 变更才能用 MigrationTestHelper 写真实迁移测试。
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}

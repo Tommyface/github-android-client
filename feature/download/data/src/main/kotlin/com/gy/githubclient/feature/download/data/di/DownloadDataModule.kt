@@ -15,6 +15,7 @@ import com.gy.githubclient.feature.download.data.download.DownloadFileStore
 import com.gy.githubclient.feature.download.data.download.OkHttpDownloader
 import com.gy.githubclient.feature.download.data.local.DownloadDao
 import com.gy.githubclient.feature.download.data.local.DownloadDatabase
+import com.gy.githubclient.feature.download.data.local.MIGRATION_1_2
 import com.gy.githubclient.feature.download.data.mirror.MirrorPreferencesStore
 import com.gy.githubclient.feature.download.data.mirror.MirrorRepositoryImpl
 import com.gy.githubclient.feature.download.domain.repository.DownloadManager
@@ -78,7 +79,10 @@ val downloadDataModule =
                     androidContext(),
                     DownloadDatabase::class.java,
                     DownloadDatabase.NAME,
-                ).fallbackToDestructiveMigration()
+                ).addMigrations(MIGRATION_1_2)
+                // 兜底仍保留：仅当出现"未声明的版本跳跃"时才会触发，正常升级路径走上方 Migration。
+                // 门禁 RoomSchemaGateTest 会保证 version ≥ 2 的库必然有对应 Migration。
+                .fallbackToDestructiveMigration()
                 .build()
         }
 

@@ -6,6 +6,7 @@
 package com.gy.githubclient.feature.profile.domain.usecase
 
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
 import com.gy.githubclient.feature.profile.domain.repository.ProfileRepository
 
@@ -22,4 +23,38 @@ class MarkNotificationReadUseCase(
     private val repository: ProfileRepository,
 ) {
     suspend operator fun invoke(threadId: Long): NetworkResult<Unit> = repository.markThreadRead(threadId)
+}
+
+/** 一键全部标记已读（githup 通知批量处理等价能力）。 */
+class MarkAllNotificationsReadUseCase(
+    private val repository: ProfileRepository,
+) {
+    suspend operator fun invoke(): NetworkResult<Unit> = repository.markAllNotificationsRead()
+}
+
+/** 查询是否已关注某用户。 */
+class IsFollowingUseCase(
+    private val repository: ProfileRepository,
+) {
+    suspend operator fun invoke(login: String): NetworkResult<Boolean> = repository.isFollowing(login)
+}
+
+/** 关注 / 取关用户。 */
+class SetFollowingUseCase(
+    private val repository: ProfileRepository,
+) {
+    suspend operator fun invoke(
+        login: String,
+        following: Boolean,
+    ): MutationResult<Unit> = repository.setFollowing(login, following)
+}
+
+/** 忽略 / 恢复通知线程订阅。 */
+class SetThreadSubscriptionUseCase(
+    private val repository: ProfileRepository,
+) {
+    suspend operator fun invoke(
+        threadId: Long,
+        ignored: Boolean,
+    ): MutationResult<Unit> = repository.setThreadSubscription(threadId, ignored)
 }

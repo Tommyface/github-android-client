@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Frost 设计系统的界面文案。
+
+  归属约定：core/presentation 是被所有 feature 复用的设计系统，
+  因此它的文案放在**本模块**的资源里（com.gy.githubclient.core.presentation.R），
+  而不是 app 模块——feature 模块依赖 core:presentation 时可以直接取用。
+-->
+<resources>
+    <!-- 危险操作二次确认 -->
+    <string name="danger_confirm_default">确认</string>
+    <string name="danger_confirm_cancel">取消</string>
+    <string name="danger_confirm_type_prompt">请输入 %1$s 以确认</string>
+    <string name="danger_visibility_private_to_public">仓库将从【私有】变为【公开】：任何人都能查看与克隆该仓库，此变更可随时改回。</string>
+    <string name="danger_visibility_public_to_private">仓库将从【公开】变为【私有】：外部用户将无法访问该仓库，此变更可随时改回。</string>
+    <string name="danger_visibility_unchanged">可见性保持不变。</string>
+    <string name="danger_archive_uncheck">取消归档后仓库将恢复可读写状态。</string>
+    <string name="danger_archive_check">归档后仓库将变为只读：不能再提交、推送或新建 Issue/Release，但内容仍可访问。</string>
+    <string name="danger_archive_unchanged">归档状态保持不变。</string>
+
+    <!-- 图标的无障碍朗读文本（TalkBack）：图标本身没有文字，语义必须补足 -->
+    <string name="frost_icon_back">返回</string>
+    <string name="frost_icon_close">关闭</string>
+    <string name="frost_icon_search">搜索</string>
+    <string name="frost_icon_repo">仓库</string>
+    <string name="frost_icon_discover">发现</string>
+    <string name="frost_icon_profile">我的</string>
+</resources>

@@ -60,28 +60,77 @@ object MirrorUrlResolver {
         preference: MirrorPreference,
         catalog: List<MirrorConfig>,
         latencies: Map<String, Int>,
-    ): List<String> {
-        if (!MirrorRewriter.shouldRewrite(githubUrl)) return listOf(githubUrl)
+    ): List<String> = candidateChain(githubUrl, preference, catalog, latencies).map { it.second }
+
+    /**
+     * 候选链 + 镜像 id（M1-05：健康度与熔断需要知道每个候选属于哪个源）。
+     *
+     * id 为 null 表示「直连」或「自定义模板」——它们不属于内置池，不参与熔断统计。
+     */
+    fun candidateChain(
+        githubUrl: String,
+        preference: MirrorPreference,
+        catalog: List<MirrorConfig>,
+        latencies: Map<String, Int>,
+        openCircuitIds: Set<String> = emptySet(),
+    ): List<Pair<String?, String>> {
+        if (!MirrorRewriter.shouldRewrite(githubUrl)) return listOf(null to githubUrl)
+        // 直连偏好：不产生镜像候选，仅直连。
+        if (preference is MirrorPreference.Direct) return listOf(null to githubUrl)
+
         val kind = MirrorRewriter.classify(githubUrl) ?: TrafficKind.RELEASE_ASSET
+        val primaryId = (preference as? MirrorPreference.Selected)?.id
         val primaryTemplate =
             when (preference) {
-                // 直连偏好：不产生镜像候选，仅直连。
-                MirrorPreference.Direct -> return listOf(githubUrl)
                 is MirrorPreference.Custom -> preference.template.takeIf { it.isNotBlank() }
-                is MirrorPreference.Selected ->
-                    catalog.firstOrNull { it.id == preference.id }?.urlTemplate
+                is MirrorPreference.Selected -> catalog.firstOrNull { it.id == preference.id }?.urlTemplate
+                MirrorPreference.Direct -> null
             }
-        val primary = primaryTemplate?.let { MirrorRewriter.applyTemplate(it, githubUrl) }
-        val primaryId =
-            when (preference) {
-                is MirrorPreference.Selected -> preference.id
-                else -> null
-            }
+        // 自定义模板没有内置 id（null），但仍要作为首选候选；熔断中的源不参与（M1-05）。
+        val primary =
+            primaryTemplate
+                ?.takeIf { primaryId == null || primaryId !in openCircuitIds }
+                ?.let { MirrorRewriter.applyTemplate(it, githubUrl) }
         val fallbacks =
-            catalog
-                .filter { kind in it.trafficKinds && it.id != primaryId && it.urlTemplate != primaryTemplate }
-                .sortedBy { latencies[it.id] ?: Int.MAX_VALUE }
-                .mapNotNull { mirror -> mirror.urlTemplate?.let { MirrorRewriter.applyTemplate(it, githubUrl) } }
-        return (listOfNotNull(primary) + fallbacks + githubUrl).distinct()
+            fallbackCandidates(
+                FallbackQuery(
+                    githubUrl = githubUrl,
+                    kind = kind,
+                    catalog = catalog,
+                    latencies = latencies,
+                    excludedId = primaryId,
+                    excludedTemplate = primaryTemplate,
+                    openCircuitIds = openCircuitIds,
+                ),
+            )
+        val primaryEntry = primary?.let { url -> primaryId to url }
+        val chain = (listOfNotNull(primaryEntry) + fallbacks + (null to githubUrl))
+        return chain.distinctBy { it.second }
     }
+
+    /** 兜底候选：池内其余支持该流量、未被熔断、且不是首选的镜像，按延迟升序。 */
+    private fun fallbackCandidates(query: FallbackQuery): List<Pair<String, String>> =
+        query.catalog
+            .filter {
+                query.kind in it.trafficKinds &&
+                    it.id != query.excludedId &&
+                    it.urlTemplate != query.excludedTemplate &&
+                    it.id !in query.openCircuitIds
+            }.sortedBy { query.latencies[it.id] ?: Int.MAX_VALUE }
+            .mapNotNull { mirror ->
+                val template = mirror.urlTemplate ?: return@mapNotNull null
+                val url = MirrorRewriter.applyTemplate(template, query.githubUrl) ?: return@mapNotNull null
+                mirror.id to url
+            }
+
+    /** 兜底候选的查询参数（用数据类承载，避免长参数列表）。 */
+    private data class FallbackQuery(
+        val githubUrl: String,
+        val kind: TrafficKind,
+        val catalog: List<MirrorConfig>,
+        val latencies: Map<String, Int>,
+        val excludedId: String?,
+        val excludedTemplate: String?,
+        val openCircuitIds: Set<String>,
+    )
 }

@@ -842,6 +842,9 @@ private fun MarkdownBlockView(
     repo: String,
     defaultBranch: String,
 ) {
+    // 主题令牌在 Composable 上下文取一次，再传入纯函数 renderInline
+    // （renderInline / buildAnnotatedString 不是 @Composable，不能直接读 MaterialTheme）。
+    val codeBackground = MaterialTheme.colorScheme.surfaceVariant
     when (block) {
         is MdBlock.Heading ->
             Text(
@@ -857,7 +860,7 @@ private fun MarkdownBlockView(
 
         is MdBlock.Paragraph ->
             Text(
-                remember(block.text) { renderInline(block.text) },
+                remember(block.text, codeBackground) { renderInline(block.text, codeBackground) },
                 style = MaterialTheme.typography.bodyMedium,
             )
 
@@ -865,7 +868,7 @@ private fun MarkdownBlockView(
             Row(Modifier.padding(start = 8.dp)) {
                 Text("• ", style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    remember(block.text) { renderInline(block.text) },
+                    remember(block.text, codeBackground) { renderInline(block.text, codeBackground) },
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -902,7 +905,10 @@ private fun MarkdownBlockView(
  * 行内格式渲染（v0.6.0 M6）：`code` 等宽、**粗体**、[链接](url) 可点开。
  * 纯函数，可单测（返回 AnnotatedString 断言文本即可）。
  */
-internal fun renderInline(text: String): AnnotatedString =
+internal fun renderInline(
+    text: String,
+    codeBackground: androidx.compose.ui.graphics.Color? = null,
+): AnnotatedString =
     buildAnnotatedString {
         var index = 0
         while (index < text.length) {
@@ -920,7 +926,7 @@ internal fun renderInline(text: String): AnnotatedString =
                     val codeEnd = text.indexOf('`', codeStart + 1)
                     if (codeEnd > codeStart) {
                         append(text, index, codeStart)
-                        pushStyle(SPAN_CODE)
+                        pushStyle(spanCode(codeBackground))
                         append(text.substring(codeStart + 1, codeEnd))
                         pop()
                         index = codeEnd + 1
@@ -957,10 +963,18 @@ private val LINK_REGEX = Regex("\\[([^\\]]+)]\\((https?://[^)\\s]+)\\)")
 
 private val SPAN_BOLD = SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
 
-private val SPAN_CODE =
-    SpanStyle(
-        fontFamily = FontFamily.Monospace,
-        background =
-            androidx.compose.ui.graphics
-                .Color(0x14000000),
-    )
+/**
+ * 代码片段样式：背景由调用方传入**主题令牌**（不写死色值，见 konsist 规则 14）。
+ *
+ * 之所以不直接在这里取 MaterialTheme：调用点在 `buildAnnotatedString` 内（非 @Composable 上下文），
+ * 因此颜色由 Composable 侧取好后传入。
+ */
+private fun spanCode(background: androidx.compose.ui.graphics.Color?): SpanStyle =
+    if (background == null) {
+        SpanStyle(fontFamily = FontFamily.Monospace)
+    } else {
+        SpanStyle(
+            fontFamily = FontFamily.Monospace,
+            background = background,
+        )
+    }

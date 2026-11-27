@@ -18,8 +18,10 @@ android {
 
 dependencies {
     implementation(projects.core.domain)
+    implementation(projects.core.audit)
     implementation(projects.core.data)
     implementation(projects.core.presentation)
+    implementation(projects.platform.diagnostics)
 
     implementation(projects.feature.auth.domain)
     implementation(projects.feature.auth.data)
@@ -30,13 +32,9 @@ dependencies {
     implementation(projects.feature.discover.domain)
     implementation(projects.feature.discover.data)
     implementation(projects.feature.discover.presentation)
-    implementation(projects.feature.release.domain)
-    implementation(projects.feature.release.data)
-    implementation(projects.feature.release.presentation)
     implementation(projects.feature.download.domain)
     implementation(projects.feature.download.data)
     implementation(projects.feature.download.presentation)
-    implementation(projects.feature.share.presentation)
     implementation(projects.feature.search.domain)
     implementation(projects.feature.search.data)
     implementation(projects.feature.search.presentation)

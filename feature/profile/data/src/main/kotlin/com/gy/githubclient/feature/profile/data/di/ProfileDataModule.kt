@@ -15,13 +15,17 @@ import com.gy.githubclient.feature.profile.domain.repository.ProfileRepository
 import com.gy.githubclient.feature.profile.domain.usecase.ClearProfileCacheUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.GetGistUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.GetOrgUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.IsFollowingUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ListNotificationsUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ListOrgMembersUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ListUserEventsUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ListUserGistsUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.MarkAllNotificationsReadUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.MarkNotificationReadUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.ObserveProfileUseCase
 import com.gy.githubclient.feature.profile.domain.usecase.RefreshProfileUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.SetFollowingUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.SetThreadSubscriptionUseCase
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -54,6 +58,10 @@ val profileDataModule =
         factory { ClearProfileCacheUseCase(get<ProfileRepository>()) }
         factory { ListNotificationsUseCase(get<ProfileRepository>()) }
         factory { MarkNotificationReadUseCase(get<ProfileRepository>()) }
+        factory { MarkAllNotificationsReadUseCase(get<ProfileRepository>()) }
+        factory { IsFollowingUseCase(get<ProfileRepository>()) }
+        factory { SetFollowingUseCase(get<ProfileRepository>()) }
+        factory { SetThreadSubscriptionUseCase(get<ProfileRepository>()) }
         factory { ListUserEventsUseCase(get<ProfileRepository>()) }
         factory { GetOrgUseCase(get<ProfileRepository>()) }
         factory { ListOrgMembersUseCase(get<ProfileRepository>()) }

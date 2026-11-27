@@ -10,6 +10,8 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.gy.githubclient.di.appModules
+import com.gy.githubclient.platform.diagnostics.CrashRecorder
+import com.gy.githubclient.platform.diagnostics.StructuredLogger
 import com.gy.githubclient.update.UpdateCheckWorker
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -18,6 +20,11 @@ import java.util.concurrent.TimeUnit
 class GithubClientApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // 崩溃捕获必须**最先**安装（早于 Koin 与任何业务初始化），
+        // 否则初始化阶段的崩溃会静默丢失，现场无处可查。
+        val logger = StructuredLogger(this)
+        CrashRecorder.install(this, logger)
+        logger.info("app_start", mapOf("version" to BuildConfig.VERSION_NAME))
         startKoin {
             androidContext(this@GithubClientApp)
             // OAuth client_id 下发给 data 层（OAuthDeviceFlowRepositoryImpl）。

@@ -8,7 +8,7 @@ package com.gy.githubclient.feature.discover.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 
-@Database(entities = [DiscoverItemEntity::class], version = 1, exportSchema = false)
+@Database(entities = [DiscoverItemEntity::class], version = 1, exportSchema = true)
 abstract class DiscoverDatabase : RoomDatabase() {
     abstract fun discoverDao(): DiscoverDao
 

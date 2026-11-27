@@ -7,7 +7,9 @@ plugins {
 
 dependencies {
     implementation(projects.core.domain)
-    implementation(projects.core.mutation)
+    // GitHubApiClient 的公开签名包含 AuditSink / MutationRetryPolicy，
+    // 用 api 暴露，避免消费方（如 feature:*:data）出现 "Cannot access class"。
+    api(projects.core.mutation)
     implementation(projects.core.permission)
     implementation(libs.bundles.ktor.common)
     implementation(libs.ktor.client.okhttp)

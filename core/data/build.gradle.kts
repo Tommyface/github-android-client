@@ -1,6 +1,8 @@
 plugins {
     id("gy.android.lib")
     alias(libs.plugins.ksp)
+    // 写操作的错误信封（GitHubErrorEnvelope）需要 @Serializable 生成 serializer
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {

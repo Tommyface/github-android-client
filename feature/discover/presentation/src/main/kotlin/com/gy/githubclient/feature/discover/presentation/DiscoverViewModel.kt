@@ -105,6 +105,7 @@ data class DiscoverUiState(
  * - 刷新触发并发 Release 拉取，失败原因以语义类型暴露给界面层；
  * - 榜单 tab / 语言切换时复用 Search API 拉仓库榜。
  */
+@Suppress("LongParameterList") // 7 个用例注入，属 ViewModel 聚合入口的常规形态（拆分见债务 D-03）
 class DiscoverViewModel(
     private val observeDiscover: ObserveDiscoverUseCase,
     private val refreshDiscover: RefreshDiscoverUseCase,

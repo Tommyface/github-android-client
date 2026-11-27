@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -76,6 +78,10 @@ fun LoginScreen(
         modifier =
             Modifier
                 .fillMaxSize()
+                // 三张卡片（Device Flow / PAT / 通知通道）在多数手机上超过一屏：
+                // 原实现没有滚动容器，底部卡片和「绑定通知通道」会被直接裁掉——功能因此不可达。
+                // 加 verticalScroll 后高度仍由 fillMaxSize 定，内容不足一屏时 Arrangement.Center 照旧生效。
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,

@@ -1,15 +1,91 @@
-# 我的页功能入口齐全性（逐个对应 ProfileScreen 的 FullWidthButton 文案）。
+# 我的页功能入口齐全性：12 个 FullWidthButton + 退出登录，逐个可达。
+#
+# 断言来源：ProfileScreen.kt 的 FullWidthButton(text = ...) 文案，逐字对应。
+# "我的页" 是 verticalScroll 的 Column，12 个入口跨两屏以上，所以每一项都先
+# scrollUntilVisible 再断言：元素已在视口内时 scrollUntilVisible 直接通过，不额外滚动。
+#
+# emoji 项总结成 `.*关键词.*`：⬆️ 这类带变体选择符（U+FE0F），断言里少一个码位就假红，
+# 而"这一项在不在"由关键词本身判定即可（这些关键词在 ProfileScreen 里唯一）。
 appId: com.gy.githubclient
 ---
 - launchApp
 - tapOn: "我的"
 - assertVisible: "功能"
-- assertVisible: "⭐ 星标仓库"
-- assertVisible: "🔔 通知中心"
-- assertVisible: "下载管理"
-- assertVisible: "镜像加速设置"
+
 - scrollUntilVisible:
     element:
-      text: "🔐 权限体检"
+      text: '.*星标仓库.*'
+    direction: DOWN
+- assertVisible: '.*星标仓库.*'
+
+- scrollUntilVisible:
+    element:
+      text: '.*个人动态.*'
+    direction: DOWN
+- assertVisible: '.*个人动态.*'
+
+- scrollUntilVisible:
+    element:
+      text: '.*我的 Gist.*'
+    direction: DOWN
+- assertVisible: '.*我的 Gist.*'
+
+- scrollUntilVisible:
+    element:
+      text: '.*组织信息.*'
+    direction: DOWN
+- assertVisible: '.*组织信息.*'
+
+- scrollUntilVisible:
+    element:
+      text: '.*应用库.*'
+    direction: DOWN
+- assertVisible: '.*应用库.*'
+
+- scrollUntilVisible:
+    element:
+      text: '.*通知中心.*'
+    direction: DOWN
+- assertVisible: '.*通知中心.*'
+
+- scrollUntilVisible:
+    element:
+      text: "下载管理"
+    direction: DOWN
+- assertVisible: "下载管理"
+
+- scrollUntilVisible:
+    element:
+      text: "镜像加速设置"
+    direction: DOWN
+- assertVisible: "镜像加速设置"
+
+- scrollUntilVisible:
+    element:
+      text: '.*外观与缓存.*'
+    direction: DOWN
+- assertVisible: '.*外观与缓存.*'
+
+- scrollUntilVisible:
+    element:
+      text: '.*权限体检.*'
+    direction: DOWN
+- assertVisible: '.*权限体检.*'
+
+- scrollUntilVisible:
+    element:
+      text: '.*检查更新.*'
+    direction: DOWN
+- assertVisible: '.*检查更新.*'
+
+- scrollUntilVisible:
+    element:
+      text: '.*贡献热力图.*'
+    direction: DOWN
+- assertVisible: '.*贡献热力图.*'
+
+- scrollUntilVisible:
+    element:
+      text: "退出登录"
     direction: DOWN
 - assertVisible: "退出登录"

@@ -1,11 +1,16 @@
-# 应用库：批量更新入口与列表/空态。
+# 应用库：标题 + 批量更新入口，空态/有数据都能通过。
+#
+# 断言来源：LibraryScreen.kt —— 标题 Text("应用库")、
+# "全部更新" 是恒渲染的 OutlinedButton（只有 enabled 状态随 hasUpdate 变化，
+# 文案不受空列表影响），所以空态下断它也不会假红。
 appId: com.gy.githubclient
 ---
 - launchApp
 - tapOn: "我的"
 - scrollUntilVisible:
     element:
-      text: "📱 应用库"
+      text: '.*应用库.*'
     direction: DOWN
-- tapOn: "📱 应用库"
+- tapOn: '.*应用库.*'
+- assertVisible: "应用库"
 - assertVisible: "全部更新"

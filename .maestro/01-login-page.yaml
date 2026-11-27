@@ -1,11 +1,27 @@
 # 冷装首次启动：登录页三条主路径必须都在。
 # 覆盖：Device Flow 入口 / PAT 主通道 / 通知通道绑定（watch 端点独立 token）。
+#
+# 断言来源（逐条取自 feature/auth/.../LoginScreen.kt，不是猜的）：
+#   "使用 GitHub 账号登录"              → Device Flow 卡片 Idle 态按钮
+#   "主通道 · Fine-grained Token（备用）"  → PAT 卡片标题
+#   "github_pat_..."                   → PAT 输入框 label
+#   "通知通道 · Classic Token（可选）"     → 通知卡片标题
+#   "ghp_..."                          → 通知输入框 label
+#   "绑定通知通道"                       → 通知卡片按钮
+#
+# Maestro 的 text 选择器是**全匹配正则**：label 里的 "." 本身就会当通配符，
+# 这里显式写成 `.*` 包裹，避免"看着像转义、其实没转"的误读。
+# 登录页内容超过一屏时可滚动到达（本次一并给 LoginScreen 补了 verticalScroll）。
 appId: com.gy.githubclient
 ---
 - launchApp:
     clearState: true
 - assertVisible: "使用 GitHub 账号登录"
 - assertVisible: "主通道 · Fine-grained Token（备用）"
-- assertVisible: "github_pat_..."
-- assertVisible: "github_pat_..."
+- assertVisible: '.*github_pat_\.\.\..*'
+- scrollUntilVisible:
+    element:
+      text: "通知通道 · Classic Token（可选）"
+    direction: DOWN
+- assertVisible: '.*ghp_\.\.\..*'
 - assertVisible: "绑定通知通道"

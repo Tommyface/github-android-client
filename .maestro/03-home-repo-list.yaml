@@ -1,8 +1,16 @@
-# 起始页（Route.Home = 仓库列表）与底部导航首项。
+# 起始页（Route.Home = 仓库列表）与底部导航。
 # 前置：已登录（先跑 02，或手动登录）。
+#
+# 断言来源：RepoListScreen.kt 的 "我的仓库" 标题 / "搜索仓库" 输入框；
+# AppScaffold 的 TabSpec 用 nav_tab_repo("仓库") / nav_tab_repo_title("我的仓库") /
+# nav_tab_repo_subtitle("GitHub · 磨砂玻璃") 三个字符串。
+#
+# 为什么还要断副标题："仓库" 这一个词同时出现在底部 tab 上，只断它无法区分
+# "页面真的在仓库页" 与 "只是 tab 在那儿"。副标题只有通栏才渲染。
 appId: com.gy.githubclient
 ---
 - launchApp
 - assertVisible: "我的仓库"
 - assertVisible: "搜索仓库"
+- assertVisible: "GitHub · 磨砂玻璃"
 - assertVisible: "仓库"

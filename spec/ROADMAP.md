@@ -14,7 +14,7 @@
 | M0-05 | `release.yml`：签名构建 + 硬断言 + 产物三件套 + 三处一致校验 | ✅ |
 | M0-06 | release 密钥从 Secrets 还原；无密钥直接失败（禁明文兜底） | ✅ |
 | M0-07 | release 开启混淆 + 资源压缩 + ProGuard 规则 | ✅ |
-| M0-08 | 签名指纹钉子改为钉 release 指纹 | ✅（新密钥已生成，Secrets 已托管，debug/release 按构建变体分流） |
+| M0-08 | 签名指纹钉子改为钉 release 指纹 | ✅ **已实测确认**：v0.19.0 正式产物的签名证书 SHA-256 = `e86de404…cb77`，与 README / SECURITY.md / `ApkSignatureVerifier` 钉的值一致 |
 | M0-09 | kover 阈值门禁（`tools/check_coverage.py`） | 🔄 目标阈值 60%；当前棘轮基线 **33**（`gradle.properties: ghcCoverageThreshold=33`，实测约 34.67%）——距目标仍远，是持续项 |
 | M0-10 | Room 结构安全门禁 + schema 导出 + DownloadDatabase v1→v2 迁移 | ✅（真实迁移测试待 schema 首次 bump） |
 | M0-11 | konsist 2 → 12 条规则 | ✅ |
@@ -26,7 +26,7 @@
 | M0-17 | 分支保护配置说明 + PR 模板 + ISSUE 模板 + dependabot + gitleaks 配置 | ✅ |
 | M0-18 | 字符串资源化（全量硬编码中文清零） | 🔄 R7 校准后：规则 13 改为**双向棘轮**（新增即失败 / 登记项失效也失败）+ **先剔注释再判定** + 覆盖 feature 层；本轮清掉 5 个文件、修正 7 个误报；剩余 **39** 个文件为已登记存量，逐屏清账 |
 
-## 阶段 1 · D0 发版与更新闭环（4~5 天）— 产出 v0.19.0
+## 阶段 1 · D0 发版与更新闭环（4~5 天）— **v0.19.0 已发布（2026-11-27）**
 
 | 项 | 内容 | 状态 |
 |---|---|---|

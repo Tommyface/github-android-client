@@ -2,7 +2,9 @@
 
 仅安卓端的 GitHub 仓库管理客户端，融合 komi-store 的商店 / 下载 / 镜像加速 / 分享能力。
 
-> 状态：**v0.19.0 准备中**（当前主干 v0.17.0 / versionCode 20；下一版跳过被占用的 v0.18.0）
+> 状态：**v0.19.0 已发布**（2026-11-27，versionCode 21）——
+> [Release](https://github.com/Tommyface/github-android-client/releases/tag/v0.19.0) ·
+> APK 3,523,641 字节 · SHA-256 `6b54686acc1b12bbe763c6b1427e701048d49fac62afe9bfe22d561a1a2c7c62`
 > 交付历史见 `docs/versions/`（版本 → 报告 → tag 对应表）。
 > 对标与合规边界见 `spec/parity/`，威胁模型见 `spec/threat-model.md`，执行路线见 `spec/ROADMAP.md`。
 
@@ -91,6 +93,9 @@ sdk.dir=/path/to/android-sdk
 
 ```
 e86de404352ba7a1a03f3ed80565a6fd56d9f50672fbf106db160d796c62cb77
+
+> 该指纹已由 **v0.19.0** 正式产物实测确认（发布流水线 `apksigner verify --print-certs` 输出）。
+> 产物：3,523,641 字节 · SHA-256 `6b54686acc1b12bbe763c6b1427e701048d49fac62afe9bfe22d561a1a2c7c62`
 ```
 
 > 该指纹同时写入 `ApkSignatureVerifier.RELEASE_CERT_SHA256`，用于自更新包的防替换校验。

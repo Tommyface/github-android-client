@@ -9,10 +9,10 @@ import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
-import com.gy.githubclient.feature.repo.domain.model.CreatedRepository
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.CommitSummary
+import com.gy.githubclient.feature.repo.domain.model.CreatedRepository
 import com.gy.githubclient.feature.repo.domain.model.DiffLineKind
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry

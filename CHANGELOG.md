@@ -63,3 +63,17 @@
   现改为可机读基线的**真棘轮**，CI 与 nightly 均以 `--strict` 失败退出。
 - 修掉 P-204 遗留的三处红灯：`RepoDataTest` 缺 `writeApi` 实参、`DangerConfirmSheet` 连续 KDoc、
   领域测试替身未实现新增的四个写操作契约。
+
+### 已发布：v0.19.0（2026-11-27）
+
+- Release：<https://github.com/Tommyface/github-android-client/releases/tag/v0.19.0>
+- 产物三件套：`github-android-client-v0.19.0.apk`（3,523,641 字节） + `.sha256` + `version.json`
+- APK SHA-256：`6b54686acc1b12bbe763c6b1427e701048d49fac62afe9bfe22d561a1a2c7c62`
+- 签名证书 SHA-256：`e86de404352ba7a1a03f3ed80565a6fd56d9f50672fbf106db160d796c62cb77`
+  （与 README / SECURITY.md / `ApkSignatureVerifier` 钉的值一致 —— M0-08 由"待固化"变为"已实测确认"）
+- 本次发版前修掉了 release 流水线的四处硬伤（此前该流水线**从未实跑过**）：
+  1. CHANGELOG 步骤直推受保护的 `main` → 改推一次性分支；
+  2. 自动生成器覆盖人工版本说明 → 已有同名章节则跳过生成；
+  3. R8 缺失类（`error_prone_annotations` 等 compileOnly 注解）→ 按事实补 `dontwarn`；
+  4. release 签名口令环境变量名与约定插件对不上 → 统一为 `GHC_*`；
+  5. APK 体积下限按未混淆体积设为 5 MB → 混淆压缩后实测 3.5 MB 被误判 → 下限改 2 MB。

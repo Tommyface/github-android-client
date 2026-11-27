@@ -560,8 +560,6 @@ class ArchitectureTest {
                 "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/ActivityViewModel.kt",
                 "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/GistScreen.kt",
                 "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/GistViewModel.kt",
-                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/NotificationsScreen.kt",
-                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/NotificationsViewModel.kt",
                 "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/OrgScreen.kt",
                 "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/OrgViewModel.kt",
                 "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/ProfileScreen.kt",

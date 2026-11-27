@@ -7,6 +7,7 @@ package com.gy.githubclient.feature.profile.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
 import com.gy.githubclient.feature.profile.domain.usecase.ListNotificationsUseCase
@@ -16,13 +17,30 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * 通知加载失败的原因分类。
+ *
+ * 只给"分类"，不给文案：ViewModel 不产出中文字符串，
+ * 界面层（`NotificationsError.asText()`）负责把它映射成 `strings.xml` 里的文案。
+ */
+enum class NotificationsError {
+    /** 401：登录态失效。 */
+    UNAUTHORIZED,
+
+    /** 403/404：当前凭证（多为 fine-grained PAT）没有 Notifications 权限。 */
+    FORBIDDEN,
+
+    /** 网络、限流、5xx 等其余失败。 */
+    UNKNOWN,
+}
+
 /** 通知页 UI 状态。 */
 data class NotificationsUiState(
     val isLoading: Boolean = false,
     val items: List<GitHubNotification> = emptyList(),
     /** 已本地标记已读的线程 id（乐观更新）。 */
     val locallyReadIds: Set<Long> = emptySet(),
-    val errorMessage: String? = null,
+    val error: NotificationsError? = null,
 ) {
     /** 展示中的未读数：本地标记已读的条目立即从未读计数里移除。 */
     val unreadCount: Int get() = items.count { it.unread && it.id !in locallyReadIds }
@@ -46,7 +64,7 @@ class NotificationsViewModel(
     fun refresh() {
         if (_uiState.value.isLoading) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             _uiState.value =
                 when (val result = listNotifications(all = false)) {
                     is NetworkResult.Success ->
@@ -55,7 +73,7 @@ class NotificationsViewModel(
                     is NetworkResult.Failure ->
                         _uiState.value.copy(
                             isLoading = false,
-                            errorMessage = errorMessageFor(result),
+                            error = errorKindFor(result),
                         )
                 }
         }
@@ -73,10 +91,14 @@ class NotificationsViewModel(
         return notification.subject.url
     }
 
-    private fun errorMessageFor(failure: NetworkResult.Failure): String =
-        when (failure.error) {
-            is com.gy.githubclient.core.domain.network.ApiError.Unauthorized -> "登录态已失效，请重新登录"
-            is com.gy.githubclient.core.domain.network.ApiError.NotFound -> "当前凭证无 Notifications 读取权限（可在权限体检核对）"
-            else -> "通知加载失败，下拉或点击重试"
+    /** 失败原因归类（保持 v0.6.0 的三分类语义：401 / 无权限 / 其余）。 */
+    private fun errorKindFor(failure: NetworkResult.Failure): NotificationsError {
+        val error = failure.error
+        return when (error) {
+            is ApiError.Unauthorized -> NotificationsError.UNAUTHORIZED
+            // GitHub 对"凭证无权访问该端点"返回 404（而非 403），故 NotFound 归为无权限。
+            is ApiError.NotFound -> NotificationsError.FORBIDDEN
+            else -> NotificationsError.UNKNOWN
         }
+    }
 }

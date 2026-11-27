@@ -42,67 +42,41 @@ fun MutationError.toWriteError(): WriteError =
     when (this) {
         is MutationError.Unauthorized -> WriteError(WriteErrorKind.UNAUTHORIZED)
 
-        is MutationError.Forbidden ->
-            WriteError(
-                kind = WriteErrorKind.FORBIDDEN,
-                detail =
-                    when {
-                        missingScopes.isNotEmpty() -> missingScopes.joinToString(", ")
-                        message != null -> message
-                        else -> null
-                    },
-            )
+        is MutationError.Forbidden -> WriteError(WriteErrorKind.FORBIDDEN, detail = forbiddenDetail())
 
         is MutationError.NotFound -> WriteError(WriteErrorKind.NOT_FOUND)
 
-        is MutationError.Conflict ->
-            WriteError(
-                kind = WriteErrorKind.CONFLICT,
-                detail = message,
-            )
+        is MutationError.Conflict -> WriteError(WriteErrorKind.CONFLICT, detail = message)
 
-        is MutationError.Validation ->
-            WriteError(
-                kind = WriteErrorKind.VALIDATION,
-                detail =
-                    when {
-                        message != null -> message
-                        fieldErrors.isNotEmpty() ->
-                            fieldErrors.joinToString("; ") { error ->
-                                val text = error.message ?: error.code
-                                "${error.field}: $text"
-                            }
-
-                        else -> null
-                    },
-            )
+        is MutationError.Validation -> WriteError(WriteErrorKind.VALIDATION, detail = validationDetail())
 
         is MutationError.RateLimited ->
-            WriteError(
-                kind = WriteErrorKind.RATE_LIMITED,
-                detail = retryAfterSeconds?.let { "$it" },
-            )
+            WriteError(WriteErrorKind.RATE_LIMITED, detail = retryAfterSeconds?.toString())
 
-        is MutationError.Server ->
-            WriteError(
-                kind = WriteErrorKind.SERVER,
-                status = status,
-                detail = message,
-            )
+        is MutationError.Server -> WriteError(WriteErrorKind.SERVER, status = status, detail = message)
 
-        is MutationError.Network ->
-            WriteError(
-                kind = WriteErrorKind.NETWORK,
-                detail = cause,
-            )
+        is MutationError.Network -> WriteError(WriteErrorKind.NETWORK, detail = cause)
 
-        is MutationError.Unknown ->
-            WriteError(
-                kind = WriteErrorKind.UNKNOWN,
-                status = status,
-                detail = message,
-            )
+        is MutationError.Unknown -> WriteError(WriteErrorKind.UNKNOWN, status = status, detail = message)
     }
+
+/** 403 的补充说明：优先给出缺失的 scope（用户知道该去补哪个权限），其次是服务端消息。 */
+private fun MutationError.Forbidden.forbiddenDetail(): String? =
+    when {
+        missingScopes.isNotEmpty() -> missingScopes.joinToString(", ")
+        message != null -> message
+        else -> null
+    }
+
+/** 422 的补充说明：优先整体消息，否则把字段级错误拼成一行。 */
+private fun MutationError.Validation.validationDetail(): String? =
+    message
+        ?: fieldErrors
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString("; ") { error ->
+                val text = error.message ?: error.code
+                "${error.field}: $text"
+            }
 
 /**
  * 仓库名 / 简介的**纯逻辑校验**（P-205，可单测）。

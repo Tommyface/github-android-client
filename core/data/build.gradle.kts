@@ -5,6 +5,8 @@ plugins {
 
 dependencies {
     implementation(projects.core.domain)
+    implementation(projects.core.mutation)
+    implementation(projects.core.permission)
     implementation(libs.bundles.ktor.common)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.bundles.koin.common)

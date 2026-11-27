@@ -7,8 +7,11 @@ package com.gy.githubclient.feature.repo.presentation.di
 
 import com.gy.githubclient.feature.repo.presentation.ActionsViewModel
 import com.gy.githubclient.feature.repo.presentation.CommitViewModel
+import com.gy.githubclient.feature.repo.presentation.CreateRepositoryViewModel
 import com.gy.githubclient.feature.repo.presentation.FileBrowserViewModel
+import com.gy.githubclient.feature.repo.presentation.RepoSettingsViewModel
 import com.gy.githubclient.feature.repo.presentation.RepoViewModel
+import com.gy.githubclient.feature.repo.presentation.UploadFileViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -39,4 +42,8 @@ val repoPresentationModule =
         viewModel { FileBrowserViewModel(get(), get(), get(), get()) }
         viewModel { CommitViewModel(get(), get()) }
         viewModel { ActionsViewModel(get()) }
+        // P-205：仓库写操作界面（设置 / 删除 / 创建 / 上传）
+        viewModel { RepoSettingsViewModel(get(), get(), get()) }
+        viewModel { CreateRepositoryViewModel(get()) }
+        viewModel { UploadFileViewModel(get()) }
     }

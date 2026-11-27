@@ -1,0 +1,11 @@
+# 发现页榜单 tab：趋势 / 新发布 的口径说明必须出现（非官方近似，不冒充官方 Trending）。
+appId: com.gy.githubclient
+---
+- launchApp
+- tapOn: "发现"
+- tapOn: "趋势"
+- assertVisible: "非官方近似 · 近 30 天新建按 ★ 排序 · 基于 Search API"
+- tapOn: "新发布"
+- assertVisible: "非官方榜单 · 按最近更新排序 · 基于 Search API"
+- tapOn: "热门"
+- assertVisible: "非官方榜单 · 按 ★ 排序 · 基于 Search API"

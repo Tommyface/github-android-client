@@ -1,0 +1,15 @@
+# 我的页功能入口齐全性（逐个对应 ProfileScreen 的 FullWidthButton 文案）。
+appId: com.gy.githubclient
+---
+- launchApp
+- tapOn: "我的"
+- assertVisible: "功能"
+- assertVisible: "⭐ 星标仓库"
+- assertVisible: "🔔 通知中心"
+- assertVisible: "下载管理"
+- assertVisible: "镜像加速设置"
+- scrollUntilVisible:
+    element:
+      text: "🔐 权限体检"
+    direction: DOWN
+- assertVisible: "退出登录"

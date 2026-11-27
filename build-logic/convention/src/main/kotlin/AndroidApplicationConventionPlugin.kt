@@ -49,11 +49,16 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                         val keystore = rootProject.file("app/release.keystore")
                         if (keystore.exists()) {
                             storeFile = keystore
+                            // 口令与别名来自 Gradle 属性或环境变量（release.yml 用环境变量注入，
+                            // 避免把口令写进命令行或被跟踪的文件）。
                             storePassword =
                                 providers.gradleProperty("ghcKeystorePassword")
                                     .orElse(providers.environmentVariable("GHC_KEYSTORE_PASSWORD"))
                                     .orNull
-                            keyAlias = providers.gradleProperty("ghcKeyAlias").orNull
+                            keyAlias =
+                                providers.gradleProperty("ghcKeyAlias")
+                                    .orElse(providers.environmentVariable("GHC_KEY_ALIAS"))
+                                    .orNull
                             keyPassword =
                                 providers.gradleProperty("ghcKeyPassword")
                                     .orElse(providers.environmentVariable("GHC_KEY_PASSWORD"))

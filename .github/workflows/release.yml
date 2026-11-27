@@ -61,10 +61,12 @@ jobs:
           chmod 600 app/release.keystore
           echo "::add-mask::$KEYSTORE_PASS"
           echo "::add-mask::$KEY_PASS"
+          # 用约定插件读取的环境变量名注入（大写 GHC_*）；不要写成 Gradle 属性，
+          # 那会把口令带进命令行或被跟踪的文件。
           {
-            echo "ghcKeystorePassword=$KEYSTORE_PASS"
-            echo "ghcKeyAlias=$KEY_ALIAS"
-            echo "ghcKeyPassword=$KEY_PASS"
+            echo "GHC_KEYSTORE_PASSWORD=$KEYSTORE_PASS"
+            echo "GHC_KEY_ALIAS=$KEY_ALIAS"
+            echo "GHC_KEY_PASSWORD=$KEY_PASS"
           } >> "$GITHUB_ENV"
 
       - name: 生成 CHANGELOG（Conventional Commits → 变更日志）

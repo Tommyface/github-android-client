@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  discover 域 · 发现页界面文案（M0-18 字符串化，批次 3）。
+
+  约定：界面文案一律进资源；ViewModel 只产出**语义类型**（RankNoteKind / DiscoverError），
+  由 DiscoverScreen 映射成文案——所以 ViewModel 里不会残留中文字面量。
+-->
+<resources>
+    <string name="title">发现 · 商店</string>
+    <string name="subtitle">精选开源项目 · Release 实时更新 · 支持镜像加速下载</string>
+    <string name="refresh">刷新</string>
+    <string name="refreshing">刷新中</string>
+    <string name="retry">重试</string>
+
+    <string name="tab_featured">精选</string>
+    <string name="tab_trending">趋势</string>
+    <string name="tab_new">新发布</string>
+    <string name="tab_hot">热门</string>
+
+    <string name="category_all">全部</string>
+    <string name="category_android">安卓</string>
+    <string name="category_developer">开发</string>
+    <string name="category_media">影音</string>
+    <string name="category_utility">工具</string>
+    <string name="category_games">游戏</string>
+
+    <!-- 榜单口径：三份说明都由 ViewModel 的 RankNoteKind 映射而来，不冒充官方 Trending -->
+    <string name="rank_note_trending">非官方近似 · 近 30 天新建按 ★ 排序 · 基于 Search API</string>
+    <string name="rank_note_new">非官方榜单 · 按最近更新排序 · 基于 Search API</string>
+    <string name="rank_note_hot">非官方榜单 · 按 ★ 排序 · 基于 Search API</string>
+
+    <string name="empty_featured">暂无精选内容</string>
+    <string name="empty_rank">暂无榜单数据，可切换榜单或稍后重试</string>
+
+    <string name="latest_release">最新版本 %1$s · %2$d 个资产</string>
+    <string name="no_release">暂无 Release 信息</string>
+    <string name="asset_downloads">Release 资产下载 %1$d 次（仅官方发布资产，非仓库总下载）</string>
+    <string name="share">分享</string>
+    <string name="rank_disclaimer">非官方榜单 · 基于 GitHub Search API · 下载数无公开 API 故不展示</string>
+
+    <string name="stars">★ %1$d</string>
+    <string name="forks">⑂ %1$d</string>
+    <string name="platform_inferred">平台（推断）：%1$s</string>
+
+    <!-- 卡片朗读文本：整卡是一个语义节点，读屏一次说清"是什么、能做什么" -->
+    <string name="card_desc_featured">%1$s，%2$s，打开 Release 详情</string>
+    <string name="card_desc_rank">%1$s，★%2$d，fork %3$d，打开 Release 详情</string>
+
+    <string name="error_unauthorized">登录已失效，请重新登录</string>
+    <string name="error_rate_limited">请求太频繁，已触发 API 限流，请稍后再试</string>
+    <string name="error_not_found">未找到资源</string>
+    <string name="error_network">网络错误：%1$s</string>
+    <string name="error_http">请求失败（%1$d）</string>
+    <string name="error_unknown">未知错误，请重试</string>
+</resources>

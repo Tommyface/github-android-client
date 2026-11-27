@@ -16,7 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.gy.githubclient.core.presentation.R
 import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 
 /**
@@ -35,8 +37,8 @@ data class DangerConfirmRequest(
     val title: String,
     /** 后果说明：必须写清会发生什么、是否可撤销。 */
     val consequences: String,
-    /** 确认按钮文案（默认"确认"）。 */
-    val confirmLabel: String = "确认",
+    /** 确认按钮文案；为 null 时由界面取默认文案（资源 `danger_confirm_default`）。 */
+    val confirmLabel: String? = null,
     /** 需要用户输入并匹配的文本；非空时确认按钮要求逐字匹配。 */
     val requireTypedConfirmation: String? = null,
 )
@@ -50,8 +52,10 @@ fun DangerConfirmSheet(
     onDismiss: () -> Unit,
 ) {
     val frost = LocalFrostColors.current
+    val confirmLabel = request.confirmLabel ?: stringResource(R.string.danger_confirm_default)
+    val typedConfirmation = request.requireTypedConfirmation
     val typedOk =
-        request.requireTypedConfirmation == null || typedInput == request.requireTypedConfirmation
+        typedConfirmation == null || typedInput == typedConfirmation
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(request.title) },
@@ -61,10 +65,10 @@ fun DangerConfirmSheet(
                     request.consequences,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                if (request.requireTypedConfirmation != null) {
+                if (typedConfirmation != null) {
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "请输入 ${request.requireTypedConfirmation} 以确认",
+                        stringResource(R.string.danger_confirm_type_prompt, typedConfirmation),
                         style = MaterialTheme.typography.labelMedium,
                         color = frost.stateWarning,
                     )
@@ -77,13 +81,13 @@ fun DangerConfirmSheet(
                     onClick = onDismiss,
                     modifier = Modifier.padding(end = 4.dp),
                 ) {
-                    Text("取消")
+                    Text(stringResource(R.string.danger_confirm_cancel))
                 }
                 TextButton(
                     onClick = onConfirm,
                     enabled = typedOk,
                 ) {
-                    Text(request.confirmLabel, color = frost.danger)
+                    Text(confirmLabel, color = frost.danger)
                 }
             }
         },
@@ -94,24 +98,26 @@ fun DangerConfirmSheet(
 /**
  * 可见性变更的方向说明（把"改成什么"讲清楚，避免方向性误操作）。
  */
+@Composable
 fun visibilityChangeDescription(
     currentPrivate: Boolean,
     nextPrivate: Boolean,
 ): String =
     if (currentPrivate && !nextPrivate) {
-        "仓库将从【私有】变为【公开】：任何人都能查看与克隆该仓库，此变更可随时改回。"
+        stringResource(R.string.danger_visibility_private_to_public)
     } else if (!currentPrivate && nextPrivate) {
-        "仓库将从【公开】变为【私有】：外部用户将无法访问该仓库，此变更可随时改回。"
+        stringResource(R.string.danger_visibility_public_to_private)
     } else {
-        "可见性保持不变。"
+        stringResource(R.string.danger_visibility_unchanged)
     }
 
 /** 归档/取消归档的后果说明。 */
+@Composable
 fun archiveChangeDescription(currentArchived: Boolean, nextArchived: Boolean): String =
     if (currentArchived && !nextArchived) {
-        "取消归档后仓库将恢复可读写状态。"
+        stringResource(R.string.danger_archive_uncheck)
     } else if (!currentArchived && nextArchived) {
-        "归档后仓库将变为只读：不能再提交、推送或新建 Issue/Release，但内容仍可访问。"
+        stringResource(R.string.danger_archive_check)
     } else {
-        "归档状态保持不变。"
+        stringResource(R.string.danger_archive_unchanged)
     }

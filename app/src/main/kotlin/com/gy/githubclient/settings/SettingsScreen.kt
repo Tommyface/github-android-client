@@ -23,12 +23,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.BuildConfig
+import com.gy.githubclient.R
 import com.gy.githubclient.core.presentation.theme.FrostCard
 import com.gy.githubclient.core.presentation.theme.FrostDimens
 import com.gy.githubclient.core.presentation.theme.FrostLevel
@@ -74,27 +76,27 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(FrostDimens.CardGap),
     ) {
         FrostCard {
-            SectionTitle("主题")
+            SectionTitle(stringResource(R.string.settings_section_theme))
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ThemeMode.entries.forEach { mode ->
                     SettingsChip(
                         selected = settings.themeMode == mode,
-                        label = mode.label,
+                        label = themeModeLabel(mode),
                         onClick = { store.setThemeMode(mode) },
                     )
                 }
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "深色模式同样适用于 README、代码块与 Diff。",
+                text = stringResource(R.string.settings_theme_hint),
                 style = MaterialTheme.typography.labelSmall,
                 color = frost.textSecondary,
             )
         }
 
         FrostCard {
-            SectionTitle("代码字号")
+            SectionTitle(stringResource(R.string.settings_section_code_font))
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppSettingsStore.CODE_FONT_SIZES.forEach { size ->
@@ -118,12 +120,17 @@ fun SettingsScreen(
         }
 
         FrostCard {
-            SectionTitle("缓存")
+            SectionTitle(stringResource(R.string.settings_section_cache))
             Spacer(Modifier.height(4.dp))
         }
 
         Text(
-            text = "GitHub Client ${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）· 本地设置，不上传服务器",
+            text =
+                stringResource(
+                    R.string.settings_version_footer,
+                    BuildConfig.VERSION_NAME,
+                    BuildConfig.VERSION_CODE.toString(),
+                ),
             style = MaterialTheme.typography.labelSmall,
             color = frost.textTertiary,
         )
@@ -162,10 +169,11 @@ private fun SettingsChip(
     )
 }
 
-private val ThemeMode.label: String
-    get() =
-        when (this) {
-            ThemeMode.SYSTEM -> "跟随系统"
-            ThemeMode.LIGHT -> "浅色"
-            ThemeMode.DARK -> "深色"
-        }
+/** 主题三态的显示文案（来自资源，可被本地化）。 */
+@Composable
+private fun themeModeLabel(mode: ThemeMode): String =
+    when (mode) {
+        ThemeMode.SYSTEM -> stringResource(R.string.settings_theme_system)
+        ThemeMode.LIGHT -> stringResource(R.string.settings_theme_light)
+        ThemeMode.DARK -> stringResource(R.string.settings_theme_dark)
+    }

@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.gy.githubclient.core.presentation.R
 import androidx.compose.ui.unit.sp
 import kotlin.math.max
 
@@ -87,17 +89,31 @@ fun Modifier.frostContentPadding(
     )
 }
 
-/** 线性图标集合：项目无图标库，全部用 Canvas 手绘，保证 1.6dp 发丝线质感一致。 */
-enum class FrostIcon(
+/**
+ * 线性图标集合：项目无图标库，全部用 Canvas 手绘，保证 1.6dp 发丝线质感一致。
+ *
+ * 无障碍朗读文本来自字符串资源（而不是枚举常量里写死），
+ * 这样它才能被本地化，也才不会被 konsist 规则 13 判为硬编码文案。
+ */
+enum class FrostIcon {
+    BACK,
+    CLOSE,
+    SEARCH,
+    GRID,
+    COMPASS,
+    USER;
+
     /** 无障碍朗读文本（TalkBack）。图标本身无文字，必须由语义补足。 */
-    val contentDescription: String,
-) {
-    BACK("返回"),
-    CLOSE("关闭"),
-    SEARCH("搜索"),
-    GRID("仓库"),
-    COMPASS("发现"),
-    USER("我的"),
+    @Composable
+    fun contentDescription(): String =
+        when (this) {
+            BACK -> stringResource(R.string.frost_icon_back)
+            CLOSE -> stringResource(R.string.frost_icon_close)
+            SEARCH -> stringResource(R.string.frost_icon_search)
+            GRID -> stringResource(R.string.frost_icon_repo)
+            COMPASS -> stringResource(R.string.frost_icon_discover)
+            USER -> stringResource(R.string.frost_icon_profile)
+        }
 }
 
 /** 底部导航项。 */
@@ -226,7 +242,7 @@ fun FrostIconButton(
     modifier: Modifier = Modifier,
     tint: Color = LocalFrostColors.current.textPrimary,
     /** 无障碍朗读文本；默认取图标自带的描述，调用方可覆盖为更具体的说法。 */
-    contentDescription: String = icon.contentDescription,
+    contentDescription: String = icon.contentDescription(),
 ) {
     Box(
         modifier =

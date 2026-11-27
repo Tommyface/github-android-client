@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
+import com.gy.githubclient.R
 import com.gy.githubclient.core.domain.link.GitHubLink
 import com.gy.githubclient.core.domain.link.GitHubLinkTarget
 import com.gy.githubclient.feature.download.domain.model.DownloadRequest
@@ -76,9 +77,15 @@ fun rememberDeepLinkAction(
                                 ),
                             )
                         }.onSuccess {
-                            toast(context, "已加入下载队列：${target.fileName}")
+                            toast(context, context.getString(R.string.deep_link_queued, target.fileName))
                         }.onFailure {
-                            toast(context, "下载入队失败：${it.message ?: "未知错误"}")
+                            toast(
+                                context,
+                                context.getString(
+                                    R.string.deep_link_queue_failed,
+                                    it.message ?: context.getString(R.string.error_unknown),
+                                ),
+                            )
                         }
                     }
 
@@ -113,7 +120,7 @@ private fun openBrowser(
             Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     }.onFailure {
-        toast(context, "没有可打开该链接的应用")
+        toast(context, context.getString(R.string.deep_link_no_browser))
     }
 }
 

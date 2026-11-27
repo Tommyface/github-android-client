@@ -21,10 +21,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.gy.githubclient.R
 import com.gy.githubclient.core.presentation.theme.FrostDimens
 import com.gy.githubclient.core.presentation.theme.FrostIcon
 import com.gy.githubclient.core.presentation.theme.FrostInsets
@@ -77,7 +79,7 @@ private fun OfflineBanner(modifier: Modifier = Modifier) {
         shape = RoundedCornerShape(10.dp),
     ) {
         Text(
-            text = "离线模式 · 显示本地缓存数据",
+            text = stringResource(R.string.offline_banner),
             style = MaterialTheme.typography.labelMedium,
             color = frost.stateWarning,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -99,12 +101,36 @@ private data class TabSpec(
     val subtitle: String? = null,
 )
 
-private val bottomTabs =
+@Composable
+private fun bottomTabs(): List<TabSpec> =
     listOf(
-        TabSpec(Route.Home, "仓库", FrostIcon.GRID, "我的仓库", "GitHub · 磨砂玻璃"),
-        TabSpec(Route.Discover, "发现", FrostIcon.COMPASS, "发现", "热门仓库 · 最新 Release"),
-        TabSpec(Route.Search, "搜索", FrostIcon.SEARCH, "搜索", "仓库 · 代码 · 用户"),
-        TabSpec(Route.Profile, "我的", FrostIcon.USER, null),
+        TabSpec(
+            Route.Home,
+            stringResource(R.string.nav_tab_repo),
+            FrostIcon.GRID,
+            stringResource(R.string.nav_tab_repo_title),
+            stringResource(R.string.nav_tab_repo_subtitle),
+        ),
+        TabSpec(
+            Route.Discover,
+            stringResource(R.string.nav_tab_discover),
+            FrostIcon.COMPASS,
+            stringResource(R.string.nav_tab_discover_title),
+            stringResource(R.string.nav_tab_discover_subtitle),
+        ),
+        TabSpec(
+            Route.Search,
+            stringResource(R.string.nav_tab_search),
+            FrostIcon.SEARCH,
+            stringResource(R.string.nav_tab_search_title),
+            stringResource(R.string.nav_tab_search_subtitle),
+        ),
+        TabSpec(
+            Route.Profile,
+            stringResource(R.string.nav_tab_profile),
+            FrostIcon.USER,
+            null,
+        ),
     )
 
 /** 通栏带副标题时比单行标题高出的量（与 FrostTopBar 内部一致）。 */
@@ -143,7 +169,8 @@ fun AppScaffold(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val tab = bottomTabs.firstOrNull { it.route.path == currentRoute }
+    val tabs = bottomTabs()
+    val tab = tabs.firstOrNull { it.route.path == currentRoute }
     val isSettings = currentRoute == Route.Settings.path
     val motion = rememberFrostMotionState()
     // 离线态（P-200 缺口 3）：断网时给出提示条，但**不清空界面**——Room 缓存仍可用。
@@ -152,7 +179,7 @@ fun AppScaffold(
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    val barTitle = if (isSettings) "设置" else tab?.title
+    val barTitle = if (isSettings) stringResource(R.string.nav_settings) else tab?.title
     val showsTopBar = barTitle != null
     val barSubtitle = if (isSettings) null else tab?.subtitle
     val barBodyHeight = FrostDimens.TopBarHeight + if (barSubtitle != null) SubtitleExtraHeight else 0.dp
@@ -202,10 +229,10 @@ fun AppScaffold(
 
             if (tab != null) {
                 FrostNavBar(
-                    items = bottomTabs.map { FrostNavItem(label = it.label, icon = it.icon) },
-                    selectedIndex = bottomTabs.indexOf(tab),
+                    items = tabs.map { FrostNavItem(label = it.label, icon = it.icon) },
+                    selectedIndex = tabs.indexOf(tab),
                     onSelect = { index ->
-                        val target = bottomTabs[index].route
+                        val target = tabs[index].route
                         if (target.path != currentRoute) {
                             navController.navigate(target.path) {
                                 popUpTo(Route.Home.path) { saveState = true }

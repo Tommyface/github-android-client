@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  应用层界面文案（M0-18 字符串化）。
+
+  约定：
+  - 界面文案一律进资源，不在 Kotlin 里写中文字面量（konsist 规则 13）；
+  - 带变量的文案用位置参数（%1$s），不用字符串拼接；
+  - design system（Frost）自己的文案在 core/presentation 模块的资源里。
+-->
+<resources>
+    <!-- 底部导航与通栏标题 -->
+    <string name="nav_tab_repo">仓库</string>
+    <string name="nav_tab_repo_title">我的仓库</string>
+    <string name="nav_tab_repo_subtitle">GitHub · 磨砂玻璃</string>
+    <string name="nav_tab_discover">发现</string>
+    <string name="nav_tab_discover_title">发现</string>
+    <string name="nav_tab_discover_subtitle">热门仓库 · 最新 Release</string>
+    <string name="nav_tab_search">搜索</string>
+    <string name="nav_tab_search_title">搜索</string>
+    <string name="nav_tab_search_subtitle">仓库 · 代码 · 用户</string>
+    <string name="nav_tab_profile">我的</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- 离线提示条 -->
+    <string name="offline_banner">离线模式 · 显示本地缓存数据</string>
+
+    <!-- 设置页 -->
+    <string name="settings_section_theme">主题</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_theme_hint">深色模式同样适用于 README、代码块与 Diff。</string>
+    <string name="settings_section_code_font">代码字号</string>
+    <string name="settings_section_cache">缓存</string>
+    <string name="settings_version_footer">GitHub Client %1$s（%2$s）· 本地设置，不上传服务器</string>
+
+    <!-- 深链 -->
+    <string name="deep_link_queued">已加入下载队列：%1$s</string>
+    <string name="deep_link_queue_failed">下载入队失败：%1$s</string>
+    <string name="deep_link_no_browser">没有可打开该链接的应用</string>
+    <string name="error_unknown">未知错误</string>
+</resources>

@@ -12,6 +12,10 @@ name: Nightly
 #  2. 原流程直接 `adb install`，但整个 job 没有任何设备/模拟器准备步骤——即便 adb 可用也无处可装。
 #     改用 emulator-runner 起 AVD 后在其内部执行安装、冒烟与 Maestro。
 #  3. UI 审计改为 `if: always()`：设备环节失败时也要跑，避免"审计根本没执行却没人发现"。
+#  4. 第三次实测（#46059928520）暴露宿主硬限制：GitHub hosted runner 无 /dev/kvm，
+#     emulator 37.x 拒绝 `-accel off`（日志原文：Software CPU emulation (-accel off) is not supported）。
+#     因此设备环节改为**条件执行**：有 KVM 才跑模拟器；无 KVM 时显式跳过并在 job summary 写明原因与替代路径，
+#     而不是每夜假红（假红与被忽略的红一样有害）。
 
 on:
   schedule:
@@ -45,8 +49,19 @@ jobs:
       - run: chmod +x ./gradlew
       - name: 构建 Debug APK
         run: ./gradlew assembleDebug --no-daemon
+      - name: 检测硬件加速（KVM）
+        id: kvm
+        run: |
+          if [ -w /dev/kvm ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::/dev/kvm 可用，执行设备环节"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::宿主无 /dev/kvm（GitHub hosted runner 常见），模拟器无法启动，跳过设备环节"
+          fi
       - name: 模拟器内安装并冒烟
-        # 修复点 2：没有设备就装不上；用 emulator-runner 起 AVD（KVM，public repo 可用）
+        # 修复点 4：仅在有 KVM 时执行；无 KVM 时 emulator 会以 -accel off 启动并直接报错
+        if: steps.kvm.outputs.available == 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -73,6 +88,22 @@ jobs:
             fi
             echo "::notice::冷启动冒烟通过，pid=$PID"
             adb shell am force-stop com.gy.githubclient
+      - name: 设备环节不可用声明（写入 job summary）
+        if: steps.kvm.outputs.available != 'true'
+        run: |
+          {
+            echo "## 设备环节未执行：宿主无 KVM"
+            echo ""
+            echo "GitHub hosted ubuntu runner 不提供 \`/dev/kvm\`，emulator 37.x 拒绝软件 CPU 模拟"
+            echo "（日志原文：\`Software CPU emulation (-accel off) is not supported\`）。"
+            echo ""
+            echo "本次实际执行：构建 Debug APK（通过）、UI 审计棘轮（通过）；"
+            echo "端到端设备冒烟与 Maestro 场景**未执行**。"
+            echo ""
+            echo "替代路径：① 自托管 runner（挂 KVM）；② Maestro Cloud / Firebase Test Lab 上传 APK 跑；"
+            echo "③ 本地真机（\`adb install -r app-debug.apk\`）。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: UI 审计（P-200 方法学 · R7 起为真棘轮，失败即任务失败）
         # 旧写法用 `|| true` + warning，等于"审计失败也不影响任何事"——
         # 这类假门禁与 max=999 的阈值是同一类问题。nightly 不阻塞当日合并，

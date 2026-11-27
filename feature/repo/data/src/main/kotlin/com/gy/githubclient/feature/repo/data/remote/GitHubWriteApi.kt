@@ -33,14 +33,15 @@ class GitHubWriteApi(
         private: Boolean? = null,
         archived: Boolean? = null,
     ): MutationResult<Unit> {
-        val body = buildString {
-            append("{")
-            description?.let { append("\"description\":${it.asJsonString()},") }
-            private?.let { append("\"private\":$it,") }
-            archived?.let { append("\"archived\":$it,") }
-            if (isNotEmpty() && last() == ',') setLength(length - 1)
-            append("}")
-        }
+        val body =
+            buildString {
+                append("{")
+                description?.let { append("\"description\":${it.asJsonString()},") }
+                private?.let { append("\"private\":$it,") }
+                archived?.let { append("\"archived\":$it,") }
+                if (isNotEmpty() && last() == ',') setLength(length - 1)
+                append("}")
+            }
         val dangerous = private != null || archived != null
         return client.mutate(
             spec =
@@ -147,8 +148,18 @@ data class CreatedRepository(
 /** 从响应体解析创建结果（容错：字段缺失时给出可读占位）。 */
 private suspend fun HttpResponse.createdRepository(): CreatedRepository {
     val text = bodyAsTextOrEmpty()
-    val fullName = Regex("\"full_name\"\\s*:\\s*\"([^\"]+)\"").find(text)?.groupValues?.get(1).orEmpty()
-    val htmlUrl = Regex("\"html_url\"\\s*:\\s*\"([^\"]+)\"").find(text)?.groupValues?.get(1).orEmpty()
+    val fullName =
+        Regex("\"full_name\"\\s*:\\s*\"([^\"]+)\"")
+            .find(text)
+            ?.groupValues
+            ?.get(1)
+            .orEmpty()
+    val htmlUrl =
+        Regex("\"html_url\"\\s*:\\s*\"([^\"]+)\"")
+            .find(text)
+            ?.groupValues
+            ?.get(1)
+            .orEmpty()
     val isPrivate = Regex("\"private\"\\s*:\\s*(true|false)").find(text)?.groupValues?.get(1) == "true"
     return CreatedRepository(fullName = fullName, htmlUrl = htmlUrl, private = isPrivate)
 }

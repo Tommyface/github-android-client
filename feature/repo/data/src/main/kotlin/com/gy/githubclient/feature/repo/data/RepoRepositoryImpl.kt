@@ -16,10 +16,10 @@ import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
 import com.gy.githubclient.feature.repo.data.remote.GitHubWriteApi
 import com.gy.githubclient.feature.repo.data.remote.buildCheckOverview
 import com.gy.githubclient.feature.repo.domain.model.Branch
-import com.gy.githubclient.feature.repo.domain.model.CreatedRepository
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.CommitSummary
+import com.gy.githubclient.feature.repo.domain.model.CreatedRepository
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.IssueDetail
@@ -75,7 +75,11 @@ class RepoRepositoryImpl(
     ): MutationResult<Unit> {
         // 路径穿越防护：写入前必须通过白名单校验（数据层兜底，不依赖 UI）。
         val validated =
-            when (val result = com.gy.githubclient.feature.repo.domain.usecase.UploadPathValidator.validate(target.path)) {
+            when (
+                val result =
+                    com.gy.githubclient.feature.repo.domain.usecase.UploadPathValidator
+                        .validate(target.path)
+            ) {
                 is com.gy.githubclient.feature.repo.domain.usecase.UploadPathValidator.Result.Valid -> result.normalizedPath
                 is com.gy.githubclient.feature.repo.domain.usecase.UploadPathValidator.Result.Invalid ->
                     return MutationResult.Failure(

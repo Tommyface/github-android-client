@@ -78,9 +78,13 @@ class UploadFileUseCase(
  */
 object UploadPathValidator {
     sealed class Result {
-        data class Valid(val normalizedPath: String) : Result()
+        data class Valid(
+            val normalizedPath: String,
+        ) : Result()
 
-        data class Invalid(val reason: String) : Result()
+        data class Invalid(
+            val reason: String,
+        ) : Result()
     }
 
     fun validate(rawPath: String): Result {

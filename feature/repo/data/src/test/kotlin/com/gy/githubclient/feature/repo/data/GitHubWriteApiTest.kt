@@ -100,10 +100,11 @@ class GitHubWriteApiTest {
     private fun buildClient(engine: MockEngine): GitHubApiClient =
         GitHubApiClient(
             httpClient = HttpClient(engine) { expectSuccess = false },
-            tokenProvider = object : AuthTokenProvider {
-                override suspend fun tokenFor(channel: ApiChannel): String = "ghp_test"
+            tokenProvider =
+                object : AuthTokenProvider {
+                    override suspend fun tokenFor(channel: ApiChannel): String = "ghp_test"
 
-                override suspend fun onUnauthorized(channel: ApiChannel) = Unit
-            },
+                    override suspend fun onUnauthorized(channel: ApiChannel) = Unit
+                },
         )
 }

@@ -11,19 +11,19 @@
     "core_presentation_reuse": {
       "label": "core/presentation 复用处数",
       "direction": "min",
-      "value": 6,
+      "value": 14,
       "desc": "设计系统被真正使用的程度；目标 ≥ 10（随界面迁移逐步抬高）"
     },
     "content_description_files": {
       "label": "含 contentDescription 文件数",
       "direction": "min",
-      "value": 2,
+      "value": 4,
       "desc": "图标按钮/可点击元素需有朗读文本；目标 ≥ 3"
     },
     "semantics_files": {
       "label": "使用 semantics 文件数",
       "direction": "min",
-      "value": 1,
+      "value": 3,
       "desc": "列表/进度/选中态需语义化"
     },
     "hardcoded_chinese_ui_files": {
@@ -36,49 +36,49 @@
       "label": "空态 文件数",
       "direction": "min",
       "value": 1,
-      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮）",
+      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     },
     "state_空态2": {
       "label": "空态2 文件数",
       "direction": "min",
       "value": 1,
-      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮）",
+      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     },
     "state_错误态": {
       "label": "错误态 文件数",
       "direction": "min",
       "value": 1,
-      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮）",
+      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     },
     "state_错误态2": {
       "label": "错误态2 文件数",
       "direction": "min",
       "value": 1,
-      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮）",
+      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     },
     "state_加载态": {
       "label": "加载态 文件数",
       "direction": "min",
       "value": 1,
-      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮）",
+      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     },
     "state_离线态": {
       "label": "离线态 文件数",
       "direction": "min",
       "value": 1,
-      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮）",
+      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     },
     "state_权限态": {
       "label": "权限态 文件数",
       "direction": "min",
       "value": 1,
-      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮）",
+      "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     }
   }

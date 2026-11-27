@@ -25,18 +25,17 @@ import com.gy.githubclient.core.mutation.NoOpAuditSink
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
-import io.ktor.client.request.setBody
 import io.ktor.client.request.request
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.content.TextContent
 import io.ktor.http.isSuccess
-import kotlinx.serialization.Serializable
 import kotlinx.coroutines.delay
+import kotlinx.serialization.Serializable
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -209,7 +208,6 @@ class GitHubApiClient(
         val jittered = exponential * (1.0 - JITTER_RATIO + random.nextDouble() * 2 * JITTER_RATIO)
         return min(jittered.toLong(), MAX_BACKOFF_MILLIS)
     }
-
 
     /**
      * 写请求：成功返回 [MutationResult.Success]，失败返回细粒度 [MutationError]。

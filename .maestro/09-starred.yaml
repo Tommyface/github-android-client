@@ -1,9 +1,14 @@
 # 星标页：排序切换 chips 在位。
+#
+# 断言来源：StarredScreen.kt 的 FilterChip —— label 取自 sort_updated("最近更新") /
+# sort_created("最近创建")，同时挂了一个 contentDescription("按最近更新排序")。
+# Compose 把 label 与 contentDescription 放在不同语义节点上，Maestro 从无障碍树取值，
+# 只暴露其中一种；所以用 `.*最近更新.*` 覆盖两种暴露方式，而不是赌某一种。
 appId: com.gy.githubclient
 ---
 - launchApp
 - tapOn: "我的"
-- tapOn: "⭐ 星标仓库"
-- assertVisible: "最近更新"
-- assertVisible: "最近创建"
+- tapOn: '.*星标仓库.*'
+- assertVisible: '.*最近更新.*'
+- assertVisible: '.*最近创建.*'
 - back

@@ -1,11 +1,26 @@
 # 下载管理 → 镜像加速设置 的入口与关键文案。
+#
+# 断言来源：
+#   DownloadScreen.kt    标题 "下载管理" / TextButton "镜像设置"
+#   MirrorSettingsScreen.kt 标题 "镜像加速设置" / label "镜像 URL 模板"
+#
+# 这里**不断言** "清空已完成记录"：那一行是条件渲染
+# （`if (stats.done + stats.failed > 0)`，见 DownloadScreen.kt 第 62 行附近），
+# 下载列表为空时它根本不存在 —— 拿它做断言会在干净设备上假红。
+#
+# 入口在"我的"页第 7 项，跨屏 → 先滚动再点。
 appId: com.gy.githubclient
 ---
 - launchApp
 - tapOn: "我的"
+- scrollUntilVisible:
+    element:
+      text: "下载管理"
+    direction: DOWN
 - tapOn: "下载管理"
-- assertVisible: "清空已完成记录"
+- assertVisible: "下载管理"
 - tapOn: "镜像设置"
 - assertVisible: "镜像加速设置"
 - assertVisible: "镜像 URL 模板"
 - back
+- assertVisible: "下载管理"

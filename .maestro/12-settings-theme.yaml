@@ -1,13 +1,20 @@
-# 外观与缓存 → 主题切换（深色），并断言说明文案随之出现。
+# 外观与缓存 → 主题切到深色，并断言说明文案在位。
+#
+# 断言来源：app/src/main/res/values/strings.xml
+#   settings_section_theme = "主题"           ← SectionTitle 渲染
+#   settings_theme_dark    = "深色"           ← themeModeLabel(ThemeMode.DARK)，FilterChip label
+#   settings_theme_hint    = "深色模式同样适用于 README、代码块与 Diff。"
+# hint 是恒渲染的 Text，不受所选主题影响 —— 它校验的是"说明没被删掉"，不是"切生效了"。
+# 主题是否真的变深无法从文案判定，需要截图/像素比较，不在本场景的断言范围。
 appId: com.gy.githubclient
 ---
 - launchApp
 - tapOn: "我的"
 - scrollUntilVisible:
     element:
-      text: "🎨 外观与缓存"
+      text: '.*外观与缓存.*'
     direction: DOWN
-- tapOn: "🎨 外观与缓存"
+- tapOn: '.*外观与缓存.*'
 - assertVisible: "主题"
 - tapOn: "深色"
 - assertVisible: "深色模式同样适用于 README、代码块与 Diff。"

@@ -1,9 +1,20 @@
-# 通知中心：标题带未读计数（动态值，用正则匹配），空态或列表均可通过。
+# 通知中心：标题带未读计数（动态值 → 正则），空态 / 列表 / 无权限三种状态都能进到这页。
+#
+# 断言来源：feature/profile/presentation/src/main/res/values/strings.xml
+#   title = "通知中心（未读 %1$d）"  → 界面渲染为 "通知中心（未读 N）"
+# 未读计数是动态值，故用 [0-9]+；括号是**全角**，与资源文件一致。
+#
+# 入口在"我的"页第 6 项，跨屏 → 先滚动再点。
 appId: com.gy.githubclient
 ---
 - launchApp
 - tapOn: "我的"
-- tapOn: "🔔 通知中心"
+- scrollUntilVisible:
+    element:
+      text: '.*通知中心.*'
+    direction: DOWN
+- tapOn: '.*通知中心.*'
 - assertVisible: "通知中心（未读 [0-9]+）"
 - back
-- assertVisible: "功能"
+# 返回后滚动位置保留在刚才那一带，页面顶部"功能"可能在视口外，所以断入口本身。
+- assertVisible: '.*通知中心.*'

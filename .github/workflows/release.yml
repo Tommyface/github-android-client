@@ -184,6 +184,11 @@ jobs:
           else
             echo "::notice::未配置 GHC_EXPECTED_CERT_SHA256，跳过证书指纹钉值断言；本次产物证书指纹 = ${CERT_SHA256}"
           fi
+          # 交叉校验：apksigner 的 --print-certs 文本是外部契约，正则失配时会写出**错的**指纹且不报错。
+          # tools/verify_apk_cert.py 直接解析 APK 签名块（v2/v3）取证书，与上面那条 grep 是两条独立路径。
+          # 两者必须给出同一个值，否则 fingerprint 字段就是不可信的。
+          APK_DIST=$(ls dist/*.apk)
+          python3 tools/verify_apk_cert.py "$APK_DIST" --expect "$CERT_SHA256"
 
       - name: 发布 GitHub Release
         uses: softprops/action-gh-release@v2

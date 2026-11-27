@@ -1,10 +1,28 @@
 # PAT 登录闭环。token 从 `-e GITHUB_PAT=...` 注入，**绝不入仓**。
 # 跑法：maestro test -e GITHUB_PAT=github_pat_xxx .maestro/02-sign-in-pat.yaml
+#
+# tags: signin —— tools/run_maestro_local.sh 在没有 GITHUB_PAT 时用
+# `--exclude-tags signin` 跳过本场景；否则它会因为没有变量而失败，
+# 把整轮回归变红，而那不是应用的错。
 appId: com.gy.githubclient
+tags:
+  - signin
 ---
 - launchApp:
     clearState: true
-- tapOn: "github_pat_..."
+# 输入框为空时，无障碍树暴露的可能是占位 label（github_pat_...），
+# 也可能只剩 LoginScreen 给输入框设的 contentDescription（Fine-grained Token 输入框）。
+# 两条路径都备着：命中哪条走哪条，两条都不命中就让后面的 inputText 直接失败，不猜。
+- runFlow:
+    when:
+      visible: '.*github_pat_\.\.\..*'
+    commands:
+      - tapOn: '.*github_pat_\.\.\..*'
+- runFlow:
+    when:
+      visible: "Fine-grained Token 输入框"
+    commands:
+      - tapOn: "Fine-grained Token 输入框"
 - inputText: ${GITHUB_PAT}
 - hideKeyboard
 - tapOn: "登录"

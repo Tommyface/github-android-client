@@ -34,6 +34,17 @@
 
   请以本文件/仓库公布的指纹为准校验下载包。
 
+  离线复核（只需 Python 3，不需要 Android SDK / apksigner）：
+
+  ```bash
+  python3 tools/verify_apk_cert.py github-android-client-v0.19.1.apk \
+      --expect e86de404352ba7a1a03f3ed80565a6fd56d9f50672fbf106db160d796c62cb77
+  ```
+
+  脚本直接从 APK 签名块（v2 / v3）读证书并算 SHA-256，与 `apksigner verify --print-certs`
+  是两条独立路径，发版流程要求两者一致。注意它**只取证书指纹，不验证签名有效性**——
+  签名是否可校验仍以 `apksigner verify` 为准。
+
 **密钥保管须知（务必执行）**
 
 1. release keystore 与口令**必须离线备份**（至少两处，含一份离线介质）。

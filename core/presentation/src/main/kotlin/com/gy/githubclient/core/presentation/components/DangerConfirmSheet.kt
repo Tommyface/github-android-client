@@ -30,35 +30,41 @@ import com.gy.githubclient.core.presentation.theme.LocalFrostColors
  *
  * konsist 规则 8 要求：危险操作界面必须挂载本组件（以文件名或 import 判定）。
  */
+/** 破坏性操作确认的请求内容（用数据类承载，避免长参数列表）。 */
+data class DangerConfirmRequest(
+    val title: String,
+    /** 后果说明：必须写清会发生什么、是否可撤销。 */
+    val consequences: String,
+    /** 确认按钮文案（默认"确认"）。 */
+    val confirmLabel: String = "确认",
+    /** 需要用户输入并匹配的文本；非空时确认按钮要求逐字匹配。 */
+    val requireTypedConfirmation: String? = null,
+)
+
 @Composable
 fun DangerConfirmSheet(
-    title: String,
-    /** 后果说明：必须写清会发生什么、是否可撤销。 */
-    consequences: String,
-    /** 确认按钮文案（默认"确认"）。 */
-    confirmLabel: String = "确认",
-    /** 需要用户输入并匹配的文本；非空时确认按钮要求逐字匹配。 */
-    requireTypedConfirmation: String? = null,
+    request: DangerConfirmRequest,
     /** 用户当前输入（用于匹配校验）。 */
     typedInput: String = "",
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val frost = LocalFrostColors.current
-    val typedOk = requireTypedConfirmation == null || typedInput == requireTypedConfirmation
+    val typedOk =
+        request.requireTypedConfirmation == null || typedInput == request.requireTypedConfirmation
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = { Text(request.title) },
         text = {
             Column {
                 Text(
-                    consequences,
+                    request.consequences,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                if (requireTypedConfirmation != null) {
+                if (request.requireTypedConfirmation != null) {
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "请输入 $requireTypedConfirmation 以确认",
+                        "请输入 ${request.requireTypedConfirmation} 以确认",
                         style = MaterialTheme.typography.labelMedium,
                         color = frost.stateWarning,
                     )
@@ -77,7 +83,7 @@ fun DangerConfirmSheet(
                     onClick = onConfirm,
                     enabled = typedOk,
                 ) {
-                    Text(confirmLabel, color = frost.danger)
+                    Text(request.confirmLabel, color = frost.danger)
                 }
             }
         },

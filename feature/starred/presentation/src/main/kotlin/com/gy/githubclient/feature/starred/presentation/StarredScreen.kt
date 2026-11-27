@@ -26,6 +26,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,11 +55,24 @@ fun StarredScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val frost = LocalFrostColors.current
 
+    // 文案必须在 composable 上下文里取：stringResource 不能在 LaunchedEffect 里调用。
+    // 因此这里先把**语义消息**存进 state，再在组合期解析成文案。
+    var pendingMessage by remember { mutableStateOf<StarredMessage?>(null) }
+
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is StarredEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message.asText())
+                is StarredEvent.ShowMessage -> pendingMessage = event.message
             }
+        }
+    }
+
+    val messageText = pendingMessage?.asText()
+    LaunchedEffect(messageText) {
+        val text = messageText
+        if (text != null) {
+            snackbarHostState.showSnackbar(text)
+            pendingMessage = null
         }
     }
 
@@ -70,32 +85,30 @@ fun StarredScreen(
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StarredSort.entries.forEach { sort ->
+                // 说明文字先取出来：semantics 的 lambda 不是 composable 上下文，
+                // 不能在里面调 stringResource。
+                val sortLabel =
+                    stringResource(
+                        if (sort == StarredSort.UPDATED) {
+                            R.string.sort_updated
+                        } else {
+                            R.string.sort_created
+                        },
+                    )
+                val sortDescription =
+                    stringResource(
+                        if (sort == StarredSort.UPDATED) {
+                            R.string.sort_updated_desc
+                        } else {
+                            R.string.sort_created_desc
+                        },
+                    )
                 FilterChip(
                     selected = uiState.filter.sort == sort,
                     onClick = { viewModel.onSortSelected(sort) },
-                    label = {
-                        Text(
-                            stringResource(
-                                if (sort == StarredSort.UPDATED) {
-                                    R.string.sort_updated
-                                } else {
-                                    R.string.sort_created
-                                },
-                            ),
-                        )
-                    },
+                    label = { Text(sortLabel) },
                     // 排序是"单选"语义：朗读时必须能听出当前选中的是哪一项。
-                    modifier =
-                        Modifier.semantics {
-                            contentDescription =
-                                stringResource(
-                                    if (sort == StarredSort.UPDATED) {
-                                        R.string.sort_updated_desc
-                                    } else {
-                                        R.string.sort_created_desc
-                                    },
-                                )
-                        },
+                    modifier = Modifier.semantics { contentDescription = sortDescription },
                 )
             }
         }

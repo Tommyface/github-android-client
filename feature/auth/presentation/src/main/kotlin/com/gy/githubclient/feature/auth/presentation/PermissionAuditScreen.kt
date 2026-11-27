@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.feature.auth.domain.model.AuthMethod
 import com.gy.githubclient.feature.auth.domain.model.Capability
 import com.gy.githubclient.feature.auth.domain.model.PermissionReport
@@ -56,7 +56,7 @@ fun PermissionAuditScreen(
         Text(
             "GitHub 凭证的权限由创建/授权时决定；本页只展示当前凭证实际可用范围。修改权限请在 GitHub 网页端调整。",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = LocalFrostColors.current.textTertiary,
         )
         Spacer(Modifier.height(12.dp))
 
@@ -69,7 +69,7 @@ fun PermissionAuditScreen(
             }
 
             uiState.errorMessage != null -> {
-                Card(Modifier.fillMaxWidth()) {
+                FrostCard {
                     Column(Modifier.padding(16.dp)) {
                         Text("体检失败", style = MaterialTheme.typography.titleSmall)
                         Spacer(Modifier.height(4.dp))
@@ -105,7 +105,7 @@ private fun RateLimitCard(rateLimit: RateLimitInfo) {
                 .format(java.util.Date(rateLimit.resetEpochSeconds * 1000))
         }
     val ratio = if (rateLimit.limit > 0) rateLimit.remaining.toFloat() / rateLimit.limit else 0f
-    Card(Modifier.fillMaxWidth()) {
+    FrostCard {
         Column(Modifier.padding(16.dp)) {
             Text("API 限流余量", style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(4.dp))
@@ -121,7 +121,7 @@ private fun RateLimitCard(rateLimit: RateLimitInfo) {
                     else -> "额度充足"
                 },
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LocalFrostColors.current.textTertiary,
             )
         }
     }
@@ -135,7 +135,7 @@ private fun ReportSummary(report: PermissionReport) {
             AuthMethod.PAT -> "Personal Access Token"
             null -> "未知"
         }
-    Card(Modifier.fillMaxWidth()) {
+    FrostCard {
         Column(Modifier.padding(16.dp)) {
             Text("凭证：$methodLabel", style = MaterialTheme.typography.titleSmall)
             report.login?.let {
@@ -152,7 +152,7 @@ private fun ReportSummary(report: PermissionReport) {
             Text(
                 "已确认可用 ${report.grantedCount}/${report.capabilities.size} 项功能面",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
+                color = LocalFrostColors.current.primaryInk,
             )
         }
     }
@@ -171,22 +171,19 @@ private fun RowOrFlow(scopes: List<String>) {
 
 @Composable
 private fun CapabilityCard(capability: Capability) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    if (capability.granted) {
-                        MaterialTheme.colorScheme.surface
-                    } else {
-                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
-                    },
-            ),
-    ) {
+    // 设计系统的卡片没有 colors 参数：可用性用**文字与符号**表达（✓ / ✗），
+    // 不再靠底色区分——这也更符合深色主题与色盲友好原则。
+    FrostCard {
         Column(Modifier.padding(12.dp)) {
             Text(
                 (if (capability.granted) "✓ " else "✗ ") + capability.name,
                 style = MaterialTheme.typography.titleSmall,
+                color =
+                    if (capability.granted) {
+                        LocalFrostColors.current.textPrimary
+                    } else {
+                        LocalFrostColors.current.danger
+                    },
             )
             Spacer(Modifier.height(2.dp))
             Text(capability.features, style = MaterialTheme.typography.bodySmall)
@@ -194,7 +191,7 @@ private fun CapabilityCard(capability: Capability) {
             Text(
                 "依据：${capability.basis}",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LocalFrostColors.current.textTertiary,
             )
         }
     }

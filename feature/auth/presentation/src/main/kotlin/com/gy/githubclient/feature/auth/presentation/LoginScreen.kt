@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -33,6 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
@@ -40,6 +43,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.feature.auth.domain.model.AuthState
 import org.koin.androidx.compose.koinViewModel
 
@@ -82,7 +87,7 @@ fun LoginScreen(
         Text(
             text = "管理仓库 · 发现应用 · 加速下载",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = LocalFrostColors.current.textTertiary,
         )
         Spacer(Modifier.height(32.dp))
 
@@ -97,7 +102,7 @@ fun LoginScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        FrostCard {
             Column(Modifier.padding(16.dp)) {
                 Text(
                     text = "主通道 · Fine-grained Token（备用）",
@@ -106,7 +111,7 @@ fun LoginScreen(
                 Text(
                     text = "用于仓库、Issue、PR、Release、搜索等全部常规功能。",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = LocalFrostColors.current.textTertiary,
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -116,7 +121,11 @@ fun LoginScreen(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            // 读屏时说明这是什么凭证、粘在哪里（label 只是占位示例）。
+                            .semantics { contentDescription = "Fine-grained Token 输入框" },
                     enabled = !uiState.isSubmitting,
                 )
                 Spacer(Modifier.height(12.dp))
@@ -142,7 +151,9 @@ fun LoginScreen(
                     Text(
                         text = message.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = LocalFrostColors.current.danger,
+                        // 错误信息是**状态更新**：必须主动朗读，否则弱视用户完全感知不到失败。
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
                 }
             }
@@ -150,7 +161,7 @@ fun LoginScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        FrostCard {
             Column(Modifier.padding(16.dp)) {
                 Text(
                     text = "通知通道 · Classic Token（可选）",
@@ -159,7 +170,7 @@ fun LoginScreen(
                 Text(
                     text = "仅 /notifications 支持 classic PAT，需勾选 notifications + repo 权限。不填则通知页走网页兜底。",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = LocalFrostColors.current.textTertiary,
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -197,7 +208,7 @@ private fun OAuthDeviceFlowCard(
 ) {
     val clipboard = LocalClipboardManager.current
     val uriHandler = LocalUriHandler.current
-    Card(modifier = Modifier.fillMaxWidth()) {
+    FrostCard {
         Column(Modifier.padding(16.dp)) {
             Text(
                 text = "GitHub 账号登录（推荐）",
@@ -206,7 +217,7 @@ private fun OAuthDeviceFlowCard(
             Text(
                 text = "无需手动创建 Token：在浏览器输入 8 位授权码即可完成登录。",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LocalFrostColors.current.textTertiary,
             )
             Spacer(Modifier.height(12.dp))
 
@@ -257,7 +268,7 @@ private fun OAuthDeviceFlowCard(
                         text = deviceFlow.verificationUri,
                         style = MaterialTheme.typography.bodyMedium,
                         fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = LocalFrostColors.current.primaryInk,
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -269,7 +280,7 @@ private fun OAuthDeviceFlowCard(
                         style = MaterialTheme.typography.headlineLarge,
                         fontFamily = FontFamily.Monospace,
                         letterSpacing = 6.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = LocalFrostColors.current.textPrimary,
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -301,7 +312,7 @@ private fun OAuthDeviceFlowCard(
                                     "授权码已过期"
                                 },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = LocalFrostColors.current.textTertiary,
                         )
                         Spacer(Modifier.weight(1f))
                         TextButton(onClick = onCancel) { Text("取消") }
@@ -312,7 +323,7 @@ private fun OAuthDeviceFlowCard(
                     Text(
                         text = "授权码已过期，请重新发起登录。",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = LocalFrostColors.current.danger,
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {
@@ -324,7 +335,7 @@ private fun OAuthDeviceFlowCard(
                     Text(
                         text = "你拒绝了对本应用的授权。",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = LocalFrostColors.current.danger,
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) {

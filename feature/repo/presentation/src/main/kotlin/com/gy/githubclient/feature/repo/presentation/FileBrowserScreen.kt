@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -38,6 +39,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.feature.repo.domain.model.FileContent
 import com.gy.githubclient.feature.repo.domain.model.FileEntry
 import com.gy.githubclient.feature.repo.domain.model.RepoTree
@@ -67,25 +70,41 @@ fun FileBrowserScreen(
             TextButton(onClick = onBack) { Text("← 返回") }
             Text("$owner/$name", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             // v0.16.0 P2-a：在逐级浏览 / 完整文件树之间切换。
-            TextButton(onClick = { viewModel.toggleTreeMode() }) {
+            TextButton(
+                onClick = { viewModel.toggleTreeMode() },
+                // 按钮文本是 emoji + 词，朗读时给纯文字说明（含当前处于哪种模式）。
+                modifier =
+                    Modifier.semantics {
+                        contentDescription =
+                            if (uiState.treeMode) {
+                                "当前为逐级浏览，切换到完整文件树"
+                            } else {
+                                "当前为完整文件树，切换到逐级浏览"
+                            }
+                    },
+            ) {
                 Text(if (uiState.treeMode) "📁 逐级" else "🌳 完整树")
             }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { viewModel.navigateUp() }, enabled = uiState.currentPath.isNotBlank()) {
+            TextButton(
+                onClick = { viewModel.navigateUp() },
+                enabled = uiState.currentPath.isNotBlank(),
+                modifier = Modifier.semantics { contentDescription = "返回上一级目录" },
+            ) {
                 Text("↑ 上级")
             }
             Text(
                 uiState.currentPath.ifBlank { "/ (根目录)" },
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LocalFrostColors.current.textTertiary,
                 modifier = Modifier.weight(1f),
             )
         }
 
         uiState.error?.let { error ->
-            Card(modifier = Modifier.fillMaxWidth()) {
+            FrostCard {
                 Row(
                     Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -127,7 +146,7 @@ fun FileBrowserScreen(
                             Text(
                                 "该目录为空。",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = LocalFrostColors.current.textTertiary,
                             )
                         }
                     }
@@ -167,7 +186,7 @@ private fun FileEntryRow(
             Text(
                 formatFileSize(entry.size),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LocalFrostColors.current.textTertiary,
             )
         }
     }
@@ -189,14 +208,14 @@ private fun TreeView(
             Text(
                 "文件 ${tree.fileCount} · 目录 ${tree.dirCount}",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LocalFrostColors.current.textTertiary,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
             if (tree.isTruncated) {
                 Text(
                     "⚠ GitHub 返回的树已截断（文件过多），当前仅显示部分节点。",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = LocalFrostColors.current.danger,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
             }
@@ -214,7 +233,7 @@ private fun TreeView(
         Text(
             "数据来源：GitHub REST · git/trees?recursive=1（只读）",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = LocalFrostColors.current.textTertiary,
             modifier = Modifier.padding(top = 4.dp),
         )
     }
@@ -239,7 +258,7 @@ private fun TreeNodeRow(node: TreeNode) {
             Text(
                 formatFileSize(node.size),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LocalFrostColors.current.textTertiary,
             )
         }
     }
@@ -261,7 +280,7 @@ private fun FileContentView(
         }
         // v0.14.0 A4 降级：REST 无公开 blame 端点，改用 commits?path= 展示逐次提交。
         if (fileHistory != null) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            FrostCard {
                 Column(Modifier.padding(12.dp)) {
                     Text("文件提交历史（${fileHistory.size}）", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(4.dp))
@@ -269,7 +288,7 @@ private fun FileContentView(
                         Text(
                             "该文件暂无提交历史记录。",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = LocalFrostColors.current.textTertiary,
                         )
                     } else {
                         fileHistory.take(FILE_HISTORY_LIMIT).forEach { commit ->
@@ -282,14 +301,14 @@ private fun FileContentView(
                     Text(
                         "数据来源：GitHub REST · commits?path=（非逐行 blame）",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = LocalFrostColors.current.textTertiary,
                     )
                 }
             }
             Spacer(Modifier.height(8.dp))
         }
         if (file.isTextUnavailable) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            FrostCard {
                 Column(Modifier.padding(12.dp)) {
                     Text(
                         "该文件过大或非文本文件，无法在 App 内展示（${formatFileSize(file.size)}）。",

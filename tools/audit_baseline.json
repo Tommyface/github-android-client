@@ -11,19 +11,19 @@
     "core_presentation_reuse": {
       "label": "core/presentation 复用处数",
       "direction": "min",
-      "value": 14,
+      "value": 26,
       "desc": "设计系统被真正使用的程度；目标 ≥ 10（随界面迁移逐步抬高）"
     },
     "content_description_files": {
       "label": "含 contentDescription 文件数",
       "direction": "min",
-      "value": 4,
+      "value": 9,
       "desc": "图标按钮/可点击元素需有朗读文本；目标 ≥ 3"
     },
     "semantics_files": {
       "label": "使用 semantics 文件数",
       "direction": "min",
-      "value": 3,
+      "value": 8,
       "desc": "列表/进度/选中态需语义化"
     },
     "hardcoded_chinese_ui_files": {

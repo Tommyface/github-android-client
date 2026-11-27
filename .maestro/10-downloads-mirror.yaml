@@ -1,0 +1,11 @@
+# 下载管理 → 镜像加速设置 的入口与关键文案。
+appId: com.gy.githubclient
+---
+- launchApp
+- tapOn: "我的"
+- tapOn: "下载管理"
+- assertVisible: "清空已完成记录"
+- tapOn: "镜像设置"
+- assertVisible: "镜像加速设置"
+- assertVisible: "镜像 URL 模板"
+- back

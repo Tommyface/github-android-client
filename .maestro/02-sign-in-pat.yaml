@@ -1,0 +1,11 @@
+# PAT 登录闭环。token 从 `-e GITHUB_PAT=...` 注入，**绝不入仓**。
+# 跑法：maestro test -e GITHUB_PAT=github_pat_xxx .maestro/02-sign-in-pat.yaml
+appId: com.gy.githubclient
+---
+- launchApp:
+    clearState: true
+- tapOn: "github_pat_..."
+- inputText: ${GITHUB_PAT}
+- hideKeyboard
+- tapOn: "登录"
+- assertVisible: "我的仓库"

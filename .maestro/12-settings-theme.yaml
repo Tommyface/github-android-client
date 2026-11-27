@@ -1,0 +1,13 @@
+# 外观与缓存 → 主题切换（深色），并断言说明文案随之出现。
+appId: com.gy.githubclient
+---
+- launchApp
+- tapOn: "我的"
+- scrollUntilVisible:
+    element:
+      text: "🎨 外观与缓存"
+    direction: DOWN
+- tapOn: "🎨 外观与缓存"
+- assertVisible: "主题"
+- tapOn: "深色"
+- assertVisible: "深色模式同样适用于 README、代码块与 Diff。"

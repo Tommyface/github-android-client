@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+### 变更
+
+- **发版链路（#29）**：`version.json` 的 `fingerprint` 改为从 `apksigner verify --print-certs` 解析的
+  **签名证书 SHA-256**。此前该字段误填 APK 文件摘要（与 `spec/ROADMAP.md` M0-08 的证书指纹语义不符），
+  导致按证书做校验的客户端永远不可能匹配。解析失败即失败，不允许回退成文件摘要；新增可选
+  `GHC_EXPECTED_CERT_SHA256` 钉值断言（未配置时打印 notice，不阻塞密钥轮换）。
+- **E2E 资产（#30）**：M4-10 落地 12 条 Maestro 场景（`.maestro/`，覆盖登录页三入口、PAT 登录闭环、
+  起始页、底部导航、发现页分类与三榜单口径、我的页 12 入口、通知中心、星标、下载+镜像、应用库、主题切换），
+  附本地真机执行手册 `docs/E2E-LOCAL-DEVICE.md` 与 `tools/run_maestro_local.sh`。
+- **CI（#27 / #28）**：`nightly` 设备环节改为按 `/dev/kvm` 条件执行；无 KVM 时跳过设备环节并在
+  job summary 显式声明，不再每夜假红，也不再假装跑过设备测试。
 ## [0.19.1] - 2026-11-28
 
 ### 变更

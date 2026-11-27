@@ -58,6 +58,19 @@
 -keep class com.gy.githubclient.MainActivity { *; }
 -keep class com.gy.githubclient.GithubClientApp { *; }
 
+# ── Tink / error_prone 注解 ─────────────────────────────────────
+# androidx.security.crypto 依赖 Tink，Tink 又引用 com.google.errorprone.annotations
+# （compileOnly 注解，运行时并不存在）。R8 会把它们当成"缺失类"并直接失败——
+# 这是 release 构建第一次真正跑 R8 时才暴露的问题（v0.19.0 发版实录）。
+# 正确处置是 dontwarn（这些注解确实不需要保留），而不是去补依赖。
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn com.google.api.client.util.**
+# Tink 的可选加密后端（按需存在，缺失时才回退到纯 Java 实现）。
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
+
 # ── 剔除调试日志 ─────────────────────────────────────────────────
 -assumenosideeffects class android.util.Log {
     public static int v(...);

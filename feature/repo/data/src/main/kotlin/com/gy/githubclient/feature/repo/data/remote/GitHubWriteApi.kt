@@ -8,6 +8,7 @@ package com.gy.githubclient.feature.repo.data.remote
 import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.core.mutation.MutationSpec
+import com.gy.githubclient.feature.repo.domain.model.CreatedRepository
 import com.gy.githubclient.feature.repo.domain.model.UploadTarget
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -139,13 +140,6 @@ class GitHubWriteApi(
         ) { _: HttpResponse -> Unit }
     }
 }
-
-/** 创建后的仓库信息（只取 App 需要的字段）。 */
-data class CreatedRepository(
-    val fullName: String,
-    val htmlUrl: String,
-    val private: Boolean,
-)
 
 /** 从响应体解析创建结果（容错：字段缺失时给出可读占位）。 */
 private suspend fun HttpResponse.createdRepository(): CreatedRepository {

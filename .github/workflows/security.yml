@@ -18,7 +18,7 @@ jobs:
     name: osv (依赖漏洞)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: 安装 OSV-Scanner
         run: |
           curl -sSL -o osv-scanner \
@@ -44,7 +44,7 @@ jobs:
     name: gitleaks (密钥泄漏)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: 扫描
@@ -63,7 +63,7 @@ jobs:
     name: gradle dependency verification
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -82,7 +82,7 @@ jobs:
     name: sbom (CycloneDX)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

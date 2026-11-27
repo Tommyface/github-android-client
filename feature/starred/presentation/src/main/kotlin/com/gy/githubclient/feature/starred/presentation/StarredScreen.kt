@@ -26,9 +26,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -52,33 +55,60 @@ fun StarredScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val frost = LocalFrostColors.current
 
+    // 文案必须在 composable 上下文里取：stringResource 不能在 LaunchedEffect 里调用。
+    // 因此这里先把**语义消息**存进 state，再在组合期解析成文案。
+    var pendingMessage by remember { mutableStateOf<StarredMessage?>(null) }
+
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is StarredEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
+                is StarredEvent.ShowMessage -> pendingMessage = event.message
             }
+        }
+    }
+
+    val messageText = pendingMessage?.asText()
+    LaunchedEffect(messageText) {
+        val text = messageText
+        if (text != null) {
+            snackbarHostState.showSnackbar(text)
+            pendingMessage = null
         }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(FrostDimens.PagePadding)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("返回") }
-            Text("⭐ 星标仓库", style = MaterialTheme.typography.headlineSmall, color = frost.textPrimary)
+            TextButton(onClick = onBack) { Text(stringResource(R.string.back)) }
+            Text(stringResource(R.string.title), style = MaterialTheme.typography.headlineSmall, color = frost.textPrimary)
         }
         Spacer(Modifier.height(8.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StarredSort.entries.forEach { sort ->
+                // 说明文字先取出来：semantics 的 lambda 不是 composable 上下文，
+                // 不能在里面调 stringResource。
+                val sortLabel =
+                    stringResource(
+                        if (sort == StarredSort.UPDATED) {
+                            R.string.sort_updated
+                        } else {
+                            R.string.sort_created
+                        },
+                    )
+                val sortDescription =
+                    stringResource(
+                        if (sort == StarredSort.UPDATED) {
+                            R.string.sort_updated_desc
+                        } else {
+                            R.string.sort_created_desc
+                        },
+                    )
                 FilterChip(
                     selected = uiState.filter.sort == sort,
                     onClick = { viewModel.onSortSelected(sort) },
-                    label = { Text(if (sort == StarredSort.UPDATED) "最近更新" else "最近创建") },
+                    label = { Text(sortLabel) },
                     // 排序是"单选"语义：朗读时必须能听出当前选中的是哪一项。
-                    modifier =
-                        Modifier.semantics {
-                            contentDescription =
-                                if (sort == StarredSort.UPDATED) "按最近更新排序" else "按最近创建排序"
-                        },
+                    modifier = Modifier.semantics { contentDescription = sortDescription },
                 )
             }
         }
@@ -110,7 +140,7 @@ fun StarredScreen(
                         }
                     } else if (uiState.hasMore) {
                         TextButton(onClick = viewModel::loadMore, modifier = Modifier.fillMaxWidth()) {
-                            Text("加载更多")
+                            Text(stringResource(R.string.load_more))
                         }
                     }
                 }
@@ -122,10 +152,31 @@ fun StarredScreen(
             modifier = Modifier.fillMaxWidth(),
             enabled = !uiState.isRefreshing,
         ) {
-            Text(if (uiState.isRefreshing) "刷新中…" else "刷新")
+            Text(
+                stringResource(if (uiState.isRefreshing) R.string.refreshing else R.string.refresh),
+            )
         }
     }
 }
+
+/**
+ * 消息 → 文案（界面层负责"怎么说"）。
+ */
+@Composable
+private fun StarredMessage.asText(): String =
+    when (this) {
+        is StarredMessage.StarRemoved -> stringResource(R.string.star_removed, fullName)
+
+        is StarredMessage.Error ->
+            when (kind) {
+                StarredErrorKind.UNAUTHORIZED -> stringResource(R.string.error_unauthorized)
+                StarredErrorKind.RATE_LIMITED -> stringResource(R.string.error_rate_limited)
+                StarredErrorKind.NOT_FOUND -> stringResource(R.string.error_not_found)
+                StarredErrorKind.NETWORK -> stringResource(R.string.error_network, detail.orEmpty())
+                StarredErrorKind.HTTP -> stringResource(R.string.error_http, code ?: 0)
+                StarredErrorKind.UNKNOWN -> stringResource(R.string.error_unknown, detail.orEmpty())
+            }
+    }
 
 @Composable
 private fun StarredCard(
@@ -134,6 +185,7 @@ private fun StarredCard(
     onRemoveStar: () -> Unit,
 ) {
     val frost = LocalFrostColors.current
+    val removeStarDescription = stringResource(R.string.remove_star_desc, repo.fullName)
     FrostCard(onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -145,8 +197,11 @@ private fun StarredCard(
             TextButton(
                 onClick = onRemoveStar,
                 // 移除星标是破坏性操作，读屏时要说明"移除哪个仓库的星标"。
-                modifier = Modifier.semantics { contentDescription = "移除 ${repo.fullName} 的星标" },
-            ) { Text("★ 移除") }
+                modifier =
+                    Modifier.semantics {
+                        contentDescription = removeStarDescription
+                    },
+            ) { Text(stringResource(R.string.remove_star)) }
         }
         repo.description?.let { desc ->
             Text(

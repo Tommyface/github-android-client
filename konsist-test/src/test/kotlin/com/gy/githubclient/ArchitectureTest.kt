@@ -532,7 +532,8 @@ class ArchitectureTest {
          *
          * 数量变化轨迹（每一轮都必须只减不增）：
          *  - R6 结束（旧口径：含注释误报、且漏检 feature）：18 项（实际覆盖 18 个文件）；
-         *  - R7 校准后（新口径：剔注释 + 覆盖 feature）：39 项。
+         *  - R7 校准后（新口径：剔注释 + 覆盖 feature）：39 项；
+         *  - P-207 字符串化（starred 域两文件清零）：**37 项**。
          *    看起来"变多了"，是因为 feature 的 30+ 个界面文件此前**根本不在门禁范围内**，
          *    这里首次被登记——这是把漏检变成显式债务，不是新增债务。
          *
@@ -544,8 +545,6 @@ class ArchitectureTest {
                 "app/src/main/kotlin/com/gy/githubclient/update/UpdateCheckScreen.kt",
                 "app/src/main/kotlin/com/gy/githubclient/update/UpdateCheckViewModel.kt",
                 "app/src/main/kotlin/com/gy/githubclient/update/UpdateCheckWorker.kt",
-                "feature/starred/presentation/src/main/kotlin/com/gy/githubclient/feature/starred/presentation/StarredScreen.kt",
-                "feature/starred/presentation/src/main/kotlin/com/gy/githubclient/feature/starred/presentation/StarredViewModel.kt",
                 "feature/search/presentation/src/main/kotlin/com/gy/githubclient/feature/search/presentation/SearchScreen.kt",
                 "feature/search/presentation/src/main/kotlin/com/gy/githubclient/feature/search/presentation/SearchViewModel.kt",
                 "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/ActionsScreen.kt",

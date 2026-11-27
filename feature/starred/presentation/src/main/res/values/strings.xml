@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  starred 域界面文案（M0-18 字符串化，批次 1）。
+
+  约定：界面文案进资源；ViewModel 只产出**语义事件**（错误分类 / 动作结果），
+  由界面层映射成文案——这样 ViewModel 里不会残留中文字面量。
+-->
+<resources>
+    <string name="back">← 返回</string>
+    <string name="title">⭐ 星标仓库</string>
+    <string name="sort_updated">最近更新</string>
+    <string name="sort_created">最近创建</string>
+    <string name="sort_updated_desc">按最近更新排序</string>
+    <string name="sort_created_desc">按最近创建排序</string>
+    <string name="load_more">加载更多</string>
+    <string name="refreshing">刷新中…</string>
+    <string name="refresh">刷新</string>
+    <string name="remove_star">★ 移除</string>
+    <string name="remove_star_desc">移除 %1$s 的星标</string>
+    <string name="star_removed">已取消 Star %1$s</string>
+
+    <string name="error_unauthorized">登录已失效，请重新登录</string>
+    <string name="error_rate_limited">API 限流，请稍后再试</string>
+    <string name="error_not_found">资源不存在</string>
+    <string name="error_network">网络错误：%1$s</string>
+    <string name="error_http">请求失败（%1$d）</string>
+    <string name="error_unknown">未知错误：%1$s</string>
+</resources>

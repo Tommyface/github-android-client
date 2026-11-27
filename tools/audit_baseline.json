@@ -29,7 +29,7 @@
     "hardcoded_chinese_ui_files": {
       "label": "硬编码中文 UI 文件数",
       "direction": "max",
-      "value": 39,
+      "value": 37,
       "desc": "与 konsist 规则 13 白名单同口径；每完成一屏字符串化即 -1"
     },
     "state_空态": {

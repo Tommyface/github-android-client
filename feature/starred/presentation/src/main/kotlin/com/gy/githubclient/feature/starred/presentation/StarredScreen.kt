@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -30,8 +29,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.FrostDimens
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.starred.domain.model.StarredSort
 import org.koin.androidx.compose.koinViewModel
@@ -46,6 +50,7 @@ fun StarredScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val repos by viewModel.starredRepos.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val frost = LocalFrostColors.current
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -55,10 +60,10 @@ fun StarredScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(FrostDimens.PagePadding)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("返回") }
-            Text("⭐ 星标仓库", style = MaterialTheme.typography.headlineSmall)
+            Text("⭐ 星标仓库", style = MaterialTheme.typography.headlineSmall, color = frost.textPrimary)
         }
         Spacer(Modifier.height(8.dp))
 
@@ -68,6 +73,12 @@ fun StarredScreen(
                     selected = uiState.filter.sort == sort,
                     onClick = { viewModel.onSortSelected(sort) },
                     label = { Text(if (sort == StarredSort.UPDATED) "最近更新" else "最近创建") },
+                    // 排序是"单选"语义：朗读时必须能听出当前选中的是哪一项。
+                    modifier =
+                        Modifier.semantics {
+                            contentDescription =
+                                if (sort == StarredSort.UPDATED) "按最近更新排序" else "按最近创建排序"
+                        },
                 )
             }
         }
@@ -122,29 +133,33 @@ private fun StarredCard(
     onClick: () -> Unit,
     onRemoveStar: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
-        Column(Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = repo.fullName,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onRemoveStar) { Text("★ 移除") }
-            }
-            repo.description?.let { desc ->
-                Text(
-                    text = desc,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                repo.language?.let { Text("● $it", style = MaterialTheme.typography.labelSmall) }
-                Text("★ ${repo.stargazersCount}", style = MaterialTheme.typography.labelSmall)
-                Text("⑂ ${repo.forksCount}", style = MaterialTheme.typography.labelSmall)
-            }
+    val frost = LocalFrostColors.current
+    FrostCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = repo.fullName,
+                style = MaterialTheme.typography.titleMedium,
+                color = frost.textPrimary,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(
+                onClick = onRemoveStar,
+                // 移除星标是破坏性操作，读屏时要说明"移除哪个仓库的星标"。
+                modifier = Modifier.semantics { contentDescription = "移除 ${repo.fullName} 的星标" },
+            ) { Text("★ 移除") }
+        }
+        repo.description?.let { desc ->
+            Text(
+                text = desc,
+                style = MaterialTheme.typography.bodySmall,
+                color = frost.textTertiary,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            repo.language?.let { Text("● $it", style = MaterialTheme.typography.labelSmall, color = frost.textSecondary) }
+            Text("★ ${repo.stargazersCount}", style = MaterialTheme.typography.labelSmall, color = frost.textSecondary)
+            Text("⑂ ${repo.forksCount}", style = MaterialTheme.typography.labelSmall, color = frost.textSecondary)
         }
     }
 }

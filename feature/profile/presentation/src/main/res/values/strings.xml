@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  profile 域 · 通知中心界面文案（M0-18 字符串化，批次 2）。
+
+  约定：界面文案一律进资源；ViewModel 只产出**语义错误类型**（NotificationsError），
+  由界面层（NotificationsScreen）映射成文案——ViewModel 里不残留任何中文字面量。
+-->
+<resources>
+    <string name="back">← 返回</string>
+    <string name="title">通知中心（未读 %1$d）</string>
+    <string name="empty">没有未读通知</string>
+    <string name="retry">重试</string>
+
+    <string name="subject_discussion">讨论</string>
+    <string name="subject_fallback">通知</string>
+
+    <!-- 卡片朗读文本：未读状态必须能被读屏听出来，否则"点了一条未读"是无声的 -->
+    <string name="card_desc">%1$s · %2$s</string>
+    <string name="card_desc_unread">%1$s · %2$s · 未读</string>
+
+    <string name="error_unauthorized">登录态已失效，请重新登录</string>
+    <string name="error_forbidden">当前凭证没有通知读取权限（可在权限体检页核对）</string>
+    <string name="error_unknown">通知加载失败，请重试</string>
+</resources>

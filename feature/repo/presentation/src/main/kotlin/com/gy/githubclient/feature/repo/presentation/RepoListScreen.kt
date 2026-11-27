@@ -28,13 +28,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.feature.repo.domain.model.RepoType
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import org.koin.androidx.compose.koinViewModel

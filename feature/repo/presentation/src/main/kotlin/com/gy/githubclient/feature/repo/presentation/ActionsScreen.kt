@@ -27,12 +27,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import com.gy.githubclient.core.presentation.theme.LocalFrostColors
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import org.koin.androidx.compose.koinViewModel
 
 /**

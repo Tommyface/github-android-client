@@ -27,8 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.feature.auth.domain.model.AuthMethod
 import com.gy.githubclient.feature.auth.domain.model.Capability
 import com.gy.githubclient.feature.auth.domain.model.PermissionReport

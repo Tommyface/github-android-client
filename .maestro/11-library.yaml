@@ -1,0 +1,11 @@
+# 应用库：批量更新入口与列表/空态。
+appId: com.gy.githubclient
+---
+- launchApp
+- tapOn: "我的"
+- scrollUntilVisible:
+    element:
+      text: "📱 应用库"
+    direction: DOWN
+- tapOn: "📱 应用库"
+- assertVisible: "全部更新"

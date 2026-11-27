@@ -1,0 +1,9 @@
+# 星标页：排序切换 chips 在位。
+appId: com.gy.githubclient
+---
+- launchApp
+- tapOn: "我的"
+- tapOn: "⭐ 星标仓库"
+- assertVisible: "最近更新"
+- assertVisible: "最近创建"
+- back

@@ -1,0 +1,8 @@
+# 起始页（Route.Home = 仓库列表）与底部导航首项。
+# 前置：已登录（先跑 02，或手动登录）。
+appId: com.gy.githubclient
+---
+- launchApp
+- assertVisible: "我的仓库"
+- assertVisible: "搜索仓库"
+- assertVisible: "仓库"

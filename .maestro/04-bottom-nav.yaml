@@ -1,0 +1,13 @@
+# 底部四 tab 往返：仓库 / 发现 / 搜索 / 我的。
+# 每个 tab 用其副标题断言，避免只匹配到底部导航的同名标签。
+appId: com.gy.githubclient
+---
+- launchApp
+- tapOn: "发现"
+- assertVisible: "热门仓库 · 最新 Release"
+- tapOn: "搜索"
+- assertVisible: "仓库 · 代码 · 用户"
+- tapOn: "我的"
+- assertVisible: "功能"
+- tapOn: "仓库"
+- assertVisible: "我的仓库"

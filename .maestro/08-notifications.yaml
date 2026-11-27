@@ -1,0 +1,9 @@
+# 通知中心：标题带未读计数（动态值，用正则匹配），空态或列表均可通过。
+appId: com.gy.githubclient
+---
+- launchApp
+- tapOn: "我的"
+- tapOn: "🔔 通知中心"
+- assertVisible: "通知中心（未读 [0-9]+）"
+- back
+- assertVisible: "功能"

@@ -1,0 +1,10 @@
+# 发现页精选 tab：分类筛选 chips 可切换且不崩。
+appId: com.gy.githubclient
+---
+- launchApp
+- tapOn: "发现"
+- assertVisible: "发现 · 商店"
+- assertVisible: "精选开源项目 · Release 实时更新 · 支持镜像加速下载"
+- tapOn: "开发"
+- tapOn: "影音"
+- tapOn: "全部"

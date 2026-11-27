@@ -393,8 +393,14 @@ class ArchitectureTest {
         var i = start + 2
         while (i < source.length && depth > 0) {
             when {
-                source.startsWith("/*", i) -> { depth++; i += 2 }
-                source.startsWith("*/", i) -> { depth--; i += 2 }
+                source.startsWith("/*", i) -> {
+                    depth++
+                    i += 2
+                }
+                source.startsWith("*/", i) -> {
+                    depth--
+                    i += 2
+                }
                 else -> i++
             }
         }
@@ -448,8 +454,14 @@ class ArchitectureTest {
                 }
 
                 source[i] == '"' -> i = skipStringLiteral(source, i)
-                source[i] == '{' -> { depth++; i++ }
-                source[i] == '}' -> { depth--; i++ }
+                source[i] == '{' -> {
+                    depth++
+                    i++
+                }
+                source[i] == '}' -> {
+                    depth--
+                    i++
+                }
                 else -> i++
             }
         }

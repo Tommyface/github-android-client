@@ -48,8 +48,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -57,8 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.gy.githubclient.core.presentation.R
 import androidx.compose.ui.unit.sp
+import com.gy.githubclient.core.presentation.R
 import kotlin.math.max
 
 /**
@@ -101,7 +101,8 @@ enum class FrostIcon {
     SEARCH,
     GRID,
     COMPASS,
-    USER;
+    USER,
+    ;
 
     /** 无障碍朗读文本（TalkBack）。图标本身无文字，必须由语义补足。 */
     @Composable

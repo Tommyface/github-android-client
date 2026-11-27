@@ -32,6 +32,8 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 include(":app")
 include(":core:domain")
 include(":core:mutation")
+include(":core:permission")
+include(":core:audit")
 include(":core:data")
 include(":core:presentation")
 

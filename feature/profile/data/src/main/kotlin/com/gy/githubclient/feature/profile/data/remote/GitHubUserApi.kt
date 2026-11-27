@@ -8,6 +8,8 @@ package com.gy.githubclient.feature.profile.data.remote
 import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
+import com.gy.githubclient.core.mutation.MutationSpec
 import com.gy.githubclient.feature.profile.domain.model.GistItem
 import com.gy.githubclient.feature.profile.domain.model.GitHubNotification
 import com.gy.githubclient.feature.profile.domain.model.OrgMember
@@ -48,6 +50,46 @@ class GitHubUserApi(
         client.request(
             method = HttpMethod.Patch,
             path = "/notifications/threads/$threadId",
+            mapper = { _: HttpResponse -> Unit },
+        )
+
+    /** 一键全部标记已读：PUT /notifications（205 Reset Content）。 */
+    suspend fun markAllNotificationsRead(): NetworkResult<Unit> =
+        client.request(
+            method = HttpMethod.Put,
+            path = "/notifications",
+            mapper = { _: HttpResponse -> Unit },
+        )
+
+    /** 查询是否已关注某用户：204=已关注，404=未关注。 */
+    suspend fun isFollowing(login: String): NetworkResult<Boolean> =
+        client.request(
+            path = "/user/following/$login",
+            mapper = { _: HttpResponse -> true },
+        )
+
+    /** 关注（PUT）/ 取关（DELETE）；需要 `user:follow` scope。 */
+    suspend fun setFollowing(
+        login: String,
+        following: Boolean,
+    ): MutationResult<Unit> =
+        client.mutate(
+            spec = MutationSpec(action = if (following) "follow" else "unfollow", target = "@$login"),
+            method = if (following) HttpMethod.Put else HttpMethod.Delete,
+            path = "/user/following/$login",
+            mapper = { _: HttpResponse -> Unit },
+        )
+
+    /** 忽略（PUT ignored=true）/ 恢复（DELETE）通知线程订阅。 */
+    suspend fun setThreadSubscription(
+        threadId: Long,
+        ignored: Boolean,
+    ): MutationResult<Unit> =
+        client.mutate(
+            spec = MutationSpec(action = if (ignored) "notification.ignore" else "notification.subscribe", target = "thread/$threadId"),
+            method = if (ignored) HttpMethod.Put else HttpMethod.Delete,
+            path = "/notifications/threads/$threadId/subscription",
+            body = if (ignored) IGNORED_TRUE else null,
             mapper = { _: HttpResponse -> Unit },
         )
 
@@ -105,6 +147,7 @@ class GitHubUserApi(
     private companion object {
         const val PROFILE_PATH = "/user"
         const val NOTIFICATIONS_PER_PAGE = 50
+        const val IGNORED_TRUE = """{"ignored":true}"""
         const val EVENTS_PER_PAGE = 20
         const val ORG_MEMBERS_PER_PAGE = 100
         const val GISTS_PER_PAGE = 50

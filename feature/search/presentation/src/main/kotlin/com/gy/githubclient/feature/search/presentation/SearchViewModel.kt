@@ -7,8 +7,14 @@ package com.gy.githubclient.feature.search.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gy.githubclient.core.domain.link.GitHubLink
+import com.gy.githubclient.core.domain.link.GitHubLinkParser
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
+import com.gy.githubclient.core.mutation.userMessage
+import com.gy.githubclient.feature.profile.domain.usecase.IsFollowingUseCase
+import com.gy.githubclient.feature.profile.domain.usecase.SetFollowingUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
 import com.gy.githubclient.feature.search.domain.model.CodeHit
 import com.gy.githubclient.feature.search.domain.model.CommitHit
@@ -40,8 +46,12 @@ data class SearchUiState(
     val isLoadingMore: Boolean = false,
     val hasNextPage: Boolean = false,
     val hasSearched: Boolean = false,
+    /** 输入框内容恰好是一条 GitHub 链接时识别出的目标（v0.16.0，ghlink 移植）。 */
+    val detectedLink: GitHubLink? = null,
     /** 本会话内已加星的仓库（fullName），用于结果卡片状态显示；GitHub PUT star 幂等，重发无害。 */
     val starredFullNames: Set<String> = emptySet(),
+    /** 本会话内已确认的关注状态（login -> following）；未确认的用户不在 Map 中。 */
+    val followStatus: Map<String, Boolean> = emptyMap(),
 )
 
 sealed interface SearchEvent {
@@ -60,6 +70,8 @@ sealed interface SearchEvent {
 class SearchViewModel(
     private val search: SearchUseCase,
     private val setStarred: SetStarredUseCase,
+    private val isFollowing: IsFollowingUseCase,
+    private val setFollowing: SetFollowingUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -79,7 +91,11 @@ class SearchViewModel(
     }
 
     fun onTermChange(term: String) {
-        _uiState.value = _uiState.value.copy(term = term)
+        _uiState.value =
+            _uiState.value.copy(
+                term = term,
+                detectedLink = GitHubLinkParser.parse(term),
+            )
         termFlow.value = term
     }
 
@@ -138,15 +154,58 @@ class SearchViewModel(
                 }
 
                 is NetworkResult.Failure ->
-                    _events.trySend(SearchEvent.ShowMessage(starErrorMessage(result.error)))
+                    _events.trySend(SearchEvent.ShowMessage(errorMessage(result.error)))
+            }
+        }
+    }
+
+    /**
+     * 关注 / 取关用户：
+     * - 状态未知时先查询，已关注则只提示「再次点击可取消」，避免首次点击误取关；
+     * - 状态已知时直接切换。
+     */
+    fun toggleFollow(hit: UserHit) {
+        viewModelScope.launch {
+            val known = _uiState.value.followStatus[hit.login]
+            val currently =
+                known ?: when (val result = isFollowing(hit.login)) {
+                    is NetworkResult.Success -> result.data
+                    is NetworkResult.Failure -> {
+                        _events.trySend(SearchEvent.ShowMessage(errorMessage(result.error)))
+                        return@launch
+                    }
+                }
+            if (known == null && currently) {
+                _uiState.value =
+                    _uiState.value.copy(followStatus = _uiState.value.followStatus + (hit.login to true))
+                _events.trySend(SearchEvent.ShowMessage("你已关注 ${hit.login}，再次点击可取消关注"))
+                return@launch
+            }
+            val next = !currently
+            when (val result = setFollowing(hit.login, next)) {
+                is MutationResult.Success -> {
+                    _uiState.value =
+                        _uiState.value.copy(followStatus = _uiState.value.followStatus + (hit.login to next))
+                    _events.trySend(SearchEvent.ShowMessage(if (next) "已关注 ${hit.login}" else "已取消关注 ${hit.login}"))
+                }
+
+                is MutationResult.Failure ->
+                    _events.trySend(SearchEvent.ShowMessage(result.error.userMessage()))
             }
         }
     }
 
     private suspend fun performSearch(term: String) {
         val state = _uiState.value
-        if (term.isBlank()) {
-            _uiState.value = state.copy(hits = emptyList(), hasSearched = false, isSearching = false)
+        // 输入的是 GitHub 链接：展示「在应用内打开」卡片，不消耗搜索额度。
+        if (term.isBlank() || GitHubLinkParser.parse(term) != null) {
+            _uiState.value =
+                state.copy(
+                    hits = emptyList(),
+                    hasSearched = false,
+                    isSearching = false,
+                    detectedLink = GitHubLinkParser.parse(term),
+                )
             return
         }
         val query = SearchQuery(term = term, type = state.type, page = 1)
@@ -171,9 +230,6 @@ class SearchViewModel(
     }
 
     private fun errorMessage(error: ApiError): String = searchErrorMessage(error)
-
-    /** 收藏失败走专属文案，避免与搜索错误混淆。 */
-    private fun starErrorMessage(error: ApiError): String = starMessage(error)
 
     private companion object {
         const val DEBOUNCE_MS = 300L

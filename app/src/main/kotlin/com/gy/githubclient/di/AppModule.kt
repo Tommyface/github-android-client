@@ -5,6 +5,7 @@
 
 package com.gy.githubclient.di
 
+import com.gy.githubclient.core.audit.di.auditModule
 import com.gy.githubclient.core.data.di.coreNetworkModule
 import com.gy.githubclient.core.domain.update.UpdateCoordinator
 import com.gy.githubclient.feature.auth.data.di.authDataModule
@@ -51,6 +52,8 @@ val coreModule =
 val appModules =
     listOf(
         coreModule,
+        // 写操作审计（core:audit）：所有写操作落库，可导出「操作审计报告」
+        auditModule,
         // 外观设置（主题模式 / 代码字号）：单例，供 MainActivity 与设置页共享
         module { single { AppSettingsStore(androidContext()) } },
         coreNetworkModule,

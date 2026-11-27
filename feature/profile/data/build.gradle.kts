@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.data)
+    implementation(projects.core.mutation)
     implementation(projects.feature.profile.domain)
     implementation(libs.bundles.ktor.common)
     implementation(libs.ktor.client.okhttp)
@@ -22,10 +23,4 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlinx.coroutines.test)
-}
-
-// Room schema 导出（M0-10）：导出后 schema 版本历史可入库，
-// 后续 schema 变更才能用 MigrationTestHelper 写真实迁移测试。
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
 }

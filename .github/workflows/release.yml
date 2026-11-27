@@ -72,14 +72,36 @@ jobs:
           set -euo pipefail
           VERSION=$(grep '^ghcVersionName=' gradle.properties | cut -d= -f2)
           PREV=$(git tag --list 'v*' --sort=-v:refname | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
-          python3 tools/generate_changelog.py --version "$VERSION" --since "${PREV:-}" || true
+          # 人工整理过的同名章节优先：自动生成的清单只适合"没人管"的版本，
+          # 有正式版本说明时不覆盖，也不自造第二份章节。
+          if grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "::notice::CHANGELOG.md 已含 [$VERSION] 章节，跳过自动生成。"
+          else
+            python3 tools/generate_changelog.py --version "$VERSION" --since "${PREV:-}" || true
+          fi
           if ! git diff --quiet -- CHANGELOG.md; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add CHANGELOG.md
             git commit -m "docs(changelog): 生成 v${VERSION} 变更日志 [skip ci]"
-            git push origin HEAD:main
+            # main 受分支保护（要求 PR + 管理员不可绕过），直推 main 必然被拒——
+            # 以前这一步会让整条发版流水线红掉。改为推到一次性分支，由人评审后并入。
+            git push origin "HEAD:refs/heads/chore/changelog-v${VERSION}" || true
+            echo "::notice::变更日志已推到分支 chore/changelog-v${VERSION}，请用 PR 并入 main。"
           fi
+
+      - name: 准备 Release 说明（取 CHANGELOG 的版本章节）
+        run: |
+          set -euo pipefail
+          VERSION=$(grep '^ghcVersionName=' gradle.properties | cut -d= -f2)
+          python3 tools/release_notes.py "$VERSION" --out release-notes.md
+          cat >> release-notes.md <<'FOOTER'
+
+          ---
+          - 产物三件套：APK / .sha256 / version.json
+          - 安装前请校验 SHA-256；App 内安装链路另做签名证书指纹校验
+          - 覆盖安装要求：applicationId 一致 + 签名一致 + versionCode 不降级
+          FOOTER
 
       - name: 三处一致校验（gradle.properties == tag）
         run: |
@@ -143,14 +165,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: GitHub Android Client ${{ github.event.inputs.tag || github.ref_name }}
-          body: |
-            ## ${{ github.event.inputs.tag || github.ref_name }}
-
-            versionCode: ${{ github.event.inputs.tag || github.ref_name }}
-
-            - 产物三件套：APK / .sha256 / version.json
-            - 安装前请校验 SHA-256；App 内安装链路另做签名证书指纹校验
-            - 覆盖安装要求：applicationId 一致 + 签名一致 + versionCode 不降级
+          body_path: release-notes.md
           files: |
             dist/*.apk
             dist/*.sha256

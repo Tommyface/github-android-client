@@ -3,7 +3,9 @@
 > 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 > 版本号以 `gradle.properties` 的 `ghcVersionName` / `ghcVersionCode` 为唯一真源。
 
-## [Unreleased] — v0.19.0 准备中
+## [Unreleased]
+
+## [0.19.0] - 2026-11-27
 
 ### 新增
 
@@ -41,3 +43,23 @@
 - `ApkSignatureVerifier` 的正式指纹需在首次用真实密钥发布后固化（当前仍为 debug 指纹，兼容期）。
 - 字符串资源化（M0-18）依赖 UI 里程碑的组件化改造，尚未完成。
 - Room 的真实 MigrationTestHelper 迁移测试需在 schema 首次 bump 时补齐（历史 schema JSON 尚未入库）。
+
+### 本轮新增（P-205 ~ P-207）
+
+- **P-205 仓库写操作界面**：仓库设置（简介 / 可见性 / 归档）、新建仓库、上传文件三屏与三个 ViewModel；
+  删除仓库走 `DangerConfirmSheet` 并要求逐字输入仓库名；上传路径先过 `UploadPathValidator`
+  （拒绝绝对路径、`..` 穿越与空段）；新增三条路由 `repo_settings` / `create_repository` / `upload_file`。
+- **P-206 Frost 化与无障碍**：「我的」页与「星标仓库」页改用 `FrostCard` 与 Frost 令牌；
+  11 个入口按钮、排序筛选片、移除星标按钮补 `contentDescription` / `semantics`。
+- **P-207 字符串化第 1 批**：starred 域界面文案全部进 `strings.xml`；
+  ViewModel 不再吐中文文案，改为吐语义消息（`StarredMessage` / `StarredErrorKind`）由界面层映射。
+
+### 本轮修掉的门禁缺陷
+
+- 字符串化门禁（konsist 规则 13）此前同时存在**误报**（KDoc 里的中文引号被当成文案）与**漏检**
+  （feature 层 30+ 个界面文件根本不在扫描范围内），且只拦"新增"不拦"登记项失效"——
+  现改为：先剔除注释再判定、覆盖 feature 全量、**双向棘轮**。
+- UI 审计脚本的硬编码中文上限原本写成 `max 999`（形同虚设），nightly 还带 `|| true` 吞掉失败——
+  现改为可机读基线的**真棘轮**，CI 与 nightly 均以 `--strict` 失败退出。
+- 修掉 P-204 遗留的三处红灯：`RepoDataTest` 缺 `writeApi` 实参、`DangerConfirmSheet` 连续 KDoc、
+  领域测试替身未实现新增的四个写操作契约。

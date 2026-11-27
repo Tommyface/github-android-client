@@ -7,7 +7,6 @@ package com.gy.githubclient.feature.repo.presentation
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,6 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
+import com.gy.githubclient.core.presentation.theme.FrostCard
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -56,7 +58,7 @@ fun ActionsScreen(
         }
 
         uiState.error?.let { error ->
-            Card(modifier = Modifier.fillMaxWidth()) {
+            FrostCard {
                 Row(
                     Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -83,28 +85,36 @@ fun ActionsScreen(
                     Text(
                         "该仓库暂无 Actions 运行记录。",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = LocalFrostColors.current.textTertiary,
                     )
                 }
             }
             items(uiState.runs, key = { it.id }) { run ->
-                Card(
-                    modifier =
-                        Modifier.clickable {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(run.htmlUrl)))
-                        },
+                FrostCard(
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(run.htmlUrl)))
+                    },
                 ) {
-                    Column(Modifier.padding(12.dp)) {
+                    Column(
+                        Modifier
+                            .padding(12.dp)
+                            // 这张卡片的动作是"在浏览器打开"，正文里没有这句，
+                            // 读屏用户需要被明确告知点了会发生什么。
+                            .semantics {
+                                contentDescription =
+                                    "在浏览器中打开第 ${run.runNumber} 次运行 ${run.name}"
+                            },
+                    ) {
                         Text("#${run.runNumber} ${run.name}", style = MaterialTheme.typography.bodyMedium)
                         Text(
                             "${runStatusLabel(run.normalizedStatus)} · ${conclusionLabel(run.normalizedConclusion)} · ${run.event}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = LocalFrostColors.current.textTertiary,
                         )
                         Text(
                             "${run.headBranch} @ ${run.shortSha}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = LocalFrostColors.current.textTertiary,
                         )
                     }
                 }

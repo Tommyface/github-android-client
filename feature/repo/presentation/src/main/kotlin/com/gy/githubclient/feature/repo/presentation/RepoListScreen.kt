@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -29,9 +28,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
+import com.gy.githubclient.core.presentation.theme.FrostCard
 import com.gy.githubclient.feature.repo.domain.model.RepoType
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import org.koin.androidx.compose.koinViewModel
@@ -127,10 +130,7 @@ private fun RepoCard(
     onClick: () -> Unit,
     onToggleStar: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-    ) {
+    FrostCard(onClick = onClick) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -138,7 +138,19 @@ private fun RepoCard(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = onToggleStar) {
+                TextButton(
+                    onClick = onToggleStar,
+                    // 只念"★"用户不知道在给谁加星标：补上仓库名与动作。
+                    modifier =
+                        Modifier.semantics {
+                            contentDescription =
+                                if (repo.isStarred) {
+                                    "取消 ${repo.fullName} 的星标"
+                                } else {
+                                    "给 ${repo.fullName} 加星标"
+                                }
+                        },
+                ) {
                     Text(if (repo.isStarred) "★" else "☆")
                 }
             }
@@ -146,7 +158,7 @@ private fun RepoCard(
                 Text(
                     text = desc,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = LocalFrostColors.current.textTertiary,
                 )
             }
             Spacer(Modifier.height(4.dp))

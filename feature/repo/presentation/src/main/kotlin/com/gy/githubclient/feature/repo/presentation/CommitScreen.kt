@@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,6 +28,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
+import com.gy.githubclient.core.presentation.theme.FrostCard
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.DiffLineKind
 import com.gy.githubclient.feature.repo.domain.model.parseDiffPatch
@@ -63,7 +65,7 @@ fun CommitScreen(
         }
 
         uiState.error?.let { error ->
-            Card(modifier = Modifier.fillMaxWidth()) {
+            FrostCard {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                     TextButton(onClick = viewModel::dismissError) { Text("关闭") }
@@ -92,27 +94,31 @@ private fun CommitListView(
 
         uiState.commits.isEmpty() -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("暂无提交记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("暂无提交记录", color = LocalFrostColors.current.textTertiary)
             }
         }
 
         else -> {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(uiState.commits, key = { it.sha }) { commit ->
-                    Card(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.openDetail(commit.sha) }) {
-                        Column(Modifier.padding(12.dp)) {
+                    FrostCard(onClick = { viewModel.openDetail(commit.sha) }) {
+                        Column(
+                            Modifier
+                                .padding(12.dp)
+                                .semantics { contentDescription = "查看提交 ${commit.shortSha} 的详情" },
+                        ) {
                             Text(commit.title, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
                             Spacer(Modifier.height(4.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
                                     commit.shortSha,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = LocalFrostColors.current.primaryInk,
                                 )
                                 commit.authorName?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
                             }
                             commit.authorDate?.let {
-                                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(it, style = MaterialTheme.typography.labelSmall, color = LocalFrostColors.current.textTertiary)
                             }
                         }
                     }
@@ -125,7 +131,7 @@ private fun CommitListView(
                             Text(
                                 "已加载全部",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = LocalFrostColors.current.textTertiary,
                             )
                     }
                 }
@@ -144,7 +150,7 @@ private fun CommitDetailView(detail: CommitDetail) {
                 Text(
                     "${detail.shortSha} · ${detail.authorName.orEmpty()} · ${detail.authorDate.orEmpty()}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = LocalFrostColors.current.textTertiary,
                 )
                 Text(
                     "+${detail.totalAdditions} / -${detail.totalDeletions} · ${detail.files.size} 个文件变更",
@@ -156,13 +162,13 @@ private fun CommitDetailView(detail: CommitDetail) {
             item { Text("该提交无文件变更信息。", style = MaterialTheme.typography.bodySmall) }
         }
         items(detail.files, key = { it.filename }) { file ->
-            Card(modifier = Modifier.fillMaxWidth()) {
+            FrostCard {
                 Column(Modifier.padding(12.dp)) {
                     Text(file.filename, style = MaterialTheme.typography.bodyMedium)
                     Text(
                         "${file.status} · +${file.additions} / -${file.deletions}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = LocalFrostColors.current.textTertiary,
                     )
                     val patch = file.patch
                     if (patch == null) {
@@ -175,7 +181,7 @@ private fun CommitDetailView(detail: CommitDetail) {
                                     DiffLineKind.ADD -> Color(0xFF2E7D32)
                                     DiffLineKind.DELETE -> Color(0xFFC62828)
                                     DiffLineKind.HEADER -> Color(0xFF7B5CD6)
-                                    DiffLineKind.CONTEXT -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    DiffLineKind.CONTEXT -> LocalFrostColors.current.textTertiary
                                 }
                             Text(
                                 line.text,

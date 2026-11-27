@@ -45,10 +45,11 @@ jobs:
           fi
           curl -Ls "https://get.maestro.mobile.dev" | bash
           "$HOME/.maestro/bin/maestro" test .maestro
-      - name: UI 审计（P-200 方法学）
-        run: |
-          bash tools/ui_audit.sh || true
-          bash tools/ui_audit.sh --strict && echo "UI 审计达标" || echo "::warning::UI 审计存在不达标项（详见报告）"
+      - name: UI 审计（P-200 方法学 · R7 起为真棘轮，失败即任务失败）
+        # 旧写法用 `|| true` + warning，等于"审计失败也不影响任何事"——
+        # 这类假门禁与 max=999 的阈值是同一类问题。nightly 不阻塞当日合并，
+        # 但失败必须让任务变红，否则没人会看。
+        run: bash tools/ui_audit.sh --strict
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -100,6 +100,10 @@ jobs:
           "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x ./gradlew
+      - name: UI 审计棘轮（UI 债务只减不增）
+        # 与 konsist 规则 13/14 同口径的 UI 债务棘轮：中文硬编码文件数、裸色值、复用度、无障碍语义。
+        # 纯文件扫描，无需构建，几秒完成。
+        run: bash tools/ui_audit.sh --strict
       - name: detekt + 单测（失败自动重试，规避 Maven Central 429）
         run: |
           for i in 1 2 3; do

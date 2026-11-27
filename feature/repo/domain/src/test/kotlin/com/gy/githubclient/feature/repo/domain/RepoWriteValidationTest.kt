@@ -37,10 +37,11 @@ class RepoWriteValidationTest {
     @Test
     fun forbiddenKeepsMissingScopesAsDetail() {
         val error =
-            MutationError.Forbidden(
-                reason = com.gy.githubclient.core.mutation.ForbiddenReason.MISSING_SCOPE,
-                missingScopes = listOf("repo", "workflow"),
-            ).toWriteError()
+            MutationError
+                .Forbidden(
+                    reason = com.gy.githubclient.core.mutation.ForbiddenReason.MISSING_SCOPE,
+                    missingScopes = listOf("repo", "workflow"),
+                ).toWriteError()
 
         assertEquals(WriteErrorKind.FORBIDDEN, error.kind)
         assertEquals("repo, workflow", error.detail)
@@ -49,16 +50,17 @@ class RepoWriteValidationTest {
     @Test
     fun validationFallsBackToFieldErrors() {
         val error =
-            MutationError.Validation(
-                fieldErrors =
-                    listOf(
-                        com.gy.githubclient.core.mutation.FieldError(
-                            field = "name",
-                            code = "invalid",
-                            message = "name already exists",
+            MutationError
+                .Validation(
+                    fieldErrors =
+                        listOf(
+                            com.gy.githubclient.core.mutation.FieldError(
+                                field = "name",
+                                code = "invalid",
+                                message = "name already exists",
+                            ),
                         ),
-                    ),
-            ).toWriteError()
+                ).toWriteError()
 
         assertEquals(WriteErrorKind.VALIDATION, error.kind)
         assertTrue(error.detail?.contains("name") == true)

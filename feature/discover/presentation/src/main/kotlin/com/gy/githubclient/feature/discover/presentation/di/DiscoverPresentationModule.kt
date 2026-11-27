@@ -13,6 +13,6 @@ import org.koin.dsl.module
 /** 发现/商店 presentation 层 DI。 */
 val discoverPresentationModule =
     module {
-        viewModel { DiscoverViewModel(get(), get(), get(), get(), get()) }
+        viewModel { DiscoverViewModel(get(), get(), get(), get(), get(), get(), get()) }
         viewModel { ReleaseListViewModel(get(), get(), get(), get()) }
     }

@@ -12,10 +12,14 @@ import com.gy.githubclient.core.domain.network.NetworkResult
 import com.gy.githubclient.core.domain.share.ShareManager
 import com.gy.githubclient.feature.discover.domain.model.DiscoverCategory
 import com.gy.githubclient.feature.discover.domain.model.DiscoverItem
+import com.gy.githubclient.feature.discover.domain.model.MirrorDownloadLink
 import com.gy.githubclient.feature.discover.domain.model.RankQueryFactory
+import com.gy.githubclient.feature.discover.domain.model.ReleaseAsset
 import com.gy.githubclient.feature.discover.domain.usecase.BuildShareTextUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.ObserveDiscoverUseCase
 import com.gy.githubclient.feature.discover.domain.usecase.RefreshDiscoverUseCase
+import com.gy.githubclient.feature.discover.domain.usecase.ResolveDownloadLinkUseCase
+import com.gy.githubclient.feature.download.domain.usecase.EnqueueDownloadUseCase
 import com.gy.githubclient.feature.search.domain.model.RepoHit
 import com.gy.githubclient.feature.search.domain.model.SearchOrder
 import com.gy.githubclient.feature.search.domain.model.SearchQuery
@@ -104,8 +108,10 @@ data class DiscoverUiState(
 class DiscoverViewModel(
     private val observeDiscover: ObserveDiscoverUseCase,
     private val refreshDiscover: RefreshDiscoverUseCase,
+    private val resolveLink: ResolveDownloadLinkUseCase,
     private val buildShareText: BuildShareTextUseCase,
     private val shareManager: ShareManager,
+    private val enqueueDownload: EnqueueDownloadUseCase,
     private val searchRepos: SearchUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(DiscoverUiState())
@@ -211,6 +217,26 @@ class DiscoverViewModel(
             is ApiError.Http -> DiscoverError.Http(code)
             is ApiError.Unknown -> DiscoverError.Unknown
         }
+
+    /**
+     * 解析资产的镜像 / 直链。
+     *
+     * 注意：这两个方法**不是死代码** —— `ReleaseDetailScreen` 复用的就是本 ViewModel。
+     * 它们职责上更应归属 ReleaseDetail 专属 VM（债务 D-03），拆分需连带改详情页，另开 PR。
+     */
+    fun resolveDownload(assetUrl: String): MirrorDownloadLink = resolveLink(assetUrl)
+
+    /** 提交 Release 资产下载任务到下载管理器（App 内下载，支持断点续传与镜像）。 */
+    fun onDownloadAsset(
+        asset: ReleaseAsset,
+        owner: String,
+        name: String,
+        tag: String,
+    ) {
+        val link = resolveLink(asset.downloadUrl)
+        val request = buildAssetDownloadRequest(asset, owner, name, tag, link)
+        viewModelScope.launch { enqueueDownload(request) }
+    }
 
     private companion object {
         const val RANK_PER_PAGE = 20

@@ -11,31 +11,31 @@
     "core_presentation_reuse": {
       "label": "core/presentation 复用处数",
       "direction": "min",
-      "value": 29,
+      "value": 32,
       "desc": "设计系统被真正使用的程度；目标 ≥ 10（随界面迁移逐步抬高）"
     },
     "content_description_files": {
       "label": "含 contentDescription 文件数",
       "direction": "min",
-      "value": 10,
+      "value": 11,
       "desc": "图标按钮/可点击元素需有朗读文本；目标 ≥ 3"
     },
     "semantics_files": {
       "label": "使用 semantics 文件数",
       "direction": "min",
-      "value": 9,
+      "value": 10,
       "desc": "列表/进度/选中态需语义化"
     },
     "hardcoded_chinese_ui_files": {
       "label": "硬编码中文 UI 文件数",
       "direction": "max",
-      "value": 35,
+      "value": 33,
       "desc": "与 konsist 规则 13 白名单同口径；每完成一屏字符串化即 -1"
     },
     "state_空态": {
       "label": "空态 文件数",
       "direction": "min",
-      "value": 9,
+      "value": 8,
       "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     },
@@ -49,14 +49,14 @@
     "state_错误态": {
       "label": "错误态 文件数",
       "direction": "min",
-      "value": 25,
+      "value": 27,
       "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     },
     "state_错误态2": {
       "label": "错误态2 文件数",
       "direction": "min",
-      "value": 7,
+      "value": 8,
       "desc": "该状态至少应在一个界面被处理（覆盖下限，不参与棘轮；实测值仅供参考）",
       "ratchet": false
     },

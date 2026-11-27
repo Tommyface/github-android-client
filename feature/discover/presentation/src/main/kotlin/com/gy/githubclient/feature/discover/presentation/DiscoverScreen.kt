@@ -5,9 +5,7 @@
 
 package com.gy.githubclient.feature.discover.presentation
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,20 +17,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gy.githubclient.core.presentation.theme.FrostCard
+import com.gy.githubclient.core.presentation.theme.FrostDimens
+import com.gy.githubclient.core.presentation.theme.LocalFrostColors
 import com.gy.githubclient.feature.discover.domain.model.DiscoverCategory
 import com.gy.githubclient.feature.discover.domain.model.DiscoverItem
 import com.gy.githubclient.feature.discover.domain.model.PlatformInference
@@ -40,51 +44,86 @@ import com.gy.githubclient.feature.discover.domain.model.RankQueryFactory
 import com.gy.githubclient.feature.search.domain.model.RepoHit
 import org.koin.androidx.compose.koinViewModel
 
-/** 商店发现页：分类筛选 + 精选 Release 卡片列表 + 下拉刷新 + 分享。 */
+/**
+ * 商店发现页：榜单 tab（精选/趋势/新发布/热门）+ 分类筛选 + 卡片列表 + 分享。
+ *
+ * M0-18 批次 3 的重构范围：
+ * 1. 文案全部迁 `strings.xml`（含原先写在 ViewModel 里的榜单口径中文）；
+ * 2. 配色全部走 Frost 令牌，不再出现 `MaterialTheme.colorScheme` / 裸色值；
+ * 3. 补齐无障碍：卡片整节点朗读文本、错误与空态 liveRegion；
+ * 4. 顺手清掉历史劣质实现（死事件通道、嵌套同义 clickable、刷新失败静默、筛选条溢出）。
+ * 不含任何业务能力增减：路由、下载、分享行为与重构前一致。
+ */
 @Composable
 fun DiscoverScreen(
     onOpenRelease: (owner: String, name: String) -> Unit = { _, _ -> },
     viewModel: DiscoverViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val frost = LocalFrostColors.current
+    // 先取出可空错误：`uiState` 是委托属性，直接对它做智能转换不成立。
+    val refreshError = uiState.refreshError
 
-    HandleDiscoverEvents(viewModel, context)
-
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(FrostDimens.PagePadding)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("发现 · 商店", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+            Text(
+                text = stringResource(R.string.title),
+                style = MaterialTheme.typography.headlineMedium,
+                color = frost.textPrimary,
+                modifier = Modifier.weight(1f),
+            )
             TextButton(onClick = viewModel::refresh, enabled = !uiState.isRefreshing) {
-                Text(if (uiState.isRefreshing) "刷新中" else "刷新")
+                Text(stringResource(if (uiState.isRefreshing) R.string.refreshing else R.string.refresh))
             }
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            "精选开源项目 · Release 实时更新 · 支持镜像加速下载",
+            text = stringResource(R.string.subtitle),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = frost.textSecondary,
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(FrostDimens.SectionGap))
+
+        // 刷新失败曾经完全静默（事件被消费方忽略），现在以可重试的错误行呈现。
+        if (refreshError != null) {
+            RefreshErrorRow(error = refreshError, onRetry = viewModel::refresh)
+            Spacer(Modifier.height(8.dp))
+        }
 
         // 榜单 tab（v0.11.0 N6 加「趋势」）。
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             RankTab.entries.forEach { tab ->
                 FilterChip(
                     selected = uiState.rankTab == tab,
                     onClick = { viewModel.onRankTabSelected(tab) },
-                    label = { Text(tab.label) },
+                    label = { Text(tab.labelText()) },
                 )
             }
         }
         Spacer(Modifier.height(8.dp))
 
         when (uiState.rankTab) {
-            RankTab.TRENDING, RankTab.NEW, RankTab.HOT -> RankList(uiState, viewModel, onOpenRelease)
-            RankTab.FEATURED -> FeaturedContent(uiState, viewModel, onOpenRelease)
+            RankTab.FEATURED ->
+                FeaturedContent(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    onOpenRelease = onOpenRelease,
+                )
+
+            RankTab.TRENDING, RankTab.NEW, RankTab.HOT ->
+                RankList(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    onOpenRelease = onOpenRelease,
+                )
         }
     }
 }
 
+/** 精选 Tab：分类筛选 + 精选 Release 卡片。 */
 @Composable
 private fun FeaturedContent(
     uiState: DiscoverUiState,
@@ -92,44 +131,36 @@ private fun FeaturedContent(
     onOpenRelease: (owner: String, name: String) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // 6 个分类在窄屏上会溢出被裁切：改为可横向滚动，避免最后两项永远点不到。
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             DiscoverCategory.entries.forEach { category ->
                 FilterChip(
                     selected = uiState.category == category,
                     onClick = { viewModel.onCategorySelected(category) },
-                    label = { Text(category.label) },
+                    label = { Text(category.labelText()) },
                 )
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(FrostDimens.SectionGap))
 
         when {
-            uiState.isRefreshing && uiState.items.isEmpty() -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
+            uiState.isRefreshing && uiState.items.isEmpty() -> LoadingBlock()
 
-            uiState.items.isEmpty() -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("暂无精选内容", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            uiState.items.isEmpty() -> EmptyBlock(text = stringResource(R.string.empty_featured))
 
-            else -> {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            else ->
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(FrostDimens.CardGap)) {
                     items(uiState.items, key = { it.featured.fullName }) { item ->
                         DiscoverCard(
                             item = item,
-                            onOpen = {
-                                viewModel.onOpenDetail(item)
-                                onOpenRelease(item.featured.owner, item.featured.name)
-                            },
+                            onOpen = { onOpenRelease(item.featured.owner, item.featured.name) },
                             onShare = { viewModel.onShare(item) },
                         )
                     }
                 }
-            }
         }
     }
 }
@@ -140,78 +171,67 @@ private fun DiscoverCard(
     onOpen: () -> Unit,
     onShare: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
+    val frost = LocalFrostColors.current
+    val release = item.latestRelease
+    val cardDescription =
+        stringResource(
+            R.string.card_desc_featured,
+            item.featured.fullName,
+            item.featured.tagline,
+        )
+
+    FrostCard(
+        modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = cardDescription },
         onClick = onOpen,
     ) {
-        Column(Modifier.padding(14.dp)) {
-            Text(item.featured.fullName, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                item.featured.tagline,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Text(
+            text = item.featured.fullName,
+            style = MaterialTheme.typography.titleMedium,
+            color = frost.textPrimary,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = item.featured.tagline,
+            style = MaterialTheme.typography.bodyMedium,
+            color = frost.textSecondary,
+        )
+        if (item.featured.topics.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item.featured.topics.take(3).forEach { topic ->
                     Text(
-                        "#$topic",
+                        text = "#$topic",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = frost.primaryInk,
                     )
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            val release = item.latestRelease
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text =
+                if (release != null) {
+                    stringResource(R.string.latest_release, release.tagName, release.assets.size)
+                } else {
+                    stringResource(R.string.no_release)
+                },
+            style = MaterialTheme.typography.labelMedium,
+            color = if (release != null) frost.primaryInk else frost.textSecondary,
+        )
+        // v0.11.0 N7：仅 Release 资产下载数有公开字段；明示口径，不冒充仓库总下载数。
+        val totalDownloads = release?.assets?.sumOf { it.downloadCount } ?: 0
+        if (totalDownloads > 0) {
+            Spacer(Modifier.height(4.dp))
             Text(
-                if (release != null) "最新版本 ${release.tagName} · ${release.assets.size} 个资产" else "暂无 Release 信息",
-                style = MaterialTheme.typography.labelMedium,
-                color = if (release != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                text = stringResource(R.string.asset_downloads, totalDownloads),
+                style = MaterialTheme.typography.labelSmall,
+                color = frost.textTertiary,
             )
-            // v0.11.0 N7：仅 Release 资产下载数有公开字段；明示口径，不冒充仓库总下载数。
-            release?.let { rel ->
-                val total = rel.assets.sumOf { it.downloadCount }
-                if (total > 0) {
-                    Text(
-                        "Release 资产下载 $total 次（仅官方发布资产，非仓库总下载）",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            Row {
-                TextButton(onClick = onOpen) { Text("详情 / 下载") }
-                TextButton(onClick = onShare) { Text("分享") }
-            }
         }
-    }
-}
-
-/** 收集一次性事件：下载链接交给系统浏览器打开。 */
-@Composable
-private fun HandleDiscoverEvents(
-    viewModel: DiscoverViewModel,
-    context: Context,
-) {
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is DiscoverEvent.OpenUrl -> {
-                    runCatching {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse(event.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
-                    }
-                }
-
-                is DiscoverEvent.OpenRelease,
-                is DiscoverEvent.Share,
-                is DiscoverEvent.ShowMessage,
-                -> Unit // 分享已由 ViewModel 直接触发系统分享；导航由卡片回调处理。
-            }
-        }
+        Spacer(Modifier.height(6.dp))
+        // 原先还有「详情 / 下载」按钮：与整卡 onClick 同一动作，嵌套 clickable 会让读屏
+        // 在同一节点上听到两个重复动作，故删除；卡片朗读文本已说明「打开 Release 详情」。
+        TextButton(onClick = onShare) { Text(stringResource(R.string.share)) }
     }
 }
 
@@ -222,8 +242,13 @@ private fun RankList(
     viewModel: DiscoverViewModel,
     onOpenRelease: (owner: String, name: String) -> Unit,
 ) {
+    val frost = LocalFrostColors.current
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // 10 个语言选项在手机宽度下必然溢出：可横向滚动，而不是把后几个裁掉。
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             RankQueryFactory.LANGUAGES.forEach { language ->
                 FilterChip(
                     selected = uiState.rankLanguage == language,
@@ -233,32 +258,25 @@ private fun RankList(
             }
         }
         Spacer(Modifier.height(6.dp))
-        if (uiState.rankNote.isNotBlank()) {
+        uiState.rankNote?.let { note ->
             Text(
-                uiState.rankNote,
+                text = note.asText(),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = frost.textSecondary,
             )
             Spacer(Modifier.height(6.dp))
         }
         when {
-            uiState.isRankLoading && uiState.rankItems.isEmpty() -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            }
+            uiState.isRankLoading && uiState.rankItems.isEmpty() -> LoadingBlock()
 
-            uiState.rankItems.isEmpty() -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("暂无榜单数据（Search API 可能限流）", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            uiState.rankItems.isEmpty() -> EmptyBlock(text = stringResource(R.string.empty_rank))
 
-            else -> {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            else ->
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(FrostDimens.CardGap)) {
                     items(uiState.rankItems, key = { it.id }) { hit ->
-                        RankCard(hit, onOpenRelease)
+                        RankCard(hit = hit, onOpen = onOpenRelease)
                     }
                 }
-            }
         }
     }
 }
@@ -268,57 +286,163 @@ private fun RankCard(
     hit: RepoHit,
     onOpen: (owner: String, name: String) -> Unit,
 ) {
-    val parts = hit.fullName.split("/")
-    val owner = parts.getOrNull(0).orEmpty()
-    val name = parts.getOrNull(1).orEmpty()
-    Card(modifier = Modifier.fillMaxWidth(), onClick = { if (owner.isNotBlank() && name.isNotBlank()) onOpen(owner, name) }) {
-        Column(Modifier.padding(14.dp)) {
-            Text(hit.fullName, style = MaterialTheme.typography.titleMedium)
-            hit.description?.let { desc ->
-                Spacer(Modifier.height(4.dp))
-                Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                hit.language?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
-                Text("★ ${hit.stargazersCount}", style = MaterialTheme.typography.labelSmall)
-                Text("⑂ ${hit.forksCount}", style = MaterialTheme.typography.labelSmall)
-            }
-            // v0.11.0 N7：平台标签启发式推断，仅展示并明示「推断」，不声称官方数据。
-            val platforms = PlatformInference.infer(hit.topics, emptyList())
-            if (platforms.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
+    val frost = LocalFrostColors.current
+    // 原实现用 fullName.split("/") 现拆现用，owner/name 缺失时静默失联；模型本就有 ownerLogin。
+    val owner = hit.ownerLogin.ifBlank { hit.fullName.substringBefore("/") }
+    val name = hit.fullName.removePrefix("$owner/")
+    val canOpen = owner.isNotBlank() && name.isNotBlank() && name != hit.fullName
+    val cardDescription =
+        stringResource(
+            R.string.card_desc_rank,
+            hit.fullName,
+            hit.stargazersCount,
+            hit.forksCount,
+        )
+
+    FrostCard(
+        modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = cardDescription },
+        onClick = if (canOpen) ({ onOpen(owner, name) }) else null,
+    ) {
+        Text(
+            text = hit.fullName,
+            style = MaterialTheme.typography.titleMedium,
+            color = frost.textPrimary,
+        )
+        hit.description?.let { desc ->
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = desc,
+                style = MaterialTheme.typography.bodySmall,
+                color = frost.textSecondary,
+                maxLines = 2,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            hit.language?.let { language ->
                 Text(
-                    "平台（推断）：${platforms.joinToString(" / ")}",
+                    text = language,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.tertiary,
+                    color = frost.primaryInk,
                 )
             }
             Text(
-                "非官方榜单 · 基于 GitHub Search API · 下载数无公开 API 故不展示",
+                text = stringResource(R.string.stars, hit.stargazersCount),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = frost.textSecondary,
+            )
+            Text(
+                text = stringResource(R.string.forks, hit.forksCount),
+                style = MaterialTheme.typography.labelSmall,
+                color = frost.textSecondary,
             )
         }
+        // v0.11.0 N7：平台标签启发式推断，仅展示并明示「推断」，不声称官方数据。
+        // 榜单卡片没有资产文件清单，第二个入参传空表——推断只依据 topics，口径不放大。
+        val platforms = PlatformInference.infer(hit.topics, emptyList())
+        if (platforms.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.platform_inferred, platforms.joinToString(" / ")),
+                style = MaterialTheme.typography.labelSmall,
+                color = frost.warning,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = stringResource(R.string.rank_disclaimer),
+            style = MaterialTheme.typography.labelSmall,
+            color = frost.textTertiary,
+        )
     }
 }
 
-private val RankTab.label: String
-    get() =
-        when (this) {
-            RankTab.FEATURED -> "精选"
-            RankTab.TRENDING -> "趋势"
-            RankTab.NEW -> "新发布"
-            RankTab.HOT -> "热门"
-        }
+@Composable
+private fun LoadingBlock() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
+    }
+}
 
-private val DiscoverCategory.label: String
-    get() =
+@Composable
+private fun EmptyBlock(text: String) {
+    val frost = LocalFrostColors.current
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = frost.textSecondary,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+    }
+}
+
+/** 刷新失败：文案由语义错误类型映射，礼貌级 liveRegion 保证出错时读屏会播报。 */
+@Composable
+private fun RefreshErrorRow(
+    error: DiscoverError,
+    onRetry: () -> Unit,
+) {
+    val frost = LocalFrostColors.current
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .semantics { liveRegion = LiveRegionMode.Polite },
+    ) {
+        Text(
+            text = error.asText(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = frost.danger,
+        )
+        Spacer(Modifier.height(4.dp))
+        TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+    }
+}
+
+/** 语义错误类型 → 界面文案（"怎么说"归界面层，ViewModel 不产出字符串）。 */
+@Composable
+private fun DiscoverError.asText(): String =
+    when (this) {
+        DiscoverError.Unauthorized -> stringResource(R.string.error_unauthorized)
+        DiscoverError.RateLimited -> stringResource(R.string.error_rate_limited)
+        DiscoverError.NotFound -> stringResource(R.string.error_not_found)
+        is DiscoverError.Network -> stringResource(R.string.error_network, cause)
+        is DiscoverError.Http -> stringResource(R.string.error_http, code)
+        DiscoverError.Unknown -> stringResource(R.string.error_unknown)
+    }
+
+/** 榜单口径 → 文案。 */
+@Composable
+private fun RankNoteKind.asText(): String =
+    stringResource(
         when (this) {
-            DiscoverCategory.ALL -> "全部"
-            DiscoverCategory.ANDROID -> "安卓"
-            DiscoverCategory.DEVELOPER -> "开发"
-            DiscoverCategory.MEDIA -> "影音"
-            DiscoverCategory.UTILITY -> "工具"
-            DiscoverCategory.GAMES -> "游戏"
-        }
+            RankNoteKind.TRENDING -> R.string.rank_note_trending
+            RankNoteKind.NEW -> R.string.rank_note_new
+            RankNoteKind.HOT -> R.string.rank_note_hot
+        },
+    )
+
+@Composable
+private fun RankTab.labelText(): String =
+    stringResource(
+        when (this) {
+            RankTab.FEATURED -> R.string.tab_featured
+            RankTab.TRENDING -> R.string.tab_trending
+            RankTab.NEW -> R.string.tab_new
+            RankTab.HOT -> R.string.tab_hot
+        },
+    )
+
+@Composable
+private fun DiscoverCategory.labelText(): String =
+    stringResource(
+        when (this) {
+            DiscoverCategory.ALL -> R.string.category_all
+            DiscoverCategory.ANDROID -> R.string.category_android
+            DiscoverCategory.DEVELOPER -> R.string.category_developer
+            DiscoverCategory.MEDIA -> R.string.category_media
+            DiscoverCategory.UTILITY -> R.string.category_utility
+            DiscoverCategory.GAMES -> R.string.category_games
+        },
+    )

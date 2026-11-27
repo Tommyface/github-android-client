@@ -568,8 +568,6 @@ class ArchitectureTest {
                 "feature/download/presentation/src/main/kotlin/com/gy/githubclient/feature/download/presentation/DownloadScreen.kt",
                 "feature/download/presentation/src/main/kotlin/com/gy/githubclient/feature/download/presentation/MirrorSettingsScreen.kt",
                 "feature/download/presentation/src/main/kotlin/com/gy/githubclient/feature/download/presentation/MirrorSettingsViewModel.kt",
-                "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/DiscoverScreen.kt",
-                "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/DiscoverViewModel.kt",
                 "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/ReleaseDetailScreen.kt",
                 "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/ReleaseListScreen.kt",
                 "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/ReleasePresentationShared.kt",

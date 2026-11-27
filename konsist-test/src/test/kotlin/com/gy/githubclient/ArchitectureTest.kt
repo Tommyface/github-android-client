@@ -111,7 +111,8 @@ class ArchitectureTest {
 
     /**
      * 本规则采用**棘轮**形式而非一步到位：
-     *  - 现状：feature 之间存在 22 处横向依赖（多为「presentation 用到另一个 feature 的 domain 模型」）；
+     *  - 现状：feature 之间存在 23 处横向依赖（多为「presentation 用到另一个 feature 的 domain 模型」）；
+     *    （此前文档一直写 22，实际清单与实测都是 23——R7 校准为实测值，数字必须对得上）；
      *  - 规则：新增任何一处横向依赖即失败；已登记的存量债务若消失也失败（必须同步删除登记）；
      *  - 目的：先把「不再恶化」变成机器可校验的事实，再按 M2-04/M2-09 的重构逐条清账。
      *
@@ -293,21 +294,25 @@ class ArchitectureTest {
     // ── 规则 13：新增界面不得硬编码中文字面量（字符串化棘轮） ───────
 
     /**
-     * M0-18 前置门禁。
+     * M0-18 前置门禁（**双向棘轮**）。
      *
-     * 现状：仓库中仍有大量硬编码中文（strings.xml 化尚未完成）。
-     * 本规则采用**棘轮**形式：已登记的存量文件白名单放行，
-     * **任何新增/改名后的界面文件**一旦出现中文字符串字面量即失败。
-     *
-     * 这样做的目的：把"全量字符串化"从"一次性大改"变成"每改一屏就少一屏"，
-     * 同时保证**不再新增**技术债。
+     * 规则：
+     *  1. 扫描范围 = app + core/presentation + 全部 feature 的 presentation 层
+     *     （此前只扫前两处，feature 的 30+ 个界面文件完全不在约束内——那是漏检，不是豁免）；
+     *  2. 判定前**先剔除注释**：KDoc 里出现的中文引号（例如"确定吗？"）不是界面文案，
+     *     直接扫全文会把注释误判为硬编码文案，白名单被无谓文件占满，真实债务反而被淹没；
+     *  3. 白名单只减不增：新增界面文件出现中文字面量即失败；
+     *  4. **登记项失效也失败**：白名单里的文件一旦清干净（或被改名/删除），
+     *     必须同步删掉登记行——否则"已还债"会被当成"仍欠债"，棘轮失去意义。
      */
     @Test
     fun newUiFilesDoNotHardcodeChineseStrings() {
-        val chineseLiteral = Regex("\"[^\"]*[\\u4e00-\\u9fff][^\"]*\"")
+        val chineseLiteral = Regex("\"[^\"\\n]*[\\u4e00-\\u9fff][^\"\\n]*\"")
         val allowedFiles = LEGACY_HARDCODED_STRING_FILES
         val violations = mutableListOf<String>()
-        val sourceDirs = listOf("app/src/main/kotlin", "core/presentation/src/main/kotlin")
+        val staleEntries = mutableListOf<String>()
+        val sourceDirs = listOf("app/src/main/kotlin", "core/presentation/src/main/kotlin") + featureUiRoots()
+        val dirtyFiles = mutableSetOf<String>()
         sourceDirs.forEach { dir ->
             val root = File(repoRoot, dir)
             if (!root.exists()) return@forEach
@@ -316,17 +321,139 @@ class ArchitectureTest {
                 .filter { it.isFile && it.name.endsWith(".kt") }
                 .forEach { file ->
                     val relative = file.relativeTo(repoRoot).path.replace('\\', '/')
+                    val hasChinese = chineseLiteral.containsMatchIn(stripComments(file.readText()))
+                    if (hasChinese) dirtyFiles += relative
                     if (relative in allowedFiles) return@forEach
-                    if (chineseLiteral.containsMatchIn(file.readText())) {
-                        violations += relative
-                    }
+                    if (hasChinese) violations += relative
                 }
+        }
+        // 反向棘轮：登记项必须仍然对应"确实还有硬编码文案"的文件。
+        allowedFiles.forEach { registered ->
+            if (registered !in dirtyFiles) staleEntries += registered
         }
         junitAssertTrue(
             "新增/改名的界面文件不得硬编码中文字面量（请用 stringResource）：\n" +
                 violations.joinToString("\n") { "  $it" },
             violations.isEmpty(),
         )
+        junitAssertTrue(
+            "字符串化白名单登记项已失效（该文件已无硬编码中文，或已被改名/删除），" +
+                "请同步从 LEGACY_HARDCODED_STRING_FILES 中删除：\n" +
+                staleEntries.joinToString("\n") { "  $it" },
+            staleEntries.isEmpty(),
+        )
+    }
+
+    /**
+     * 去掉 Kotlin 注释，保留字符串字面量内容。
+     *
+     * 目的是让规则 13 只对**真正的界面文案**生效：
+     * 注释里的中文引号不是文案，不该把文件推进存量白名单。
+     * 实现上按字符扫描，识别行注释、块注释（含嵌套）、字符串与字符字面量；
+     * 字符串模板 `${…}` 内的内容原样保留（其内部注释极少，不做递归处理）。
+     */
+    private fun stripComments(source: String): String {
+        val out = StringBuilder(source.length)
+        var i = 0
+        while (i < source.length) {
+            when {
+                source.startsWith("//", i) || source.startsWith("/*", i) -> {
+                    i = skipComment(source, i)
+                }
+
+                source[i] == '"' -> {
+                    val end = skipStringLiteral(source, i)
+                    out.append(source, i, end)
+                    i = end
+                }
+
+                source[i] == '\'' -> {
+                    val end = skipCharLiteral(source, i)
+                    out.append(source, i, end)
+                    i = end
+                }
+
+                else -> {
+                    out.append(source[i])
+                    i++
+                }
+            }
+        }
+        return out.toString()
+    }
+
+    /** 跳过一段注释（行注释或块注释，含嵌套），返回结束后的下标。 */
+    private fun skipComment(source: String, start: Int): Int {
+        if (source.startsWith("//", start)) {
+            var i = start + 2
+            while (i < source.length && source[i] != '\n') i++
+            return i
+        }
+        var depth = 1
+        var i = start + 2
+        while (i < source.length && depth > 0) {
+            when {
+                source.startsWith("/*", i) -> { depth++; i += 2 }
+                source.startsWith("*/", i) -> { depth--; i += 2 }
+                else -> i++
+            }
+        }
+        return i
+    }
+
+    /** 跳过字符串字面量（含三引号与 `${…}` 模板），返回结束后的下标。 */
+    private fun skipStringLiteral(source: String, start: Int): Int {
+        val n = source.length
+        if (source.startsWith("\"\"\"", start)) {
+            var j = start + 3
+            while (j < n && !source.startsWith("\"\"\"", j)) j++
+            return minOf(j + 3, n)
+        }
+        var j = start + 1
+        while (j < n) {
+            when {
+                source[j] == '\\' -> j += 2
+                source[j] == '"' -> return j + 1
+                source[j] == '$' && j + 1 < n && source[j + 1] == '{' -> j = skipTemplate(source, j + 2)
+                else -> j++
+            }
+        }
+        return j
+    }
+
+    /** 跳过字符字面量（如 `'a'`）。 */
+    private fun skipCharLiteral(source: String, start: Int): Int {
+        val n = source.length
+        var j = start + 1
+        while (j < n) {
+            when {
+                source[j] == '\\' -> j += 2
+                source[j] == '\'' -> return j + 1
+                source[j] == '\n' -> return j
+                else -> j++
+            }
+        }
+        return j
+    }
+
+    /** 跳过字符串模板 `${…}` 的内容，返回匹配右花括号之后的下标。 */
+    private fun skipTemplate(source: String, fromIndex: Int): Int {
+        var depth = 1
+        var i = fromIndex
+        val n = source.length
+        while (i < n && depth > 0) {
+            when {
+                source.startsWith("//", i) || source.startsWith("/*", i) -> {
+                    i = skipComment(source, i)
+                }
+
+                source[i] == '"' -> i = skipStringLiteral(source, i)
+                source[i] == '{' -> { depth++; i++ }
+                source[i] == '}' -> { depth--; i++ }
+                else -> i++
+            }
+        }
+        return i
     }
 
     // ── 规则 14：业务屏不得写死色值（令牌单一色源） ───────────────────
@@ -388,36 +515,63 @@ class ArchitectureTest {
         /**
          * 已知硬编码中文的存量界面文件白名单（M0-18 棘轮）。
          *
+         * 口径与规则 13 完全一致：**先剔除注释再判定**，扫描范围覆盖
+         * app / core:presentation / 全部 feature 的 presentation 层。
+         *
+         * 数量变化轨迹（每一轮都必须只减不增）：
+         *  - R6 结束（旧口径：含注释误报、且漏检 feature）：18 项（实际覆盖 18 个文件）；
+         *  - R7 校准后（新口径：剔注释 + 覆盖 feature）：39 项。
+         *    看起来"变多了"，是因为 feature 的 30+ 个界面文件此前**根本不在门禁范围内**，
+         *    这里首次被登记——这是把漏检变成显式债务，不是新增债务。
+         *
          * 每完成一屏的字符串化，就从这里删掉对应条目——白名单只减不增，
          * 确保"不再新增技术债"这件事本身是可机器校验的。
          */
         val LEGACY_HARDCODED_STRING_FILES: Set<String> =
             setOf(
-                "app/src/main/kotlin/com/gy/githubclient/GithubClientApp.kt",
-                "app/src/main/kotlin/com/gy/githubclient/navigation/AppNavigation.kt",
-                "app/src/main/kotlin/com/gy/githubclient/ui/AppScaffold.kt",
                 "app/src/main/kotlin/com/gy/githubclient/update/UpdateCheckScreen.kt",
                 "app/src/main/kotlin/com/gy/githubclient/update/UpdateCheckViewModel.kt",
                 "app/src/main/kotlin/com/gy/githubclient/update/UpdateCheckWorker.kt",
-                "app/src/main/kotlin/com/gy/githubclient/update/UpdateCandidateParser.kt",
-                "app/src/main/kotlin/com/gy/githubclient/update/UpdateCandidateSourceImpl.kt",
-                "app/src/main/kotlin/com/gy/githubclient/update/UpdateSkipLedgerImpl.kt",
-                "app/src/main/kotlin/com/gy/githubclient/update/UpdateChecker.kt",
-                // 设计系统（令牌与通用组件）：默认文案与无障碍描述随字符串化推进替换，
-                // 属存量登记项（只减不增）。
-                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/Frost.kt",
-                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/FrostChrome.kt",
-                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/FrostSurface.kt",
-                "core/presentation/src/main/kotlin/com/gy/githubclient/core/presentation/theme/Theme.kt",
-                // 本轮并入的外壳/设置/深链/离线提示文件：随字符串化推进替换（存量登记，只减不增）。
-                "app/src/main/kotlin/com/gy/githubclient/MainActivity.kt",
-                "app/src/main/kotlin/com/gy/githubclient/navigation/DeepLinks.kt",
-                "app/src/main/kotlin/com/gy/githubclient/settings/SettingsScreen.kt",
-                "app/src/main/kotlin/com/gy/githubclient/ui/NetworkMonitor.kt",
+                "feature/starred/presentation/src/main/kotlin/com/gy/githubclient/feature/starred/presentation/StarredScreen.kt",
+                "feature/starred/presentation/src/main/kotlin/com/gy/githubclient/feature/starred/presentation/StarredViewModel.kt",
+                "feature/search/presentation/src/main/kotlin/com/gy/githubclient/feature/search/presentation/SearchScreen.kt",
+                "feature/search/presentation/src/main/kotlin/com/gy/githubclient/feature/search/presentation/SearchViewModel.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/ActionsScreen.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/ActionsViewModel.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/CommitScreen.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/CommitViewModel.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/FileBrowserScreen.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/FileBrowserViewModel.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/RepoDetailScreen.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/RepoListScreen.kt",
+                "feature/repo/presentation/src/main/kotlin/com/gy/githubclient/feature/repo/presentation/RepoViewModel.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/ActivityScreen.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/ActivityViewModel.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/GistScreen.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/GistViewModel.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/NotificationsScreen.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/NotificationsViewModel.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/OrgScreen.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/OrgViewModel.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/ProfileScreen.kt",
+                "feature/profile/presentation/src/main/kotlin/com/gy/githubclient/feature/profile/presentation/ProfileViewModel.kt",
+                "feature/library/presentation/src/main/kotlin/com/gy/githubclient/feature/library/presentation/LibraryScreen.kt",
+                "feature/download/presentation/src/main/kotlin/com/gy/githubclient/feature/download/presentation/DownloadScreen.kt",
+                "feature/download/presentation/src/main/kotlin/com/gy/githubclient/feature/download/presentation/MirrorSettingsScreen.kt",
+                "feature/download/presentation/src/main/kotlin/com/gy/githubclient/feature/download/presentation/MirrorSettingsViewModel.kt",
+                "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/DiscoverScreen.kt",
+                "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/DiscoverViewModel.kt",
+                "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/ReleaseDetailScreen.kt",
+                "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/ReleaseListScreen.kt",
+                "feature/discover/presentation/src/main/kotlin/com/gy/githubclient/feature/discover/presentation/ReleasePresentationShared.kt",
+                "feature/auth/presentation/src/main/kotlin/com/gy/githubclient/feature/auth/presentation/AuthViewModel.kt",
+                "feature/auth/presentation/src/main/kotlin/com/gy/githubclient/feature/auth/presentation/LoginScreen.kt",
+                "feature/auth/presentation/src/main/kotlin/com/gy/githubclient/feature/auth/presentation/PermissionAuditScreen.kt",
+                "feature/auth/presentation/src/main/kotlin/com/gy/githubclient/feature/auth/presentation/PermissionAuditViewModel.kt",
             )
 
         /**
-         * 已登记的 feature 横向依赖存量（22 项）。
+         * 已登记的 feature 横向依赖存量（23 项，R7 已与实测逐条核对一致）。
          * 棘轮规则：新增即失败；登记项失效也失败（必须同步删除）。
          * 每清账一处，就从这里删掉一行。
          */

@@ -11,8 +11,11 @@ import com.gy.githubclient.feature.repo.data.RepoRepositoryImpl
 import com.gy.githubclient.feature.repo.data.local.RepoDao
 import com.gy.githubclient.feature.repo.data.local.RepoDatabase
 import com.gy.githubclient.feature.repo.data.remote.GitHubRepoApi
+import com.gy.githubclient.feature.repo.data.remote.GitHubWriteApi
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import com.gy.githubclient.feature.repo.domain.usecase.ClearRepoCacheUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.CreateRepositoryUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.DeleteRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ForkRepositoryUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetCheckOverviewUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.GetCommitDetailUseCase
@@ -37,6 +40,8 @@ import com.gy.githubclient.feature.repo.domain.usecase.ListWorkflowRunsUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.ObserveRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.RefreshRepositoriesUseCase
 import com.gy.githubclient.feature.repo.domain.usecase.SetStarredUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.UpdateRepoSettingsUseCase
+import com.gy.githubclient.feature.repo.domain.usecase.UploadFileUseCase
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -57,10 +62,14 @@ val repoDataModule =
 
         single { GitHubRepoApi(get<GitHubApiClient>()) }
 
+        // 写操作通道（M2-05/07/08）：统一信封 + 审计
+        single { GitHubWriteApi(get<GitHubApiClient>()) }
+
         single<RepoRepository> {
             RepoRepositoryImpl(
                 dao = get<RepoDao>(),
                 api = get<GitHubRepoApi>(),
+                writeApi = get<GitHubWriteApi>(),
             )
         }
 
@@ -89,4 +98,8 @@ val repoDataModule =
         factory { IsStarredUseCase(get<RepoRepository>()) }
         factory { ForkRepositoryUseCase(get<RepoRepository>()) }
         factory { ClearRepoCacheUseCase(get<RepoRepository>()) }
+        factory { UpdateRepoSettingsUseCase(get<RepoRepository>()) }
+        factory { DeleteRepositoryUseCase(get<RepoRepository>()) }
+        factory { CreateRepositoryUseCase(get<RepoRepository>()) }
+        factory { UploadFileUseCase(get<RepoRepository>()) }
     }

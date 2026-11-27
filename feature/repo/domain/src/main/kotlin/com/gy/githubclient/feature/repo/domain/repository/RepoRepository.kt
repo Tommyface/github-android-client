@@ -6,6 +6,9 @@
 package com.gy.githubclient.feature.repo.domain.repository
 
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
+import com.gy.githubclient.feature.repo.domain.model.CreatedRepository
+import com.gy.githubclient.feature.repo.domain.model.UploadTarget
 import com.gy.githubclient.feature.repo.domain.model.Branch
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
@@ -56,6 +59,37 @@ interface RepoRepository {
         owner: String,
         name: String,
     ): NetworkResult<List<Branch>>
+
+    /** 修改仓库设置（简介 / 可见性 / 归档）；危险操作，UI 需二次确认。 */
+    suspend fun updateRepoSettings(
+        owner: String,
+        name: String,
+        description: String? = null,
+        private: Boolean? = null,
+        archived: Boolean? = null,
+    ): MutationResult<Unit>
+
+    /** 删除仓库（不可撤销）。 */
+    suspend fun deleteRepository(
+        owner: String,
+        name: String,
+    ): MutationResult<Unit>
+
+    /** 创建仓库（不可幂等）。 */
+    suspend fun createRepository(
+        name: String,
+        description: String?,
+        private: Boolean,
+    ): MutationResult<CreatedRepository>
+
+    /** 上传文件到仓库指定路径。 */
+    suspend fun uploadFile(
+        owner: String,
+        name: String,
+        target: UploadTarget,
+        contentBase64: String,
+        message: String,
+    ): MutationResult<Unit>
 
     /** star / unstar；成功与否以 [NetworkResult] 表达。 */
     suspend fun setStarred(

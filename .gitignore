@@ -36,3 +36,7 @@ captures/
 # 环境变量
 .env
 .env.*
+
+# Python 缓存
+__pycache__/
+*.pyc

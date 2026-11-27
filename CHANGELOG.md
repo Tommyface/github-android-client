@@ -17,11 +17,29 @@
   ④ `AuthViewModel.deviceFlowJob` 结束后不释放，卡住后每次点击都被 `isActive` 拦掉，只能重启应用。
   修法：超时收紧为 connect 8s / socket 12s / request 12s；start 重试 3 → 2（预算 ≈ **26 秒**）；
   两处 catch 先捕获 `CancellationException` 原样上抛；`beginDeviceFlow` 用 `try/finally` 释放 job；
-  Requesting 分支加「取消」按钮与"最长约 26 秒 · 可改用下方 Token"说明；
-  卡片标题改为「GitHub 账号登录（需能直连 github.com）」。
+  Requesting 分支加「取消」按钮与"最长约 26 秒 · 可改用上方 Token"说明。
   附登录方式结论：GitHub 已于 2020-11-13 停止 REST API 的密码认证、2021-08-13 停止 Git 操作的密码认证
   （官方公告），**"用户名 + 密码"登录不可行**；可用路径是 PAT（走 `api.github.com`，已实现）与
   Device Flow（走 `github.com`）。
+
+- **登录页把可达通道放回首位（真机反馈的第二层问题）**：上一版只给 Device Flow 加了进度与出口，
+  但首屏仍是它——用户点的"GitHub 账号登录"其实就是 Device Flow，在网络不通的环境里怎么修都还是卡。
+  本次调整：
+  ① **Token 登录卡移到第一位**，标题改「GitHub 账号登录 · Token（推荐）」，副标题写明 Token 走
+  `api.github.com`（国内通常可达）与创建路径；Device Flow 移到第二位，标题改
+  「GitHub 授权登录 · 授权码（需能直连 github.com）」，按钮改「发起授权码登录」，
+  不再用"账号登录"这个词伪装成唯一入口；
+  ② Device Flow 发起失败或轮询连续出错中止时，`AuthUiState.suggestTokenLogin` 置 true，
+  界面滚回顶部并**聚焦 Token 输入框**（`FocusRequester`），用户下一步直接粘贴即可；
+  ③ 错误提示从 Token 卡片内部提到页面级（原先"通知通道 Token 无效"也显示在 Token 卡里，指向错误）；
+  ④ 修正 `MAX_START_ATTEMPTS` 常量与注释不符：KDoc 与界面都承诺 ≈26 秒（2 次尝试），
+  而常量仍是 3（实际 3 × 12s + 2s + 4s = 42s），等于对用户谎报预算。改为 2，并补一条
+  「重试用尽请求次数必须正好等于 2」的回归用例，防止后续有人把次数调回去。
+
+### 变更
+
+- **`.maestro/01` 登录页断言随卡片顺序更新**：Token 卡标题、授权码按钮文案、Device Flow 卡片标题
+  三项断言改为当前代码字面量，并给两个第二屏入口补 `scrollUntilVisible`。
 
 ## [0.19.2] - 2026-11-28
 

@@ -121,8 +121,9 @@ class OAuthDeviceFlowRepositoryImplTest {
     @Test
     fun startRetriesTransportErrorsThenSucceeds() =
         runBlocking {
-            // 前两次模拟传输层异常（连接即断开），第三次成功——验证退避重试闭环。
-            repeat(2) { server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START)) }
+            // 首次模拟传输层异常（连接即断开），第二次成功——验证退避重试闭环。
+            // 预算上限是 2 次尝试（≈26 秒），所以只允许一次重试，不能靠"多试几次"兜网络抖动。
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
             server.enqueue(
                 json(
                     """{"device_code":"dev-ok","user_code":"AAAA-1111",""" +
@@ -132,7 +133,18 @@ class OAuthDeviceFlowRepositoryImplTest {
             )
             val result = repository.startDeviceFlow()
             assertTrue("传输异常重试后应成功", result is DeviceFlowStartResult.Success)
-            assertEquals(3, server.requestCount)
+            assertEquals(2, server.requestCount)
+        }
+
+    @Test
+    fun startGivesUpAfterMaxAttempts() =
+        runBlocking {
+            // 两次都是传输层异常时立即返回 Error，请求次数必须正好等于预算（2），
+            // 防止后来有人把重试次数调回去、又把界面承诺的 26 秒撑成 42 秒。
+            repeat(2) { server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START)) }
+            val result = repository.startDeviceFlow()
+            assertTrue("重试用尽应返回 Error", result is DeviceFlowStartResult.Error)
+            assertEquals(2, server.requestCount)
         }
 
     @Test

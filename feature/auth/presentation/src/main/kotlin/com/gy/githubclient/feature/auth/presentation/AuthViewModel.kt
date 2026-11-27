@@ -41,6 +41,14 @@ data class AuthUiState(
     val isSubmitting: Boolean = false,
     val isBindingNotification: Boolean = false,
     val deviceFlow: DeviceFlowUiState = DeviceFlowUiState.Idle,
+    /**
+     * Device Flow 因传输层问题发起失败或轮询中止后置 true。
+     *
+     * 界面据此把滚动位置与输入焦点送回 Token 卡片（`LoginScreen` 的 `LaunchedEffect`）。
+     * 用户点的是"账号登录"，失败后只弹一条 Toast、让他在三张卡片之间自己找出口，
+     * 正是真机反馈里"卡死"的观感来源之一。
+     */
+    val suggestTokenLogin: Boolean = false,
 )
 
 /** OAuth Device Flow 界面状态机。 */
@@ -108,7 +116,13 @@ class AuthViewModel(
     }
 
     fun onPrimaryTokenChange(value: String) {
-        _uiState.value = _uiState.value.copy(primaryToken = value)
+        _uiState.value =
+            _uiState.value.copy(
+                primaryToken = value,
+                // 用户已经在粘贴了：提示使命结束，再留着会让卡片一直带红字。
+                // 清空输入（value 为空）时保留原提示，避免"删完字提示又蹦出来"。
+                suggestTokenLogin = if (value.isBlank()) _uiState.value.suggestTokenLogin else false,
+            )
     }
 
     fun onNotificationTokenChange(value: String) {
@@ -157,7 +171,13 @@ class AuthViewModel(
                     _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Requesting)
                     when (val result = startDeviceFlow()) {
                         is DeviceFlowStartResult.Error -> {
-                            _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Idle)
+                            // 发起失败基本都是传输层问题（github.com 不可达）：直接把用户
+                            // 送回 Token 卡，而不是只丢一句提示让他在页面上自己找。
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    deviceFlow = DeviceFlowUiState.Idle,
+                                    suggestTokenLogin = true,
+                                )
                             _events.trySend(
                                 AuthEvent.ShowMessage(
                                     "发起授权失败：${friendlyDeviceFlowError(result.message)}",
@@ -234,7 +254,12 @@ class AuthViewModel(
                 is DeviceFlowPollResult.NetworkError -> {
                     consecutiveErrors++
                     if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                        _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Idle)
+                        // 轮询连续失败同样是"网络走不通"，一并引导去 Token 卡。
+                        _uiState.value =
+                            _uiState.value.copy(
+                                deviceFlow = DeviceFlowUiState.Idle,
+                                suggestTokenLogin = true,
+                            )
                         _events.trySend(
                             AuthEvent.ShowMessage(
                                 "网络异常，授权已中止：${friendlyDeviceFlowError(result.message)}",

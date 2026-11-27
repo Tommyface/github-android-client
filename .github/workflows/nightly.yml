@@ -110,7 +110,7 @@ jobs:
         # 但失败必须让任务变红，否则没人会看。
         if: always()
         run: bash tools/ui_audit.sh --strict
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: maestro-report

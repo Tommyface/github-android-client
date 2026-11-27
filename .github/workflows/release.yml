@@ -122,8 +122,12 @@ jobs:
             echo "::error::未产出 Release APK"; exit 1
           fi
           SIZE=$(stat -c%s "$APK")
-          if [ "$SIZE" -lt 5000000 ]; then
-            echo "::error::APK 体积异常：$SIZE 字节（下限 5,000,000）"; exit 1
+          # 体积下限是"构建是否正常"的哨兵，不是"包体该有多大"的指标。
+          # 正式产物开了 R8 混淆 + 资源压缩，v0.19.0 实测约 3.5 MB；
+          # 原来 5 MB 的下限是按未混淆的体积设的，会把**更小的**正常产物判为异常。
+          # 下限取 2 MB：既能挡住空壳/截断的坏产物，又不与压缩后的真实体积冲突。
+          if [ "$SIZE" -lt 2000000 ]; then
+            echo "::error::APK 体积异常：$SIZE 字节（下限 2,000,000）"; exit 1
           fi
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           if ! "$APKSIGNER" verify --print-certs "$APK" > /tmp/certs.txt 2>&1; then

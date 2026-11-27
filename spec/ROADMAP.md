@@ -36,7 +36,7 @@
 | M1-04 | 更新中心 UI（8 状态机可视化 + 跳过按钮） | ✅（`UpdateCheckScreen` 状态胶囊行） |
 | M1-05 | 镜像熔断 + 健康度（成功率÷延迟权重） | ✅（`MirrorHealthRegistry` + `MirrorUrlResolver.candidateChain`） |
 | M1-06 | CHANGELOG / RELEASE_NOTES 自动生成 | ✅（`tools/generate_changelog.py` + release.yml） |
-| M1-07 | 诊断与崩溃体系（分层 Tag + 落盘 + 导出脱敏） | 🔄 脱敏器（幂等）+ 分层日志（按天分文件 / 保留 7 天 / 导出报告）已落地；**崩溃落盘 CrashRecorder 未实现** |
+| M1-07 | 诊断与崩溃体系（分层 Tag + 落盘 + 导出脱敏） | ✅ 脱敏器（幂等）+ 分层日志（按天分文件 / 保留 7 天 / 导出报告）+ **崩溃落盘 `CrashRecorder`**（全局未捕获异常处理器，已在 `GithubClientApp` 安装） |
 | M1-08 | 安装守卫（包名 / 签名 / versionCode / 未知来源权限） | ✅（纯逻辑 `InstallPreconditionChecker`；Android 适配层随 platform/apkinstall 落地） |
 | M1-09 | Link header 分页 | ✅（`LinkHeader` + `GitHubApiClient.requestAllPages`） |
 | M1-10 | 网络韧性：指数退避+抖动、Retry-After、二级限流熔断 | ✅（`GitHubApiClient.retryDelayMillis`） |
@@ -61,7 +61,7 @@ TOTP / 扫码 / 正文翻译（默认离线）/ 多账号 / 五环降级版 / �
 
 - **Frost 设计系统收编**：`core/presentation/theme` 四件套落地，MainActivity 统一走 `GithubClientTheme`；
   konsist 规则 14 锁死"业务屏不得写死色值"。
-- **诊断中心**：`platform/diagnostics`（Redactor 脱敏 + StructuredLogger 分层日志已落地；CrashRecorder 崩溃落盘**尚未实现**，见 M1-07）。
+- **诊断中心**：`platform/diagnostics`（Redactor 脱敏 + StructuredLogger 分层日志 + CrashRecorder 崩溃落盘，均已落地）。
 - **凭据能力矩阵**：`CredentialKind` 与能力求值器，把"fine-grained 不支持 GraphQL 与通知"变成可展示规则。
 - **安装闭环**：`platform/apkinstall` + 下载页「安装」动作 + FileProvider 路径修正。
 

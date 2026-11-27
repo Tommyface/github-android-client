@@ -15,7 +15,7 @@
 | M0-06 | release 密钥从 Secrets 还原；无密钥直接失败（禁明文兜底） | ✅ |
 | M0-07 | release 开启混淆 + 资源压缩 + ProGuard 规则 | ✅ |
 | M0-08 | 签名指纹钉子改为钉 release 指纹 | ✅（新密钥已生成，Secrets 已托管，debug/release 按构建变体分流） |
-| M0-09 | kover 阈值门禁（`tools/check_coverage.py`，阈值 60%） | ✅ |
+| M0-09 | kover 阈值门禁（`tools/check_coverage.py`） | 🔄 目标阈值 60%；当前棘轮基线 **33**（`gradle.properties: ghcCoverageThreshold=33`，实测约 34.67%）——距目标仍远，是持续项 |
 | M0-10 | Room 结构安全门禁 + schema 导出 + DownloadDatabase v1→v2 迁移 | ✅（真实迁移测试待 schema 首次 bump） |
 | M0-11 | konsist 2 → 12 条规则 | ✅ |
 | M0-12 | 依赖治理：删 KSafe/jitpack、修正 alias、toolchain 统一 17 | ✅ |
@@ -36,7 +36,7 @@
 | M1-04 | 更新中心 UI（8 状态机可视化 + 跳过按钮） | ✅（`UpdateCheckScreen` 状态胶囊行） |
 | M1-05 | 镜像熔断 + 健康度（成功率÷延迟权重） | ✅（`MirrorHealthRegistry` + `MirrorUrlResolver.candidateChain`） |
 | M1-06 | CHANGELOG / RELEASE_NOTES 自动生成 | ✅（`tools/generate_changelog.py` + release.yml） |
-| M1-07 | 诊断与崩溃体系（分层 Tag + 落盘 + 导出脱敏） | ⏳ |
+| M1-07 | 诊断与崩溃体系（分层 Tag + 落盘 + 导出脱敏） | 🔄 脱敏器（幂等）+ 分层日志（按天分文件 / 保留 7 天 / 导出报告）已落地；**崩溃落盘 CrashRecorder 未实现** |
 | M1-08 | 安装守卫（包名 / 签名 / versionCode / 未知来源权限） | ✅（纯逻辑 `InstallPreconditionChecker`；Android 适配层随 platform/apkinstall 落地） |
 | M1-09 | Link header 分页 | ✅（`LinkHeader` + `GitHubApiClient.requestAllPages`） |
 | M1-10 | 网络韧性：指数退避+抖动、Retry-After、二级限流熔断 | ✅（`GitHubApiClient.retryDelayMillis`） |

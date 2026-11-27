@@ -7,7 +7,9 @@ package com.gy.githubclient.feature.repo.domain
 
 import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.mutation.MutationResult
 import com.gy.githubclient.feature.repo.domain.model.Branch
+import com.gy.githubclient.feature.repo.domain.model.CreatedRepository
 import com.gy.githubclient.feature.repo.domain.model.CheckOverview
 import com.gy.githubclient.feature.repo.domain.model.CommitDetail
 import com.gy.githubclient.feature.repo.domain.model.CommitSummary
@@ -20,6 +22,7 @@ import com.gy.githubclient.feature.repo.domain.model.Readme
 import com.gy.githubclient.feature.repo.domain.model.RepoFilter
 import com.gy.githubclient.feature.repo.domain.model.Repository
 import com.gy.githubclient.feature.repo.domain.model.StarHistory
+import com.gy.githubclient.feature.repo.domain.model.UploadTarget
 import com.gy.githubclient.feature.repo.domain.model.parseDiffPatch
 import com.gy.githubclient.feature.repo.domain.repository.RepoRepository
 import com.gy.githubclient.feature.repo.domain.usecase.GetCommitDetailUseCase
@@ -47,6 +50,42 @@ class CommitDomainTest {
 
             override suspend fun listBranches(owner: String, name: String): NetworkResult<List<Branch>> =
                 NetworkResult.Success(emptyList())
+
+            // ── P-204 新增的写操作契约（写路径由 data 层实现，领域测试只要求契约齐全） ──
+
+            override suspend fun updateRepoSettings(
+                owner: String,
+                name: String,
+                description: String?,
+                private: Boolean?,
+                archived: Boolean?,
+            ): MutationResult<Unit> = MutationResult.Success(Unit)
+
+            override suspend fun deleteRepository(
+                owner: String,
+                name: String,
+            ): MutationResult<Unit> = MutationResult.Success(Unit)
+
+            override suspend fun createRepository(
+                name: String,
+                description: String?,
+                private: Boolean,
+            ): MutationResult<CreatedRepository> =
+                MutationResult.Success(
+                    CreatedRepository(
+                        fullName = "owner/$name",
+                        htmlUrl = "https://github.com/owner/$name",
+                        private = private,
+                    ),
+                )
+
+            override suspend fun uploadFile(
+                owner: String,
+                name: String,
+                target: UploadTarget,
+                contentBase64: String,
+                message: String,
+            ): MutationResult<Unit> = MutationResult.Success(Unit)
 
             override suspend fun setStarred(
                 owner: String,

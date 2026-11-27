@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -73,6 +74,8 @@ fun RepoDetailScreen(
     onOpenFiles: (String) -> Unit = {},
     onOpenCommits: () -> Unit = {},
     onOpenActions: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenUpload: () -> Unit = {},
     viewModel: RepoViewModel = koinViewModel(),
 ) {
     val repo by viewModel.detail.collectAsStateWithLifecycle()
@@ -157,6 +160,12 @@ fun RepoDetailScreen(
                 }
                 OutlinedButton(onClick = onOpenActions, modifier = Modifier.fillMaxWidth()) {
                     Text("⚙ Actions 运行记录")
+                }
+                OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.repo_settings_entry))
+                }
+                OutlinedButton(onClick = onOpenUpload, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.upload_file_entry))
                 }
             }
         }

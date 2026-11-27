@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  repo 域界面文案（P-205 仓库写操作）。
+
+  约定：新写的界面文件**不得**出现中文字面量（konsist 规则 13），
+  因此本模块从第一天起就把文案放进资源，而不是"先硬编码、以后再迁移"。
+-->
+<resources>
+    <!-- 通用 -->
+    <string name="common_back">← 返回</string>
+    <!-- 仓库设置 -->
+    <string name="repo_settings_title">仓库设置</string>
+    <string name="repo_settings_entry">⚙ 仓库设置</string>
+    <string name="repo_settings_loading">加载中…</string>
+    <string name="repo_settings_load_failed">无法读取仓库信息，请稍后重试。</string>
+    <string name="repo_settings_description_label">简介</string>
+    <string name="repo_settings_description_hint">用一句话介绍这个仓库</string>
+    <string name="repo_settings_visibility_label">可见性</string>
+    <string name="repo_settings_visibility_public">公开</string>
+    <string name="repo_settings_visibility_private">私有</string>
+    <string name="repo_settings_archived_label">归档</string>
+    <string name="repo_settings_archived_hint">归档后仓库变为只读：不能再提交、推送或新建 Issue / Release。</string>
+    <string name="repo_settings_save">保存设置</string>
+    <string name="repo_settings_delete">删除仓库</string>
+    <string name="repo_settings_delete_title">删除仓库</string>
+    <string name="repo_settings_delete_consequences">删除后仓库及其全部历史将无法恢复，此操作不可撤销。</string>
+    <string name="repo_settings_delete_confirm">删除</string>
+    <string name="repo_settings_delete_typed_hint">请输入仓库名以确认删除</string>
+    <string name="repo_settings_deleted">仓库已删除</string>
+    <string name="repo_settings_saved">设置已保存</string>
+
+    <!-- 新建仓库 -->
+    <string name="create_repo_title">新建仓库</string>
+    <string name="create_repo_entry">＋ 新建仓库</string>
+    <string name="create_repo_name_label">仓库名称</string>
+    <string name="create_repo_name_hint">仅支持字母、数字、. - _</string>
+    <string name="create_repo_description_label">简介</string>
+    <string name="create_repo_private_label">私有仓库</string>
+    <string name="create_repo_submit">创建</string>
+    <string name="create_repo_created">仓库已创建：%1$s</string>
+
+    <!-- 上传文件 -->
+    <string name="upload_file_title">上传文件</string>
+    <string name="upload_file_entry">⬆ 上传文件</string>
+    <string name="upload_file_path_label">文件路径</string>
+    <string name="upload_file_path_hint">例如 docs/readme.md</string>
+    <string name="upload_file_content_label">文件内容（Base64）</string>
+    <string name="upload_file_content_hint">粘贴 Base64 编码后的文件内容</string>
+    <string name="upload_file_message_label">提交信息</string>
+    <string name="upload_file_message_hint">用一句话说明这次改动</string>
+    <string name="upload_file_submit">上传</string>
+    <string name="upload_file_done">上传成功</string>
+
+    <!-- 写操作反馈 -->
+    <string name="write_working">处理中…</string>
+    <string name="write_error_unauthorized">登录已失效，请重新登录。</string>
+    <string name="write_error_forbidden">当前凭证没有执行该操作的权限。</string>
+    <string name="write_error_not_found">目标不存在，或已被删除。</string>
+    <string name="write_error_conflict">目标已存在，或状态发生冲突。</string>
+    <string name="write_error_validation">请求参数不被 GitHub 接受。</string>
+    <string name="write_error_rate_limited">API 限流，请稍后再试。</string>
+    <string name="write_error_server">GitHub 服务端错误（HTTP %1$d）。</string>
+    <string name="write_error_network">网络错误，请检查连接后重试。</string>
+    <string name="write_error_unknown">操作失败：%1$s</string>
+    <string name="write_error_detail">详情：%1$s</string>
+
+    <!-- 校验提示 -->
+    <string name="write_invalid_name_empty">请输入仓库名称。</string>
+    <string name="write_invalid_name_too_long">仓库名称不能超过 100 个字符。</string>
+    <string name="write_invalid_name_chars">仓库名称只能包含字母、数字、. - _。</string>
+    <string name="write_invalid_description_too_long">简介不能超过 350 个字符。</string>
+</resources>

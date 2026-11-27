@@ -21,6 +21,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gy.githubclient.feature.repo.domain.model.RepoType
@@ -38,6 +40,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun RepoListScreen(
     onOpenDetail: (owner: String, name: String) -> Unit,
+    onCreateRepository: () -> Unit = {},
     viewModel: RepoViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -107,6 +110,13 @@ fun RepoListScreen(
             enabled = !uiState.isRefreshing,
         ) {
             Text(if (uiState.isRefreshing) "刷新中…" else "刷新")
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = onCreateRepository,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.create_repo_entry))
         }
     }
 }

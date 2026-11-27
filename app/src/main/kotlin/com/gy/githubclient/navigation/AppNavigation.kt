@@ -25,9 +25,12 @@ import com.gy.githubclient.feature.profile.presentation.OrgScreen
 import com.gy.githubclient.feature.profile.presentation.ProfileScreen
 import com.gy.githubclient.feature.repo.presentation.ActionsScreen
 import com.gy.githubclient.feature.repo.presentation.CommitScreen
+import com.gy.githubclient.feature.repo.presentation.CreateRepositoryScreen
 import com.gy.githubclient.feature.repo.presentation.FileBrowserScreen
 import com.gy.githubclient.feature.repo.presentation.RepoDetailScreen
 import com.gy.githubclient.feature.repo.presentation.RepoListScreen
+import com.gy.githubclient.feature.repo.presentation.RepoSettingsScreen
+import com.gy.githubclient.feature.repo.presentation.UploadFileScreen
 import com.gy.githubclient.feature.search.presentation.SearchScreen
 import com.gy.githubclient.feature.starred.presentation.StarredScreen
 import com.gy.githubclient.settings.SettingsScreen
@@ -136,6 +139,31 @@ sealed class Route(
             name: String,
         ) = "actions/$owner/$name"
     }
+
+    /** 仓库设置与删除（P-205）：写操作界面。 */
+    data object RepoSettings : Route("repo_settings/{owner}/{name}") {
+        const val ARG_OWNER = "owner"
+        const val ARG_NAME = "name"
+
+        fun route(
+            owner: String,
+            name: String,
+        ) = "repo_settings/$owner/$name"
+    }
+
+    /** 新建仓库（P-205）。 */
+    data object CreateRepository : Route("create_repository")
+
+    /** 上传文件（P-205）。 */
+    data object UploadFile : Route("upload_file/{owner}/{name}") {
+        const val ARG_OWNER = "owner"
+        const val ARG_NAME = "name"
+
+        fun route(
+            owner: String,
+            name: String,
+        ) = "upload_file/$owner/$name"
+    }
 }
 
 @Composable
@@ -152,6 +180,7 @@ fun AppNavigation(
                 onOpenDetail = { owner, name ->
                     navController.navigate(Route.RepoDetail.route(owner, name))
                 },
+                onCreateRepository = { navController.navigate(Route.CreateRepository.path) },
             )
         }
         composable(
@@ -172,6 +201,8 @@ fun AppNavigation(
                 onOpenFiles = { ref -> navController.navigate(Route.FileBrowser.route(owner, name, ref)) },
                 onOpenCommits = { navController.navigate(Route.Commits.route(owner, name)) },
                 onOpenActions = { navController.navigate(Route.Actions.route(owner, name)) },
+                onOpenSettings = { navController.navigate(Route.RepoSettings.route(owner, name)) },
+                onOpenUpload = { navController.navigate(Route.UploadFile.route(owner, name)) },
             )
         }
         composable(
@@ -222,6 +253,53 @@ fun AppNavigation(
                 owner = owner,
                 name = name,
                 ref = ref,
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            Route.RepoSettings.path,
+            arguments =
+                listOf(
+                    navArgument(Route.RepoSettings.ARG_OWNER) { type = NavType.StringType },
+                    navArgument(Route.RepoSettings.ARG_NAME) { type = NavType.StringType },
+                ),
+        ) { backStackEntry ->
+            val owner = backStackEntry.arguments?.getString(Route.RepoSettings.ARG_OWNER).orEmpty()
+            val name = backStackEntry.arguments?.getString(Route.RepoSettings.ARG_NAME).orEmpty()
+            RepoSettingsScreen(
+                owner = owner,
+                name = name,
+                onBack = { navController.popBackStack() },
+                onDeleted = { navController.popBackStack() },
+            )
+        }
+        composable(Route.CreateRepository.path) {
+            CreateRepositoryScreen(
+                onBack = { navController.popBackStack() },
+                onCreated = { fullName ->
+                    val parts = fullName.split("/")
+                    val owner = parts.getOrNull(0).orEmpty()
+                    val repo = parts.getOrNull(1).orEmpty()
+                    navController.popBackStack()
+                    if (owner.isNotBlank() && repo.isNotBlank()) {
+                        navController.navigate(Route.RepoDetail.route(owner, repo))
+                    }
+                },
+            )
+        }
+        composable(
+            Route.UploadFile.path,
+            arguments =
+                listOf(
+                    navArgument(Route.UploadFile.ARG_OWNER) { type = NavType.StringType },
+                    navArgument(Route.UploadFile.ARG_NAME) { type = NavType.StringType },
+                ),
+        ) { backStackEntry ->
+            val owner = backStackEntry.arguments?.getString(Route.UploadFile.ARG_OWNER).orEmpty()
+            val name = backStackEntry.arguments?.getString(Route.UploadFile.ARG_NAME).orEmpty()
+            UploadFileScreen(
+                owner = owner,
+                name = name,
                 onBack = { navController.popBackStack() },
             )
         }

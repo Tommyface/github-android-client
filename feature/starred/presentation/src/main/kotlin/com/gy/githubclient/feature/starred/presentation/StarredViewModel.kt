@@ -37,8 +37,38 @@ data class StarredUiState(
 /** 一次性事件。 */
 sealed interface StarredEvent {
     data class ShowMessage(
-        val message: String,
+        val message: StarredMessage,
     ) : StarredEvent
+}
+
+/**
+ * 需要提示给用户的消息（**语义化**，不含文案）。
+ *
+ * 文案属于界面层：ViewModel 只说"发生了什么"，界面负责怎么说——
+ * 这样 ViewModel 里不会留下中文字面量（M0-18），也能按语言本地化。
+ */
+sealed interface StarredMessage {
+    /** 取消星标成功。 */
+    data class StarRemoved(
+        val fullName: String,
+    ) : StarredMessage
+
+    /** 请求失败。 */
+    data class Error(
+        val kind: StarredErrorKind,
+        val code: Int? = null,
+        val detail: String? = null,
+    ) : StarredMessage
+}
+
+/** 请求失败的分类。 */
+enum class StarredErrorKind {
+    UNAUTHORIZED,
+    RATE_LIMITED,
+    NOT_FOUND,
+    NETWORK,
+    HTTP,
+    UNKNOWN,
 }
 
 /** 星标仓库 ViewModel：观察缓存 + 刷新/分页/移除星标。 */
@@ -104,7 +134,7 @@ class StarredViewModel(
         viewModelScope.launch {
             when (val result = removeStar(repo.owner.login, repo.name)) {
                 is NetworkResult.Success ->
-                    _events.trySend(StarredEvent.ShowMessage("已取消 Star ${repo.fullName}"))
+                    _events.trySend(StarredEvent.ShowMessage(StarredMessage.StarRemoved(repo.fullName)))
 
                 is NetworkResult.Failure -> _events.trySend(StarredEvent.ShowMessage(errorMessage(result.error)))
             }
@@ -125,14 +155,14 @@ class StarredViewModel(
             )
     }
 
-    private fun errorMessage(error: ApiError): String =
+    private fun errorMessage(error: ApiError): StarredMessage.Error =
         when (error) {
-            ApiError.Unauthorized -> "登录已失效，请重新登录"
-            is ApiError.RateLimited -> "API 限流，请稍后再试"
-            ApiError.NotFound -> "资源不存在"
-            is ApiError.Network -> "网络错误：${error.cause}"
-            is ApiError.Http -> "请求失败（${error.code}）"
-            is ApiError.Unknown -> "未知错误：${error.message}"
+            ApiError.Unauthorized -> StarredMessage.Error(StarredErrorKind.UNAUTHORIZED)
+            is ApiError.RateLimited -> StarredMessage.Error(StarredErrorKind.RATE_LIMITED)
+            ApiError.NotFound -> StarredMessage.Error(StarredErrorKind.NOT_FOUND)
+            is ApiError.Network -> StarredMessage.Error(StarredErrorKind.NETWORK, detail = error.cause)
+            is ApiError.Http -> StarredMessage.Error(StarredErrorKind.HTTP, code = error.code)
+            is ApiError.Unknown -> StarredMessage.Error(StarredErrorKind.UNKNOWN, detail = error.message)
         }
 
     private companion object {

@@ -24,7 +24,7 @@
 | M0-15 | 17 份交付报告归档 `docs/versions/` + 版本索引表 | ✅ |
 | M0-16 | spec 骨架：PARITY-NOTICE / BASELINE / 模板 / P-101 / ADR-001 / 威胁模型 | ✅ |
 | M0-17 | 分支保护配置说明 + PR 模板 + ISSUE 模板 + dependabot + gitleaks 配置 | ✅ |
-| M0-18 | 字符串资源化（全量硬编码中文清零） | 🔄 棘轮门禁已就位（konsist 规则 13：新增界面不得硬编码中文）；存量 9 个文件的字符串化随 UI 里程碑推进 |
+| M0-18 | 字符串资源化（全量硬编码中文清零） | 🔄 R7 校准后：规则 13 改为**双向棘轮**（新增即失败 / 登记项失效也失败）+ **先剔注释再判定** + 覆盖 feature 层；本轮清掉 5 个文件、修正 7 个误报；剩余 **39** 个文件为已登记存量，逐屏清账 |
 
 ## 阶段 1 · D0 发版与更新闭环（4~5 天）— 产出 v0.19.0
 
@@ -61,9 +61,25 @@ TOTP / 扫码 / 正文翻译（默认离线）/ 多账号 / 五环降级版 / �
 
 - **Frost 设计系统收编**：`core/presentation/theme` 四件套落地，MainActivity 统一走 `GithubClientTheme`；
   konsist 规则 14 锁死"业务屏不得写死色值"。
-- **诊断中心**：`platform/diagnostics`（Redactor 脱敏 + StructuredLogger 分层日志 + CrashRecorder 崩溃落盘）。
+- **诊断中心**：`platform/diagnostics`（Redactor 脱敏 + StructuredLogger 分层日志已落地；CrashRecorder 崩溃落盘**尚未实现**，见 M1-07）。
 - **凭据能力矩阵**：`CredentialKind` 与能力求值器，把"fine-grained 不支持 GraphQL 与通知"变成可展示规则。
 - **安装闭环**：`platform/apkinstall` + 下载页「安装」动作 + FileProvider 路径修正。
+
+## 第七轮（P-300）落地 · 尺子校准 + 第一批字符串化
+
+本轮不写新功能，专门修**度量工具本身**：此前三处"尺子"与现实不符，导致门禁既漏检又误报。
+
+| 项 | 问题（实测） | 处置 |
+|---|---|---|
+| 规则 13 匹配口径 | KDoc 里的中文引号被当成硬编码文案 → 7 个只含注释的文件被登记进白名单 | 判定前先剔注释（新增 `stripComments`），误报清零 |
+| 规则 13 扫描范围 | 只扫 app + core/presentation，feature 的 30+ 个界面文件**完全不在门禁内** | 范围扩到全部 feature presentation；存量一次性登记为显式债务 |
+| 规则 13 棘轮方向 | 只在"新增即失败"，登记项失效（已还债）不报错 → 白名单只增不减 | 改为**双向棘轮**：登记项失效同样失败，必须同步删行 |
+| `tools/ui_audit.sh` | 上限写成 `max 999`，等于没有门禁；nightly 里还带 `\|\| true` | 改为 Python 真棘轮 + `tools/audit_baseline.json` 可机读基线（只减不增），CI 与 nightly 均以 `--strict` 失败退出 |
+| 字符串化 | app / core 两模块**零** `strings.xml`，界面文案全硬编码 | 新建 app 与 core/presentation 两份 `strings.xml`；清掉 5 个文件（危险确认 / Frost 图标朗读 / 外壳 Tab / 设置页 / 深链提示） |
+| 数字漂移 | 文档与注释写"22 处横向依赖"，实测与清单都是 **23** | 统一为实测值；清单逐条与实测核对一致 |
+
+本轮清掉的界面文件：`DangerConfirmSheet.kt`、`FrostChrome.kt`、`AppScaffold.kt`、`SettingsScreen.kt`、`DeepLinks.kt`。
+剩余 39 个文件为**已登记存量**（含 app 的更新流程 3 个文件与 feature 各域），随 UI 里程碑逐屏清账。
 
 ## 工具链补充
 

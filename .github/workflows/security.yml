@@ -34,7 +34,7 @@ jobs:
           ./osv-scanner scan source -r . --exclude "**/build/**" --exclude "**/.gradle/**"
       - name: 上传报告
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: osv-report
           path: osv-report.json
@@ -93,7 +93,7 @@ jobs:
           curl -sSL -o cyclonedx \
             "https://github.com/CycloneDX/cyclonedx-gradle-plugin/releases/download/v1.9.0/cyclonedx-gradle-plugin.jar"
           ./gradlew cyclonedxBom --saveBom sbom.json || echo "::notice::SBOM 生成失败（可选门禁）"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: sbom

@@ -5,6 +5,34 @@
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-11-28
+
+### 变更
+
+- **通知中心（P-209 / PR #23）**：界面文案迁入 `feature/profile/presentation/res/values/strings.xml`（11 条）；
+  `NotificationsViewModel` 改为输出 `NotificationsError` 语义类型，不再产出中文字符串；
+  `Card` / `MaterialTheme.colorScheme` 全部换为 Frost 令牌；卡片、错误态、空态补齐无障碍语义
+  （`contentDescription`、`liveRegion`、装饰元素 `clearAndSetSemantics`）。字符串白名单 37 → 35。
+- **发现页（P-210 / PR #25）**：文案迁入 `feature/discover/presentation/res/values/strings.xml`（36 条）；
+  `DiscoverViewModel` 输出 `RankNoteKind` / `DiscoverError`，文案下沉界面层；配色全换 Frost 令牌。
+  字符串白名单 35 → 33，UI 审计基线同步收紧（`--update-baseline`）。
+
+### 修复
+
+- **发现页历史缺陷**：刷新失败此前完全静默（`ShowMessage` 事件有生产者、消费方丢弃），现改为
+  `refreshError` 状态 + 错误行 + 重试；删除卡片内与整卡同义的「详情 / 下载」嵌套 clickable；
+  语言（10）/ 分类（6）筛选条在窄屏溢出裁切，改为 `horizontalScroll`；
+  `fullName.split("/")` 改用 `ownerLogin` 并在 owner/name 不可解析时不提供点击。
+- **重构期回归（CI 捕获）**：`ReleaseDetailScreen` 与 `DiscoverScreen` 复用同一个 `DiscoverViewModel`，
+  重构中一度误删 `resolveDownload` / `onDownloadAsset`（编译失败）与既有
+  `@Suppress("LongParameterList")`（detekt 阈值 7 触发）。两者均已恢复，并在 KDoc / 注释中标注复用关系。
+- **文档漂移**：`spec/ROADMAP.md` 字符串化存量由 39 修正为实测 33；`gradle.properties` 覆盖率实测行
+  更新为 `26759/73209 = 36.55%`（CI verify 实测，阈值 33）。
+
+### 无破坏性变更
+
+无权限变更、无新增路由、无 API 行为变更；两屏均为纯重构。
+
 ## [0.19.0] - 2026-11-27
 
 ### 新增

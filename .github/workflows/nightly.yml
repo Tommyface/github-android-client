@@ -2,9 +2,16 @@ name: Nightly
 
 # 每夜回归：不阻塞当日合并，但失败必须有人处理（否则等同于没有）。
 # 内容：
-#  - Maestro 端到端冒烟（≥10 场景，其中"打开→加载→登录→下载→更新"为发版必过五步）
-#  - Paparazzi 视觉回归（UI 改动会在这里暴露）
-#  - 冷启动基准（Macrobenchmark）
+#  - Maestro 端到端冒烟（场景存在时执行；仓库当前无 .maestro 场景，见 M4-10）
+#  - 安装 + 冷启动冒烟（无场景时也必须有真实可验证的产出，不允许"绿灯但什么都没跑"）
+#  - UI 审计棘轮（P-200 方法学，失败即任务失败）
+#
+# 2026-11-28 修复（v0.19.1 起）：
+#  1. `adb: command not found`：sdkmanager 装的 platform-tools 不在 runner 的 PATH 里，
+#     显式追加 $ANDROID_HOME/platform-tools 与 $ANDROID_HOME/emulator 到 $GITHUB_PATH。
+#  2. 原流程直接 `adb install`，但整个 job 没有任何设备/模拟器准备步骤——即便 adb 可用也无处可装。
+#     改用 emulator-runner 起 AVD 后在其内部执行安装、冒烟与 Maestro。
+#  3. UI 审计改为 `if: always()`：设备环节失败时也要跑，避免"审计根本没执行却没人发现"。
 
 on:
   schedule:
@@ -18,7 +25,7 @@ jobs:
   smoke:
     name: maestro (端到端冒烟)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -31,24 +38,46 @@ jobs:
           [ -x "$SDKMGR" ] || SDKMGR="$(command -v sdkmanager)"
           yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
           "$SDKMGR" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          # 修复点 1：把 adb / emulator 显式放进 PATH（runner 默认不一定有）
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x ./gradlew
-      - name: 构建并安装
-        run: |
-          ./gradlew assembleDebug --no-daemon
-          adb install -r app/build/outputs/apk/debug/app-debug.apk
-      - name: 运行 Maestro 场景
-        run: |
-          if [ ! -d .maestro ]; then
-            echo "::notice::尚无 Maestro 场景（M4-10），跳过。"
-            exit 0
-          fi
-          curl -Ls "https://get.maestro.mobile.dev" | bash
-          "$HOME/.maestro/bin/maestro" test .maestro
+      - name: 构建 Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+      - name: 模拟器内安装并冒烟
+        # 修复点 2：没有设备就装不上；用 emulator-runner 起 AVD（KVM，public repo 可用）
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            set -e
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            if [ -d .maestro ] && [ -n "$(ls -A .maestro 2>/dev/null)" ]; then
+              curl -Ls "https://get.maestro.mobile.dev" | bash
+              "$HOME/.maestro/bin/maestro" test .maestro
+            else
+              echo "::warning::仓库内尚无 .maestro 场景（M4-10 未落地），本次跳过场景执行，只做安装 + 冷启动冒烟"
+            fi
+            # 冷启动冒烟：进程必须真的起来。无场景时这是唯一有意义的端到端证据。
+            adb shell monkey -p com.gy.githubclient -c android.intent.category.LAUNCHER 1
+            sleep 5
+            PID=$(adb shell pidof com.gy.githubclient | tr -d '\r')
+            if [ -z "$PID" ]; then
+              echo "::error::冷启动后进程未存活（安装或启动失败）"
+              adb logcat -d -t 200 | tail -80
+              exit 1
+            fi
+            echo "::notice::冷启动冒烟通过，pid=$PID"
+            adb shell am force-stop com.gy.githubclient
       - name: UI 审计（P-200 方法学 · R7 起为真棘轮，失败即任务失败）
         # 旧写法用 `|| true` + warning，等于"审计失败也不影响任何事"——
         # 这类假门禁与 max=999 的阈值是同一类问题。nightly 不阻塞当日合并，
         # 但失败必须让任务变红，否则没人会看。
+        if: always()
         run: bash tools/ui_audit.sh --strict
       - uses: actions/upload-artifact@v4
         if: always()

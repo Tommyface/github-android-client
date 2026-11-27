@@ -52,11 +52,13 @@ val authDataModule =
                         },
                     )
                 }
-                // 国内直连 api.github.com 可能很慢或无响应，显式超时避免登录请求长期挂起。
+                // 认证端点分两个域名：Device Flow 走 github.com（国内常被阻断），
+                // token 校验走 api.github.com（通常可达）。超时按前者收紧：
+                // 原 30s×3 次 = 最坏 96s 才报错，界面只有一个转圈，用户以为"卡死"。
                 install(HttpTimeout) {
-                    connectTimeoutMillis = 15_000
-                    socketTimeoutMillis = 30_000
-                    requestTimeoutMillis = 30_000
+                    connectTimeoutMillis = 8_000
+                    socketTimeoutMillis = 12_000
+                    requestTimeoutMillis = 12_000
                 }
             }
         }

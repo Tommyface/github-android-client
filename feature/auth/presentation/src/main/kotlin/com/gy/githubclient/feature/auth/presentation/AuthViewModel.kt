@@ -153,29 +153,37 @@ class AuthViewModel(
         if (deviceFlowJob?.isActive == true) return
         deviceFlowJob =
             viewModelScope.launch {
-                _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Requesting)
-                when (val result = startDeviceFlow()) {
-                    is DeviceFlowStartResult.Error -> {
-                        _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Idle)
-                        _events.trySend(
-                            AuthEvent.ShowMessage("发起授权失败：${friendlyDeviceFlowError(result.message)}"),
-                        )
-                    }
-
-                    is DeviceFlowStartResult.Success -> {
-                        val challenge = result.challenge
-                        _uiState.value =
-                            _uiState.value.copy(
-                                deviceFlow =
-                                    DeviceFlowUiState.AwaitingAuthorization(
-                                        userCode = challenge.userCode,
-                                        verificationUri = challenge.verificationUri,
-                                        expiresAtMillis =
-                                            System.currentTimeMillis() + challenge.expiresInMillis,
-                                    ),
+                try {
+                    _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Requesting)
+                    when (val result = startDeviceFlow()) {
+                        is DeviceFlowStartResult.Error -> {
+                            _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Idle)
+                            _events.trySend(
+                                AuthEvent.ShowMessage(
+                                    "发起授权失败：${friendlyDeviceFlowError(result.message)}",
+                                ),
                             )
-                        runPollLoop(challenge)
+                        }
+
+                        is DeviceFlowStartResult.Success -> {
+                            val challenge = result.challenge
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    deviceFlow =
+                                        DeviceFlowUiState.AwaitingAuthorization(
+                                            userCode = challenge.userCode,
+                                            verificationUri = challenge.verificationUri,
+                                            expiresAtMillis =
+                                                System.currentTimeMillis() + challenge.expiresInMillis,
+                                        ),
+                                )
+                            runPollLoop(challenge)
+                        }
                     }
+                } finally {
+                    // 无论成功、失败还是取消都要释放引用：否则一次超时把状态留在 Requesting、
+                    // job 仍 isActive，后续每次点击都会被开头的 isActive 判断拦掉，只能重启应用。
+                    deviceFlowJob = null
                 }
             }
     }
@@ -325,7 +333,8 @@ internal fun friendlyDeviceFlowError(raw: String): String {
     return when {
         "timeout" in lower ->
             "网络连接超时：直连 github.com 无响应。请切换网络（WiFi ↔ 流量）、开启代理，" +
-                "或稍后重试（github.com 在国内间歇可达）"
+                "或改用 Token 登录（Token 走 api.github.com，通常可达）；" +
+                "github.com 在国内间歇可达"
 
         listOf("unable to resolve", "unknownhost", "no address").any { it in lower } ->
             "域名解析失败：当前网络无法访问 github.com。请切换网络或开启代理后重试"

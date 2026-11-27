@@ -5,7 +5,23 @@
 
 ## [Unreleased]
 
-（暂无）
+### 修复
+
+- **首页登录卡在「正在获取授权码」（真机首跑反馈）**：Device Flow 的端点在 `github.com`
+  （不是 `api.github.com`），该域名在国内常被阻断；本次实测同一网络下
+  `github.com/login/device/code` 25 秒无响应，而 `api.github.com/rate_limit` 200 / 0.38 秒。
+  一次网络失败被四处细节放大成"卡死"：
+  ① auth 客户端超时 30s × start 阶段重试 3 次（2s/4s 退避）≈ 最长 **96 秒**；
+  ② Requesting 态界面只有一个转圈，没有取消、没有预算说明；
+  ③ `GitHubOAuthApi` 的 `catch (Exception)` 把 `CancellationException` 一并吞成 "network error"，取消无效；
+  ④ `AuthViewModel.deviceFlowJob` 结束后不释放，卡住后每次点击都被 `isActive` 拦掉，只能重启应用。
+  修法：超时收紧为 connect 8s / socket 12s / request 12s；start 重试 3 → 2（预算 ≈ **26 秒**）；
+  两处 catch 先捕获 `CancellationException` 原样上抛；`beginDeviceFlow` 用 `try/finally` 释放 job；
+  Requesting 分支加「取消」按钮与"最长约 26 秒 · 可改用下方 Token"说明；
+  卡片标题改为「GitHub 账号登录（需能直连 github.com）」。
+  附登录方式结论：GitHub 已于 2020-11-13 停止 REST API 的密码认证、2021-08-13 停止 Git 操作的密码认证
+  （官方公告），**"用户名 + 密码"登录不可行**；可用路径是 PAT（走 `api.github.com`，已实现）与
+  Device Flow（走 `github.com`）。
 
 ## [0.19.2] - 2026-11-28
 

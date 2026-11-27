@@ -217,11 +217,12 @@ private fun OAuthDeviceFlowCard(
     FrostCard {
         Column(Modifier.padding(16.dp)) {
             Text(
-                text = "GitHub 账号登录（推荐）",
+                text = "GitHub 账号登录（需能直连 github.com）",
                 style = MaterialTheme.typography.titleSmall,
             )
             Text(
-                text = "无需手动创建 Token：在浏览器输入 8 位授权码即可完成登录。",
+                text = "无需手动创建 Token：在浏览器输入 8 位授权码即可完成登录。" +
+                    "该流程走 github.com 域名，若一直转圈请改用下方 Token 登录。",
                 style = MaterialTheme.typography.bodySmall,
                 color = LocalFrostColors.current.textTertiary,
             )
@@ -238,15 +239,26 @@ private fun OAuthDeviceFlowCard(
                 }
 
                 DeviceFlowUiState.Requesting -> {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.height(20.dp),
-                            strokeWidth = 2.dp,
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.height(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Text("正在获取授权码…", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        // 之前这里只有一个转圈：失败前最长要等 96 秒，期间既没有进度也没有出口，
+                        // 观感就是"卡死"。现在把预算（约 26 秒）与退路（取消 / 改用 Token）写在界面上。
+                        Text(
+                            text = "最长约 26 秒；若是 github.com 无法直连会一直无响应，" +
+                                "可取消后改用下方 Token 登录。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalFrostColors.current.textTertiary,
                         )
-                        Text("正在获取授权码…", style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = onCancel) { Text("取消") }
                     }
                 }
 

@@ -22,7 +22,12 @@ import kotlinx.coroutines.delay
  * 由 AuthRepositoryImpl.signInWithOAuth 承担。
  *
  * start 阶段对传输层异常自动重试：直连 github.com 在国内常超时/被重置，
- * 单发请求一次失败即中止体验太差，故退避重试至多 3 次（2s、4s）。
+ * 单发请求一次失败即中止体验太差，故退避重试。
+ *
+ * 重试预算（v0.19.3 起）：`MAX_START_ATTEMPTS = 2` × 12s 请求超时 + 2s 退避 ≈ **26 秒**。
+ * 之前是 3 × 30s + 6s ≈ 96 秒，而界面在 Requesting 态期间只有转圈、不能取消，
+ * 观感就是"一直卡在获取授权码"。缩短预算比多试一次更有用：github.com 若被阻断，
+ * 第 3 次也照样失败，只是让用户多等一分钟。
  */
 class OAuthDeviceFlowRepositoryImpl(
     private val api: GitHubOAuthApi,

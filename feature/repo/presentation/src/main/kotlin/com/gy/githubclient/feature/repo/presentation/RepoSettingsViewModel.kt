@@ -19,7 +19,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** 仓库设置页状态（P-205）。 */
+/**
+ * 仓库设置页状态（P-205）。
+ *
+ * [savedIsPrivate] / [savedIsArchived] 是**加载成功或上次保存成功时的基线**，只由 VM 更新；
+ * [isPrivate] / [isArchived] 是用户当前选择。两者不一致即存在**方向性变更**，
+ * 界面层必须先挂二次确认再提交（数据层已把这类变更标为 `dangerous`）。
+ */
 data class RepoSettingsUiState(
     val loading: Boolean = false,
     val saving: Boolean = false,
@@ -29,16 +35,31 @@ data class RepoSettingsUiState(
     val description: String = "",
     val isPrivate: Boolean = false,
     val isArchived: Boolean = false,
+    val savedIsPrivate: Boolean = false,
+    val savedIsArchived: Boolean = false,
     val error: WriteError? = null,
     val success: WriteSuccessKind? = null,
-)
+) {
+    /** 可见性是否发生方向性变更（公开 ⇄ 私有）。未加载成功时一律视为无变更。 */
+    val visibilityChanged: Boolean
+        get() = loaded && isPrivate != savedIsPrivate
+
+    /** 归档状态是否发生变更。未加载成功时一律视为无变更。 */
+    val archivedChanged: Boolean
+        get() = loaded && isArchived != savedIsArchived
+
+    /** 本次保存是否会触发危险操作：为真时界面必须二次确认后才调用 [RepoSettingsViewModel.save]。 */
+    val needsConfirm: Boolean
+        get() = visibilityChanged || archivedChanged
+}
 
 /**
  * 仓库设置：读取当前设置 → 修改简介 / 可见性 / 归档 → 删除仓库。
  *
  * 纪律：
  *  - 读与写**分开**：读走 [GetRepositoryUseCase]，写走 mutation 通道（统一信封 + 审计）；
- *  - 可见性与归档属于危险操作，**由界面层挂二次确认**（本 VM 不负责弹窗）；
+ *  - 可见性与归档属于危险操作，**由界面层挂二次确认**（本 VM 不负责弹窗），
+ *    是否确需确认由 [RepoSettingsUiState.needsConfirm] 给出；
  *  - 删除仓库必须由界面层校验"用户输入的仓库名与目标一致"后才调用 [deleteRepository]。
  */
 class RepoSettingsViewModel(
@@ -65,6 +86,8 @@ class RepoSettingsViewModel(
                             description = result.data.description.orEmpty(),
                             isPrivate = result.data.isPrivate,
                             isArchived = result.data.isArchived,
+                            savedIsPrivate = result.data.isPrivate,
+                            savedIsArchived = result.data.isArchived,
                         )
 
                 is NetworkResult.Failure ->
@@ -85,7 +108,12 @@ class RepoSettingsViewModel(
         _uiState.value = _uiState.value.copy(isArchived = value)
     }
 
-    /** 保存设置（简介 / 可见性 / 归档）。 */
+    /**
+     * 保存设置（简介 / 可见性 / 归档）。
+     *
+     * 调用前置：若 [RepoSettingsUiState.needsConfirm] 为真，界面必须先完成二次确认——
+     * 本方法不做校验，直接发 PATCH（数据层仍会把这类变更记为 `dangerous` 留痕）。
+     */
     fun save(
         owner: String,
         name: String,
@@ -105,7 +133,13 @@ class RepoSettingsViewModel(
             _uiState.value =
                 when (result) {
                     is MutationResult.Success ->
-                        _uiState.value.copy(saving = false, success = WriteSuccessKind.SETTINGS_SAVED)
+                        _uiState.value.copy(
+                            saving = false,
+                            // 保存成功后把基线推到当前值，避免同一变更被要求确认第二次。
+                            savedIsPrivate = current.isPrivate,
+                            savedIsArchived = current.isArchived,
+                            success = WriteSuccessKind.SETTINGS_SAVED,
+                        )
 
                     is MutationResult.Failure ->
                         _uiState.value.copy(saving = false, error = result.error.toWriteError())

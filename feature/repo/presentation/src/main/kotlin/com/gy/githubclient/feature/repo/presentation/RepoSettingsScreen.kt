@@ -55,6 +55,7 @@ fun RepoSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmSave by remember { mutableStateOf(false) }
     var typedInput by remember { mutableStateOf("") }
 
     LaunchedEffect(owner, name) { viewModel.load(owner, name) }
@@ -138,7 +139,10 @@ fun RepoSettingsScreen(
         Spacer(Modifier.height(16.dp))
 
         Button(
-            onClick = { viewModel.save(owner, name) },
+            onClick = {
+                // 可见性 / 归档是方向性变更（数据层标 dangerous），必须先过二次确认。
+                if (uiState.needsConfirm) confirmSave = true else viewModel.save(owner, name)
+            },
             enabled = !uiState.saving && !uiState.deleting,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -172,6 +176,22 @@ fun RepoSettingsScreen(
         }
     }
 
+    if (confirmSave) {
+        DangerConfirmSheet(
+            request =
+                DangerConfirmRequest(
+                    title = stringResource(R.string.repo_settings_confirm_title),
+                    consequences = saveConsequences(uiState),
+                    confirmLabel = stringResource(R.string.repo_settings_confirm_action),
+                ),
+            onConfirm = {
+                confirmSave = false
+                viewModel.save(owner, name)
+            },
+            onDismiss = { confirmSave = false },
+        )
+    }
+
     if (confirmDelete) {
         DangerConfirmSheet(
             request =
@@ -194,3 +214,40 @@ fun RepoSettingsScreen(
         )
     }
 }
+
+/** 方向性变更的"会发生什么 + 是否可撤销"正文，按当前状态即时生成。 */
+@Composable
+private fun saveConsequences(state: RepoSettingsUiState): String {
+    val lines =
+        buildList {
+            if (state.visibilityChanged) {
+                add(
+                    stringResource(
+                        R.string.repo_settings_confirm_visibility,
+                        visibilityLabel(state.savedIsPrivate),
+                        visibilityLabel(state.isPrivate),
+                    ),
+                )
+            }
+            if (state.archivedChanged) {
+                add(
+                    stringResource(
+                        if (state.isArchived) {
+                            R.string.repo_settings_confirm_archive
+                        } else {
+                            R.string.repo_settings_confirm_unarchive
+                        },
+                    ),
+                )
+            }
+            add(stringResource(R.string.repo_settings_confirm_reversible))
+        }
+    return lines.joinToString("\n")
+}
+
+/** 可见性状态 → 文案（公开 / 私有）。 */
+@Composable
+private fun visibilityLabel(isPrivate: Boolean): String =
+    stringResource(
+        if (isPrivate) R.string.repo_settings_visibility_private else R.string.repo_settings_visibility_public,
+    )

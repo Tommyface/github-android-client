@@ -18,6 +18,7 @@ import com.gy.githubclient.feature.download.data.download.ApkSignatureVerifier
 import com.gy.githubclient.feature.download.data.download.Sha256Verifier
 import com.gy.githubclient.feature.download.data.local.DownloadDao
 import com.gy.githubclient.feature.download.domain.model.DownloadStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.Clock
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -130,6 +131,12 @@ class DownloadWorker(
                 ),
             )
             return Result.success()
+        } catch (c: CancellationException) {
+            // WorkManager 取消（用户停止、约束失效、进程回收）不是下载失败：
+            // 原实现把 `CancellationException` 一起 catch 住，标成 FAILED 并返回 failure，
+            // 于是"我主动取消"在列表里显示为"下载失败"，还可能触发 WorkManager 重试。
+            // 这条分支必须放在 `catch (Exception)` 之前——它是 Exception 的子类。
+            throw c
         } catch (e: Exception) {
             markStatus(taskId, DownloadStatus.FAILED, e.message ?: "下载失败")
             return Result.failure()

@@ -8,7 +8,6 @@ package com.gy.githubclient.core.data.di
 import com.gy.githubclient.core.data.network.GitHubApiClient
 import com.gy.githubclient.core.domain.network.AuthTokenProvider
 import com.gy.githubclient.core.mutation.AuditSink
-import com.gy.githubclient.core.mutation.NoOpAuditSink
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -46,8 +45,12 @@ val coreNetworkModule =
                 httpClient = get(named(API_HTTP_CLIENT)),
                 tokenProvider = get<AuthTokenProvider>(),
                 // 审计 sink 由组合根（app 层）提供；core:data 不反向依赖 core:audit。
-                // 未提供时退化为无操作实现，写操作仍可正常执行（只是不留痕）。
-                auditSink = getOrNull<AuditSink>() ?: NoOpAuditSink,
+                // 这里必须是**必需注入**：原先写 `getOrNull<AuditSink>() ?: NoOpAuditSink`，
+                // 让"审计模块没装配"退化成"写操作照常成功、审计表永远为空"，既不报错也不打日志
+                // （H2：审计形同虚设且无人发现）。改成 get() 后，缺 RoomAuditSink 的装配会在
+                // 应用启动时直接抛 NoDefinitionFoundException——问题暴露在第一次启动，
+                // 而不是三个月后有人打开审计页才发现是空的。
+                auditSink = get<AuditSink>(),
             )
         }
     }

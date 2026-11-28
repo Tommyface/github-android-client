@@ -34,6 +34,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.content.TextContent
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlin.math.min
@@ -143,7 +144,6 @@ class GitHubApiClient(
         return NetworkResult.Success(collected)
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private suspend fun <T> requestInternal(
         spec: RequestSpec<T>,
         attempt: Int,
@@ -152,7 +152,12 @@ class GitHubApiClient(
         if (token == null) {
             return NetworkResult.Failure(ApiError.Unauthorized)
         }
-        return try {
+        // 用 runCatching 而不是 catch (Exception)：两件事一起解决（M2）。
+        // ① `CancellationException` 是 `Exception` 的子类，被 catch 住就等于把"页面退出/用户取消"
+        //    转成了一次失败——UI 会显示一个根本没发生过的网络错误；
+        // ② 兜底本身仍然需要（Ktor/OkHttp 会抛多种 IOException / SerializationException），
+        //    而 detekt 的 TooGenericExceptionCaught 只针对 catch 子句，这样不再需要抑制注解。
+        return runCatching<NetworkResult<T>> {
             val response: HttpResponse =
                 httpClient.request(BASE_URL + spec.path) {
                     this.method = spec.method
@@ -180,8 +185,9 @@ class GitHubApiClient(
 
                 else -> NetworkResult.Failure(ApiErrorMapper.fromResponse(response))
             }
-        } catch (e: Exception) {
-            // 网络层统一兜底：Ktor 可能抛多种 IOException / SerializationException。
+        }.getOrElse { e ->
+            // 取消必须原样上抛，不能进失败分支。
+            if (e is CancellationException) throw e
             NetworkResult.Failure(ApiErrorMapper.fromException(e))
         }
     }
@@ -215,7 +221,7 @@ class GitHubApiClient(
      * 幂等操作在网络错误 / 5xx / 限流时按 [MutationRetryPolicy] 自动重试；
      * 每次最终结果都会写入审计（成功与失败都留痕）。
      */
-    @Suppress("TooGenericExceptionCaught", "LongParameterList")
+    @Suppress("LongParameterList")
     suspend fun <T> mutate(
         spec: MutationSpec,
         method: HttpMethod,
@@ -232,7 +238,6 @@ class GitHubApiClient(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private suspend fun <T> attemptMutation(
         method: HttpMethod,
         path: String,
@@ -241,7 +246,9 @@ class GitHubApiClient(
         mapper: suspend (HttpResponse) -> T,
     ): MutationAttempt<T> {
         val token = tokenProvider.tokenFor(channel) ?: return MutationAttempt.Failure(MutationError.Unauthorized)
-        return try {
+        // 与 requestInternal 同构：写操作被取消时（页面退出、任务被中止）不得变成「写失败」，
+        // 否则 UI 会提示"操作失败"、用户会重试一次已经发生的写。
+        return runCatching<MutationAttempt<T>> {
             val response =
                 httpClient.request(BASE_URL + path) {
                     this.method = method
@@ -259,7 +266,8 @@ class GitHubApiClient(
             } else {
                 mapMutationFailure(response, requestId)
             }
-        } catch (e: Exception) {
+        }.getOrElse { e ->
+            if (e is CancellationException) throw e
             MutationAttempt.Failure(ApiErrorMapper.fromException(e).toMutationError())
         }
     }

@@ -30,8 +30,10 @@ data class NetworkConfig(
     val connectTimeoutMillis: Long? = 15_000,
     val socketTimeoutMillis: Long? = 30_000,
     val requestTimeoutMillis: Long? = 30_000,
-    /** 是否安装 ContentNegotiation。本项目实际解析统一走 `bodyAsText()` + 显式 serializer， */
-    /** 只有沿用了旧配置的 core/auth 两处仍挂着它（保持现状，避免顺手改变行为）。 */
+    /**
+     * 是否安装 ContentNegotiation。本项目实际解析统一走 `bodyAsText()` + 显式 serializer，
+     * 只有沿用了旧配置的 core/auth 两处仍挂着它（保持现状，避免顺手改变行为）。
+     */
     val installJson: Boolean = false,
 ) {
     internal val hasAnyTimeout: Boolean

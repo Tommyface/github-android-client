@@ -106,6 +106,10 @@ class GitHubOAuthApi(
                         onFailure = { DeviceCodeResult.Error(PARSE_ERROR_CODE, it.message ?: "解析失败") },
                     )
             }
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            // 取消/销毁必须原样上抛：被下面那层 Exception 兜底吞掉后，
+            // 请求会继续跑完并把状态写成"网络错误"，用户点了取消却停不下来。
+            throw c
         } catch (t: Exception) {
             DeviceCodeResult.Error(-1, t.message ?: "network error")
         }
@@ -139,6 +143,9 @@ class GitHubOAuthApi(
                         onFailure = { OAuthTokenResult.Error(PARSE_ERROR_CODE, it.message ?: "解析失败") },
                     )
             }
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            // 同 requestDeviceCode：轮询被取消时不能让兜底 catch 把它变成"网络错误"。
+            throw c
         } catch (t: Exception) {
             OAuthTokenResult.Error(-1, t.message ?: "network error")
         }

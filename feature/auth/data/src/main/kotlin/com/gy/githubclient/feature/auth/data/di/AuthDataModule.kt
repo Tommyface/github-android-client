@@ -41,7 +41,19 @@ val authDataModule =
         // 认证专用 client：不注入 token（token 按调用显式传入以校验）。
         // 超时与 JSON 配置走统一工厂（T3），不再在本模块重复一遍。
         single {
-            GitHubHttpClientFactory.create(NetworkConfig(installJson = true))
+            // 认证端点分两个域名：Device Flow 走 github.com（国内常被阻断），
+            // token 校验走 api.github.com（通常可达）。超时按前者收紧：
+            // 原 30s×3 次 = 最坏 96s 才报错，界面只有一个转圈，用户以为"卡死"。
+            // T3 把这三档超时参数化后，收紧值直接作为配置传入统一工厂，不再在本模块
+            // 另写一份 HttpClient 构造。
+            GitHubHttpClientFactory.create(
+                NetworkConfig(
+                    connectTimeoutMillis = 8_000,
+                    socketTimeoutMillis = 12_000,
+                    requestTimeoutMillis = 12_000,
+                    installJson = true,
+                ),
+            )
         }
 
         single { GitHubAuthApi(get<HttpClient>()) }

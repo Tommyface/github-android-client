@@ -41,6 +41,14 @@ data class AuthUiState(
     val isSubmitting: Boolean = false,
     val isBindingNotification: Boolean = false,
     val deviceFlow: DeviceFlowUiState = DeviceFlowUiState.Idle,
+    /**
+     * Device Flow 因传输层问题发起失败或轮询中止后置 true。
+     *
+     * 界面据此把滚动位置与输入焦点送回 Token 卡片（`LoginScreen` 的 `LaunchedEffect`）。
+     * 用户点的是"账号登录"，失败后只弹一条 Toast、让他在三张卡片之间自己找出口，
+     * 正是真机反馈里"卡死"的观感来源之一。
+     */
+    val suggestTokenLogin: Boolean = false,
 )
 
 /** OAuth Device Flow 界面状态机。 */
@@ -108,7 +116,13 @@ class AuthViewModel(
     }
 
     fun onPrimaryTokenChange(value: String) {
-        _uiState.value = _uiState.value.copy(primaryToken = value)
+        _uiState.value =
+            _uiState.value.copy(
+                primaryToken = value,
+                // 用户已经在粘贴了：提示使命结束，再留着会让卡片一直带红字。
+                // 清空输入（value 为空）时保留原提示，避免"删完字提示又蹦出来"。
+                suggestTokenLogin = if (value.isBlank()) _uiState.value.suggestTokenLogin else false,
+            )
     }
 
     fun onNotificationTokenChange(value: String) {
@@ -153,29 +167,43 @@ class AuthViewModel(
         if (deviceFlowJob?.isActive == true) return
         deviceFlowJob =
             viewModelScope.launch {
-                _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Requesting)
-                when (val result = startDeviceFlow()) {
-                    is DeviceFlowStartResult.Error -> {
-                        _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Idle)
-                        _events.trySend(
-                            AuthEvent.ShowMessage("发起授权失败：${friendlyDeviceFlowError(result.message)}"),
-                        )
-                    }
-
-                    is DeviceFlowStartResult.Success -> {
-                        val challenge = result.challenge
-                        _uiState.value =
-                            _uiState.value.copy(
-                                deviceFlow =
-                                    DeviceFlowUiState.AwaitingAuthorization(
-                                        userCode = challenge.userCode,
-                                        verificationUri = challenge.verificationUri,
-                                        expiresAtMillis =
-                                            System.currentTimeMillis() + challenge.expiresInMillis,
-                                    ),
+                try {
+                    _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Requesting)
+                    when (val result = startDeviceFlow()) {
+                        is DeviceFlowStartResult.Error -> {
+                            // 发起失败基本都是传输层问题（github.com 不可达）：直接把用户
+                            // 送回 Token 卡，而不是只丢一句提示让他在页面上自己找。
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    deviceFlow = DeviceFlowUiState.Idle,
+                                    suggestTokenLogin = true,
+                                )
+                            _events.trySend(
+                                AuthEvent.ShowMessage(
+                                    "发起授权失败：${friendlyDeviceFlowError(result.message)}",
+                                ),
                             )
-                        runPollLoop(challenge)
+                        }
+
+                        is DeviceFlowStartResult.Success -> {
+                            val challenge = result.challenge
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    deviceFlow =
+                                        DeviceFlowUiState.AwaitingAuthorization(
+                                            userCode = challenge.userCode,
+                                            verificationUri = challenge.verificationUri,
+                                            expiresAtMillis =
+                                                System.currentTimeMillis() + challenge.expiresInMillis,
+                                        ),
+                                )
+                            runPollLoop(challenge)
+                        }
                     }
+                } finally {
+                    // 无论成功、失败还是取消都要释放引用：否则一次超时把状态留在 Requesting、
+                    // job 仍 isActive，后续每次点击都会被开头的 isActive 判断拦掉，只能重启应用。
+                    deviceFlowJob = null
                 }
             }
     }
@@ -226,7 +254,12 @@ class AuthViewModel(
                 is DeviceFlowPollResult.NetworkError -> {
                     consecutiveErrors++
                     if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                        _uiState.value = _uiState.value.copy(deviceFlow = DeviceFlowUiState.Idle)
+                        // 轮询连续失败同样是"网络走不通"，一并引导去 Token 卡。
+                        _uiState.value =
+                            _uiState.value.copy(
+                                deviceFlow = DeviceFlowUiState.Idle,
+                                suggestTokenLogin = true,
+                            )
                         _events.trySend(
                             AuthEvent.ShowMessage(
                                 "网络异常，授权已中止：${friendlyDeviceFlowError(result.message)}",
@@ -325,7 +358,8 @@ internal fun friendlyDeviceFlowError(raw: String): String {
     return when {
         "timeout" in lower ->
             "网络连接超时：直连 github.com 无响应。请切换网络（WiFi ↔ 流量）、开启代理，" +
-                "或稍后重试（github.com 在国内间歇可达）"
+                "或改用 Token 登录（Token 走 api.github.com，通常可达）；" +
+                "github.com 在国内间歇可达"
 
         listOf("unable to resolve", "unknownhost", "no address").any { it in lower } ->
             "域名解析失败：当前网络无法访问 github.com。请切换网络或开启代理后重试"

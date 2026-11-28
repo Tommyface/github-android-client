@@ -22,7 +22,12 @@ import kotlinx.coroutines.delay
  * 由 AuthRepositoryImpl.signInWithOAuth 承担。
  *
  * start 阶段对传输层异常自动重试：直连 github.com 在国内常超时/被重置，
- * 单发请求一次失败即中止体验太差，故退避重试至多 3 次（2s、4s）。
+ * 单发请求一次失败即中止体验太差，故退避重试。
+ *
+ * 重试预算（v0.19.3 起）：`MAX_START_ATTEMPTS = 2` × 12s 请求超时 + 2s 退避 ≈ **26 秒**。
+ * 之前是 3 × 30s + 6s ≈ 96 秒，而界面在 Requesting 态期间只有转圈、不能取消，
+ * 观感就是"一直卡在获取授权码"。缩短预算比多试一次更有用：github.com 若被阻断，
+ * 第 3 次也照样失败，只是让用户多等一分钟。
  */
 class OAuthDeviceFlowRepositoryImpl(
     private val api: GitHubOAuthApi,
@@ -100,10 +105,16 @@ class OAuthDeviceFlowRepositoryImpl(
     private companion object {
         const val MILLIS_PER_SECOND = 1000L
 
-        /** start 阶段最大尝试次数（首用 + 2 次重试）。 */
-        const val MAX_START_ATTEMPTS = 3
+        /**
+         * start 阶段最大尝试次数（首次 + 1 次重试）。
+         *
+         * 必须与 [RETRY_BACKOFF_MILLIS] 一起算预算：2 × 12s 请求超时 + 2s 退避 ≈ 26 秒，
+         * 与登录页 Requesting 态标注的「最长约 26 秒」一致。这个数字是给用户看的承诺，
+         * 改这里就要同步改文案（`LoginScreen` 的 Requesting 分支），否则又变回"谎报预算"。
+         */
+        const val MAX_START_ATTEMPTS = 2
 
-        /** 重试退避基数：第 2 次尝试前等 2s，第 3 次前等 4s。 */
+        /** 重试退避基数：只有一次重试，即第 2 次尝试前等 2s。 */
         const val RETRY_BACKOFF_MILLIS = 2_000L
 
         /** API 层约定：-1 为网络传输异常（可重试），-2 为响应解析失败。 */

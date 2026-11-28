@@ -188,11 +188,13 @@ class GitHubApiClientResilienceTest {
                 }
 
             assertTrue(result is NetworkResult.Success)
-            val page = (result as NetworkResult.Success).data
-            assertEquals(2, page.items.size)
-            assertEquals("""{"n":1}""", page.items[0])
-            assertEquals("""{"n":2}""", page.items[1])
-            assertEquals("Link 头没有 next 时不应标截断", false, page.truncated)
+            // 变量名不能叫 page：同一个用例里已有 `var page = 0` 做页计数器，
+            // 同名会报 Conflicting declarations（CI 已踩过）。
+            val pageResult = (result as NetworkResult.Success).data
+            assertEquals(2, pageResult.items.size)
+            assertEquals("""{"n":1}""", pageResult.items[0])
+            assertEquals("""{"n":2}""", pageResult.items[1])
+            assertEquals("Link 头没有 next 时不应标截断", false, pageResult.truncated)
         }
 
     @Test

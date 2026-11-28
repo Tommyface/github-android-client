@@ -28,6 +28,12 @@
     <string name="repo_settings_delete_typed_hint">请输入仓库名以确认删除</string>
     <string name="repo_settings_deleted">仓库已删除</string>
     <string name="repo_settings_saved">设置已保存</string>
+    <string name="repo_settings_confirm_title">确认变更仓库状态</string>
+    <string name="repo_settings_confirm_visibility">可见性将从「%1$s」变为「%2$s」：匿名访问与搜索结果会立即按新状态生效。</string>
+    <string name="repo_settings_confirm_archive">仓库将变为「已归档」：立即转为只读，不能再提交、推送或新建 Issue / Release。</string>
+    <string name="repo_settings_confirm_unarchive">仓库将「取消归档」：重新变为可写，提交与新建 Issue / Release 恢复可用。</string>
+    <string name="repo_settings_confirm_reversible">此变更可撤销：再改回原状态即可恢复。</string>
+    <string name="repo_settings_confirm_action">确认变更</string>
 
     <!-- 新建仓库 -->
     <string name="create_repo_title">新建仓库</string>

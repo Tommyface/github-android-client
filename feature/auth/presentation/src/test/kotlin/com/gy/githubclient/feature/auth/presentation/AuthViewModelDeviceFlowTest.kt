@@ -236,6 +236,58 @@ class AuthViewModelDeviceFlowTest {
 
             assertEquals(DeviceFlowUiState.Idle, viewModel.uiState.value.deviceFlow)
             assertEquals(null, authRepo.oauthTokenReceived)
+            // 轮询连续失败 = 网络走不通：必须引导去 Token 卡，而不是只留一句提示。
+            assertTrue("轮询中止应引导改用 Token", viewModel.uiState.value.suggestTokenLogin)
+        }
+
+    @Test
+    fun startFailureSuggestsTokenLogin() =
+        runTest(dispatcher) {
+            // 真机反馈的形态：POST github.com/login/device/code 超时 → 发起阶段就失败。
+            // 期望：状态回到 Idle（可再次点击）、给出可见错误、并把用户引导到 Token 卡。
+            val authRepo = StubAuthRepository()
+            val deviceRepo =
+                FakeDeviceFlowRepository(
+                    DeviceFlowStartResult.Error("[-1] timeout"),
+                    emptyList(),
+                )
+            val viewModel = buildViewModel(authRepo, deviceRepo)
+            val events = mutableListOf<AuthEvent>()
+            backgroundScope.launch { viewModel.events.collect { events.add(it) } }
+
+            viewModel.beginDeviceFlow()
+            advanceUntilIdle()
+
+            assertEquals(DeviceFlowUiState.Idle, viewModel.uiState.value.deviceFlow)
+            assertTrue("发起失败应引导改用 Token", viewModel.uiState.value.suggestTokenLogin)
+            assertTrue(
+                "发起失败必须给出可见错误",
+                events.any { it is AuthEvent.ShowMessage },
+            )
+            assertEquals("发起失败不应误登", null, authRepo.oauthTokenReceived)
+        }
+
+    @Test
+    fun typingTokenClearsSuggestion() =
+        runTest(dispatcher) {
+            val authRepo = StubAuthRepository()
+            val deviceRepo =
+                FakeDeviceFlowRepository(
+                    DeviceFlowStartResult.Error("[-1] timeout"),
+                    emptyList(),
+                )
+            val viewModel = buildViewModel(authRepo, deviceRepo)
+            backgroundScope.launch { viewModel.events.collect { } }
+
+            viewModel.beginDeviceFlow()
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value.suggestTokenLogin)
+
+            viewModel.onPrimaryTokenChange("github_pat_x")
+            assertTrue(
+                "用户开始粘贴后提示应退场，不能一直挂着红字",
+                !viewModel.uiState.value.suggestTokenLogin,
+            )
         }
 
     @Test

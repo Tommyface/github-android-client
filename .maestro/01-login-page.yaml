@@ -1,24 +1,30 @@
-# 冷装首次启动：登录页三条主路径必须都在。
-# 覆盖：Device Flow 入口 / PAT 主通道 / 通知通道绑定（watch 端点独立 token）。
+# 冷装首次启动：登录页三条主路径必须都在，且**可达的通道排在第一屏**。
+# 覆盖：Token 登录（主通道，走 api.github.com）/ 授权码登录（Device Flow，走 github.com）/ 通知通道绑定。
 #
 # 断言来源（逐条取自 feature/auth/.../LoginScreen.kt，不是猜的）：
-#   "使用 GitHub 账号登录"              → Device Flow 卡片 Idle 态按钮
-#   "主通道 · Fine-grained Token（备用）"  → PAT 卡片标题
-#   "github_pat_..."                   → PAT 输入框 label
-#   "通知通道 · Classic Token（可选）"     → 通知卡片标题
-#   "ghp_..."                          → 通知输入框 label
-#   "绑定通知通道"                       → 通知卡片按钮
+#   "GitHub 账号登录 · Token（推荐）"                    → Token 卡片标题（第一张卡）
+#   "github_pat_..."                                  → Token 输入框 label
+#   "发起授权码登录"                                     → Device Flow 卡片 Idle 态按钮
+#   "通知通道 · Classic Token（可选）"                     → 通知卡片标题
+#   "ghp_..."                                         → 通知输入框 label
+#   "绑定通知通道"                                       → 通知卡片按钮
+#
+# v0.19.3 变更：Token 卡与 Device Flow 卡调换了顺序（真机反馈"点账号登录一直卡在
+# 获取授权码"，而 Device Flow 的 github.com 端点在国内常不可达），断言随之更新。
 #
 # Maestro 的 text 选择器是**全匹配正则**：label 里的 "." 本身就会当通配符，
 # 这里显式写成 `.*` 包裹，避免"看着像转义、其实没转"的误读。
-# 登录页内容超过一屏时可滚动到达（本次一并给 LoginScreen 补了 verticalScroll）。
+# 登录页内容超过一屏时可滚动到达（LoginScreen 根容器有 verticalScroll）。
 appId: com.gy.githubclient
 ---
 - launchApp:
     clearState: true
-- assertVisible: "使用 GitHub 账号登录"
-- assertVisible: "主通道 · Fine-grained Token（备用）"
+- assertVisible: "GitHub 账号登录 · Token（推荐）"
 - assertVisible: '.*github_pat_\.\.\..*'
+- scrollUntilVisible:
+    element:
+      text: "发起授权码登录"
+    direction: DOWN
 - scrollUntilVisible:
     element:
       text: "通知通道 · Classic Token（可选）"

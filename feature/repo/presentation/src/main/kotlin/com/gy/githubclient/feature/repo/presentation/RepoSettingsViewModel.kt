@@ -37,6 +37,7 @@ data class RepoSettingsUiState(
     val isArchived: Boolean = false,
     val savedIsPrivate: Boolean = false,
     val savedIsArchived: Boolean = false,
+    val pendingConfirm: Boolean = false,
     val error: WriteError? = null,
     val success: WriteSuccessKind? = null,
 ) {
@@ -111,17 +112,44 @@ class RepoSettingsViewModel(
     /**
      * 保存设置（简介 / 可见性 / 归档）。
      *
-     * 调用前置：若 [RepoSettingsUiState.needsConfirm] 为真，界面必须先完成二次确认——
-     * 本方法不做校验，直接发 PATCH（数据层仍会把这类变更记为 `dangerous` 留痕）。
+     * 存在危险变更（[RepoSettingsUiState.needsConfirm]）时**不发请求**，只把
+     * [RepoSettingsUiState.pendingConfirm] 置真交给界面弹二次确认；用户确认后由 [confirmSave] 真正提交。
+     * 这样"什么时候必须确认"只有一处判定（VM），界面只按状态渲染。
      */
     fun save(
         owner: String,
         name: String,
     ) {
         if (_uiState.value.saving) return
+        if (_uiState.value.needsConfirm) {
+            _uiState.value = _uiState.value.copy(pendingConfirm = true)
+            return
+        }
+        submit(owner, name)
+    }
+
+    /** 危险变更已由用户确认，真正提交。 */
+    fun confirmSave(
+        owner: String,
+        name: String,
+    ) {
+        if (_uiState.value.saving) return
+        _uiState.value = _uiState.value.copy(pendingConfirm = false)
+        submit(owner, name)
+    }
+
+    /** 用户取消二次确认：丢弃待确认标记，不改任何设置。 */
+    fun dismissConfirm() {
+        _uiState.value = _uiState.value.copy(pendingConfirm = false)
+    }
+
+    private fun submit(
+        owner: String,
+        name: String,
+    ) {
         val current = _uiState.value
         viewModelScope.launch {
-            _uiState.value = current.copy(saving = true, error = null, success = null)
+            _uiState.value = current.copy(saving = true, pendingConfirm = false, error = null, success = null)
             val result =
                 updateSettings(
                     owner = owner,

@@ -55,7 +55,6 @@ fun RepoSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
-    var confirmSave by remember { mutableStateOf(false) }
     var typedInput by remember { mutableStateOf("") }
 
     LaunchedEffect(owner, name) { viewModel.load(owner, name) }
@@ -106,15 +105,7 @@ fun RepoSettingsScreen(
             Switch(checked = uiState.isPrivate, onCheckedChange = viewModel::onPrivateChange)
             Spacer(Modifier.width(8.dp))
             Text(
-                stringResource(R.string.repo_settings_visibility_label) +
-                    "：" +
-                    stringResource(
-                        if (uiState.isPrivate) {
-                            R.string.repo_settings_visibility_private
-                        } else {
-                            R.string.repo_settings_visibility_public
-                        },
-                    ),
+                stringResource(R.string.repo_settings_visibility_label) + "：" + visibilityLabel(uiState.isPrivate),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -139,10 +130,8 @@ fun RepoSettingsScreen(
         Spacer(Modifier.height(16.dp))
 
         Button(
-            onClick = {
-                // 可见性 / 归档是方向性变更（数据层标 dangerous），必须先过二次确认。
-                if (uiState.needsConfirm) confirmSave = true else viewModel.save(owner, name)
-            },
+            // 危险变更（可见性 / 归档）由 VM 拦成 pendingConfirm，界面只按状态弹确认。
+            onClick = { viewModel.save(owner, name) },
             enabled = !uiState.saving && !uiState.deleting,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -176,7 +165,7 @@ fun RepoSettingsScreen(
         }
     }
 
-    if (confirmSave) {
+    if (uiState.pendingConfirm) {
         DangerConfirmSheet(
             request =
                 DangerConfirmRequest(
@@ -184,11 +173,8 @@ fun RepoSettingsScreen(
                     consequences = saveConsequences(uiState),
                     confirmLabel = stringResource(R.string.repo_settings_confirm_action),
                 ),
-            onConfirm = {
-                confirmSave = false
-                viewModel.save(owner, name)
-            },
-            onDismiss = { confirmSave = false },
+            onConfirm = { viewModel.confirmSave(owner, name) },
+            onDismiss = { viewModel.dismissConfirm() },
         )
     }
 

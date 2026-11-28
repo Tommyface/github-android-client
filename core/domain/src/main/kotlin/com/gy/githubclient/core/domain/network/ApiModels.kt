@@ -50,6 +50,23 @@ sealed interface NetworkResult<out T> {
     ) : NetworkResult<Nothing>
 }
 
+/**
+ * 分页结果（T1 分页完整性契约）。
+ *
+ * 为什么不直接返回 `List<T>`：GitHub 的分页边界由服务端决定，客户端只能靠
+ * `Link: rel="next"` 判断「后面还有」。原来的 `requestAllPages` 撞上 `maxPages`
+ * 就静默停止并返回一个普通 List —— 调用方无法区分「数据本来就这么少」与
+ * 「被我们截断了」，于是「只看到前 500 条」在界面上没有任何痕迹。
+ *
+ * [truncated] = true 表示 `Link` 头还有下一页但已达页数上限；[nextPath] 是那一页的
+ * 相对路径，调用方可据此续拉（"加载更多"）。
+ */
+data class PageResult<T>(
+    val items: List<T>,
+    val truncated: Boolean,
+    val nextPath: String? = null,
+)
+
 /** 条件请求结果：拿到新数据，或 304 未修改（可复用本地缓存，不消耗 API 额度）。 */
 sealed interface Conditional<out T> {
     data class Data<T>(

@@ -7,10 +7,10 @@ package com.gy.githubclient.update
 
 import android.content.Context
 import com.gy.githubclient.BuildConfig
+import com.gy.githubclient.core.data.network.GitHubEndpoints
+import com.gy.githubclient.core.data.network.GitHubHttpClientFactory
 import com.gy.githubclient.core.data.network.GitHubJson
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.HttpResponse
@@ -83,6 +83,8 @@ class UpdateChecker(
     private val context: Context,
     private val repoOwner: String = REPO_OWNER,
     private val repoName: String = REPO_NAME,
+    /** REST 基址：不再写死在业务路径里，测试与镜像/代理场景可注入。 */
+    private val baseUrl: String = GitHubEndpoints.API_BASE_URL,
 ) {
     /** 一次检查得到的新版本信息（仅远程严格高于本地时返回）。 */
     data class UpdateInfo(
@@ -100,15 +102,8 @@ class UpdateChecker(
     @Suppress("TooGenericExceptionCaught")
     suspend fun check(includePrerelease: Boolean = false): UpdateInfo? =
         try {
-            val client =
-                HttpClient(OkHttp) {
-                    install(HttpTimeout) {
-                        connectTimeoutMillis = 15_000
-                        socketTimeoutMillis = 30_000
-                        requestTimeoutMillis = 30_000
-                    }
-                }
-            client.use { http -> checkWith(http, includePrerelease) }
+            // 统一工厂（T3）：与主 API client 共用一套超时约定，不再自带一份。
+            GitHubHttpClientFactory.create().use { http -> checkWith(http, includePrerelease) }
         } catch (t: Exception) {
             null // 更新检查失败不影响任何主流程
         }
@@ -137,9 +132,9 @@ class UpdateChecker(
     /** 预发布开关开时改用列表端点（/releases/latest 永不含 prerelease）。 */
     private fun releasesPath(includePrerelease: Boolean) =
         if (includePrerelease) {
-            "https://api.github.com/repos/$repoOwner/$repoName/releases?per_page=$PRERELEASE_SCAN_PAGE"
+            "$baseUrl/repos/$repoOwner/$repoName/releases?per_page=$PRERELEASE_SCAN_PAGE"
         } else {
-            "https://api.github.com/repos/$repoOwner/$repoName/releases/latest"
+            "$baseUrl/repos/$repoOwner/$repoName/releases/latest"
         }
 
     private suspend fun mapOkResponse(

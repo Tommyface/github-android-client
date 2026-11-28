@@ -5,6 +5,8 @@
 
 package com.gy.githubclient.feature.auth.data.di
 
+import com.gy.githubclient.core.data.network.GitHubHttpClientFactory
+import com.gy.githubclient.core.data.network.NetworkConfig
 import com.gy.githubclient.core.domain.network.AuthTokenProvider
 import com.gy.githubclient.feature.auth.data.AuthRepositoryImpl
 import com.gy.githubclient.feature.auth.data.AuthTokenProviderImpl
@@ -28,11 +30,6 @@ import com.gy.githubclient.feature.auth.domain.usecase.SignInWithPatUseCase
 import com.gy.githubclient.feature.auth.domain.usecase.SignOutUseCase
 import com.gy.githubclient.feature.auth.domain.usecase.StartDeviceFlowUseCase
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -41,24 +38,10 @@ val authDataModule =
     module {
         single { SecureTokenStore(androidContext()) }
 
-        // 认证专用 client：不注入 token（token 按调用显式传入以校验），仅统一 JSON 解析。
+        // 认证专用 client：不注入 token（token 按调用显式传入以校验）。
+        // 超时与 JSON 配置走统一工厂（T3），不再在本模块重复一遍。
         single {
-            HttpClient(OkHttp) {
-                install(ContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        },
-                    )
-                }
-                // 国内直连 api.github.com 可能很慢或无响应，显式超时避免登录请求长期挂起。
-                install(HttpTimeout) {
-                    connectTimeoutMillis = 15_000
-                    socketTimeoutMillis = 30_000
-                    requestTimeoutMillis = 30_000
-                }
-            }
+            GitHubHttpClientFactory.create(NetworkConfig(installJson = true))
         }
 
         single { GitHubAuthApi(get<HttpClient>()) }

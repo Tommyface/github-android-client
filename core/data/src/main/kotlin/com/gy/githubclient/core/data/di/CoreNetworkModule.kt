@@ -6,14 +6,10 @@
 package com.gy.githubclient.core.data.di
 
 import com.gy.githubclient.core.data.network.GitHubApiClient
+import com.gy.githubclient.core.data.network.GitHubHttpClientFactory
+import com.gy.githubclient.core.data.network.NetworkConfig
 import com.gy.githubclient.core.domain.network.AuthTokenProvider
 import com.gy.githubclient.core.mutation.AuditSink
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -21,23 +17,8 @@ import org.koin.dsl.module
 val coreNetworkModule =
     module {
         single(named(API_HTTP_CLIENT)) {
-            HttpClient(OkHttp) {
-                // 关闭「非 2xx 抛异常」，统一交给 GitHubApiClient 映射 ApiError。
-                expectSuccess = false
-                install(ContentNegotiation) {
-                    json(
-                        Json {
-                            ignoreUnknownKeys = true
-                            isLenient = true
-                        },
-                    )
-                }
-                install(HttpTimeout) {
-                    connectTimeoutMillis = 15_000
-                    socketTimeoutMillis = 30_000
-                    requestTimeoutMillis = 30_000
-                }
-            }
+            // 统一工厂（T3）：expectSuccess / 超时 / JSON 只在这里定义一次，不再各模块自建。
+            GitHubHttpClientFactory.create(NetworkConfig(installJson = true))
         }
 
         single<GitHubApiClient> {

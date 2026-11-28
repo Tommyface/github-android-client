@@ -5,13 +5,13 @@
 
 package com.gy.githubclient.update
 
+import com.gy.githubclient.core.data.network.GitHubEndpoints
+import com.gy.githubclient.core.data.network.GitHubHttpClientFactory
 import com.gy.githubclient.core.data.network.GitHubJson
 import com.gy.githubclient.core.domain.update.UpdateCandidate
 import com.gy.githubclient.core.domain.update.UpdateCandidateSource
 import com.gy.githubclient.core.domain.update.UpdateChannelMerger
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
@@ -34,6 +34,8 @@ import kotlinx.serialization.builtins.ListSerializer
 class UpdateCandidateSourceImpl(
     private val repoOwner: String = REPO_OWNER,
     private val repoName: String = REPO_NAME,
+    /** REST 基址：业务代码不再写字面量（T3），测试可指向 MockWebServer。 */
+    private val baseUrl: String = GitHubEndpoints.API_BASE_URL,
     private val versionJsonUrl: String = "https://raw.githubusercontent.com/$repoOwner/$repoName/main/version.json",
 ) : UpdateCandidateSource {
     @Suppress("TooGenericExceptionCaught")
@@ -51,7 +53,7 @@ class UpdateCandidateSourceImpl(
         val client = newClient()
         return client.use { http ->
             val response =
-                http.get("https://api.github.com/repos/$repoOwner/$repoName/releases/latest") {
+                http.get("$baseUrl/repos/$repoOwner/$repoName/releases/latest") {
                     headers {
                         append(HttpHeaders.Accept, "application/vnd.github+json")
                         append(API_VERSION_HEADER, API_VERSION)
@@ -73,14 +75,7 @@ class UpdateCandidateSourceImpl(
         }
     }
 
-    private fun newClient(): HttpClient =
-        HttpClient(OkHttp) {
-            install(HttpTimeout) {
-                connectTimeoutMillis = 15_000
-                socketTimeoutMillis = 30_000
-                requestTimeoutMillis = 30_000
-            }
-        }
+    private fun newClient(): HttpClient = GitHubHttpClientFactory.create()
 
     private companion object {
         const val API_VERSION_HEADER = "X-GitHub-Api-Version"

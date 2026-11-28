@@ -7,6 +7,8 @@ package com.gy.githubclient.feature.download.data.di
 
 import androidx.room.Room
 import com.gy.githubclient.core.data.mirror.MirrorLatencyProbeImpl
+import com.gy.githubclient.core.data.network.GitHubHttpClientFactory
+import com.gy.githubclient.core.data.network.NetworkConfig
 import com.gy.githubclient.core.domain.network.Downloader
 import com.gy.githubclient.core.domain.network.MirrorLatencyProbe
 import com.gy.githubclient.core.domain.repository.MirrorRepository
@@ -30,7 +32,6 @@ import com.gy.githubclient.feature.download.domain.usecase.RemoveDownloadUseCase
 import com.gy.githubclient.feature.download.domain.usecase.RetryDownloadUseCase
 import com.gy.githubclient.feature.download.domain.usecase.SetMirrorPreferenceUseCase
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
 import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
@@ -51,8 +52,17 @@ val downloadDataModule =
 
         single { DownloadFileStore(androidContext()) }
 
-        // 镜像测速专用 Ktor client（无 token，短超时），与 core 的 API client（带 qualifier）隔离。
-        single { HttpClient(OkHttp) { expectSuccess = false } }
+        // 镜像测速专用 client：无 token、**不设默认超时**（测速自己 per-request 设 timeout），
+        // 与 core 的 API client（带 qualifier）隔离；构造走统一工厂（T3）。
+        single {
+            GitHubHttpClientFactory.create(
+                NetworkConfig(
+                    connectTimeoutMillis = null,
+                    socketTimeoutMillis = null,
+                    requestTimeoutMillis = null,
+                ),
+            )
+        }
 
         single<MirrorLatencyProbe> { MirrorLatencyProbeImpl(get<HttpClient>()) }
 

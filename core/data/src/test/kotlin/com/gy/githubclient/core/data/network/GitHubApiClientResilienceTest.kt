@@ -20,6 +20,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -182,14 +183,16 @@ class GitHubApiClientResilienceTest {
 
             val result =
                 client.requestAllPages(path = "/items") { response ->
-                    response.bodyAsString()
+                    // 一页一个元素：requestAllPages 现在收「一页的元素列表」，内部扁平拼接。
+                    listOf(response.bodyAsString())
                 }
 
             assertTrue(result is NetworkResult.Success)
-            val data = (result as NetworkResult.Success).data
-            assertEquals(2, data.size)
-            assertEquals("""{"n":1}""", data[0])
-            assertEquals("""{"n":2}""", data[1])
+            val page = (result as NetworkResult.Success).data
+            assertEquals(2, page.items.size)
+            assertEquals("""{"n":1}""", page.items[0])
+            assertEquals("""{"n":2}""", page.items[1])
+            assertEquals("Link 头没有 next 时不应标截断", false, page.truncated)
         }
 
     @Test
@@ -214,7 +217,7 @@ class GitHubApiClientResilienceTest {
                 }
             val client = buildClient(engine)
 
-            val result = client.requestAllPages(path = "/items") { it.bodyAsString() }
+            val result = client.requestAllPages(path = "/items") { listOf(it.bodyAsString()) }
 
             assertTrue("单页失败应整体失败，而不是静默截断", result is NetworkResult.Failure)
         }
@@ -238,11 +241,48 @@ class GitHubApiClientResilienceTest {
             val client = buildClient(engine)
 
             val result =
-                client.requestAllPages(path = "/items", maxPages = 3) { it.bodyAsString() }
+                client.requestAllPages(path = "/items", maxPages = 3) { listOf(it.bodyAsString()) }
 
-            val data = (result as NetworkResult.Success).data
-            assertEquals("最多取 3 页", 3, data.size)
+            val pageResult = (result as NetworkResult.Success).data
+            assertEquals("最多取 3 页", 3, pageResult.items.size)
             assertEquals(3, page)
+            // 第 3 页之后仍有 next → 必须标截断，否则调用方会以为"这就是全部"。
+            assertTrue("达到 maxPages 且仍有下一页时必须标 truncated", pageResult.truncated)
+            assertNotNull(pageResult.nextPath)
+        }
+
+    @Test
+    fun requestAllPagesReportsTruncationAtDefaultMaxPages() =
+        runTest {
+            // 规范里的验收口径：6 页 × 100 条，默认上限 DEFAULT_MAX_PAGES = 5
+            // → items 500 条 + truncated=true。修复前这个方法返回普通 List，
+            // 调用方完全拿不到"还差一页"这个事实。
+            var page = 0
+            val engine =
+                MockEngine {
+                    page++
+                    respond(
+                        "[]",
+                        HttpStatusCode.OK,
+                        headersOf(
+                            HttpHeaders.Link,
+                            """<https://api.github.com/items?page=${page + 1}>; rel="next"""",
+                        ),
+                    )
+                }
+            val client = buildClient(engine)
+
+            val result =
+                client.requestAllPages(path = "/items") { List(100) { index -> "item-$index" } }
+
+            val pageResult = (result as NetworkResult.Success).data
+            assertEquals("5 页 × 100 条 = 500", 500, pageResult.items.size)
+            assertEquals("第 5 页后就该停（DEFAULT_MAX_PAGES）", 5, page)
+            assertTrue(pageResult.truncated)
+            assertTrue(
+                "nextPath 应指向未取的第 6 页",
+                pageResult.nextPath?.contains("page=6") == true,
+            )
         }
 
     // ── 辅助 ────────────────────────────────────────────────────────

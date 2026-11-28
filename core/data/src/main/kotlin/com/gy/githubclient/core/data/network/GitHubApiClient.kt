@@ -10,6 +10,7 @@ import com.gy.githubclient.core.domain.network.ApiError
 import com.gy.githubclient.core.domain.network.AuthTokenProvider
 import com.gy.githubclient.core.domain.network.Conditional
 import com.gy.githubclient.core.domain.network.NetworkResult
+import com.gy.githubclient.core.domain.network.PageResult
 import com.gy.githubclient.core.mutation.AuditSink
 import com.gy.githubclient.core.mutation.FieldError
 import com.gy.githubclient.core.mutation.GitHubErrorPayload
@@ -109,18 +110,23 @@ class GitHubApiClient(
         )
 
     /**
-     * 分页请求：跟随 `Link` 头的 `rel="next"` 逐页取回并合并（M1-09）。
+     * 分页请求：跟随 `Link` 头的 `rel="next"` 逐页取回并**拼接成扁平元素列表**（M1-09）。
      *
      * - 单页失败即整体失败（不做"部分成功"静默截断，避免用户误以为已看完）；
      * - 最多 [maxPages] 页，防止异常分页导致无限拉取；
-     * - 返回的 list 为各页顺序拼接。
+     * - 返回 [PageResult]：`items` 为各页元素顺序拼接，`truncated=true` 表示 `Link` 头还有
+     *   下一页但已达 [maxPages]，`nextPath` 给出那一页的相对路径供续拉。
+     *
+     * [mapper] 返回的是**一页的元素列表**，不是整页对象。原签名 `(HttpResponse) -> T` 会把
+     * 每页结果整体塞进 list（得到 `List<List<Item>>`），调用方还得自己 flatten —— 这也是它
+     * 上线后一直没人接的原因之一。
      */
     suspend fun <T> requestAllPages(
         path: String,
         channel: ApiChannel = ApiChannel.PRIMARY,
         maxPages: Int = DEFAULT_MAX_PAGES,
-        mapper: suspend (HttpResponse) -> T,
-    ): NetworkResult<List<T>> {
+        mapper: suspend (HttpResponse) -> List<T>,
+    ): NetworkResult<PageResult<T>> {
         val collected = mutableListOf<T>()
         var nextPath: String? = path
         var pages = 0
@@ -136,12 +142,20 @@ class GitHubApiClient(
                 }
             when (result) {
                 is NetworkResult.Failure -> return NetworkResult.Failure(result.error)
-                is NetworkResult.Success -> collected += result.data
+                is NetworkResult.Success -> collected.addAll(result.data)
             }
             nextPath = nextUrl?.let { toRelativePath(it) }
             pages++
         }
-        return NetworkResult.Success(collected)
+        // 循环退出只有两种原因：Link 头没有 next（真的取完了），或撞上 maxPages（被截断）。
+        // 后者必须报给调用方——静默截断正是"只有首屏"的来源。
+        return NetworkResult.Success(
+            PageResult(
+                items = collected,
+                truncated = nextPath != null,
+                nextPath = nextPath,
+            ),
+        )
     }
 
     private suspend fun <T> requestInternal(
